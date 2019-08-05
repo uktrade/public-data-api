@@ -1,3 +1,5 @@
+import signal
+
 from gevent import (
     monkey
 )
@@ -18,4 +20,10 @@ def entry_point():
 
 
 if __name__ == '__main__':
-    WSGIServer(('', 8080), app).serve_forever()
+    server = WSGIServer(('', 8080), app)
+
+    def server_stop(_, __):
+        server.stop()
+    signal.signal(signal.SIGTERM, server_stop)
+
+    server.serve_forever()
