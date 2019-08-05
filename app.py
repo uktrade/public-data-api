@@ -43,7 +43,11 @@ def proxy(path):
             yield chunk
 
     return Response(body_bytes(), headers={
+        'accept-ranges': obj['AcceptRanges'],
         'content-length': obj['ContentLength'],
+        'content-type': obj['ContentType'],
+        'etag': obj['ETag'],
+        'last-modified': obj['LastModified'],
     })
 
 
