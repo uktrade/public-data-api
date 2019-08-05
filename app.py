@@ -33,15 +33,6 @@ s3 = boto3.client(
 bucket = os.environ['AWS_S3_BUCKET']
 app = Flask('app')
 
-proxied_s3_headers = [
-    'accept-ranges',
-    'content-length',
-    'content-type',
-    'date',
-    'etag',
-    'last-modified',
-]
-
 
 @app.route('/<path:path>')
 def proxy(path):
@@ -61,9 +52,12 @@ def proxy(path):
                 yield chunk
 
         headers = {
-            header_key: metadata['HTTPHeaders'][header_key]
-            for header_key in proxied_s3_headers
-            if header_key in metadata['HTTPHeaders']
+            'accept-ranges': metadata['HTTPHeaders']['accept-ranges'],
+            'content-length': metadata['HTTPHeaders']['content-length'],
+            'content-type': metadata['HTTPHeaders']['content-type'],
+            'date': metadata['HTTPHeaders']['date'],
+            'etag': metadata['HTTPHeaders']['etag'],
+            'last-modified': metadata['HTTPHeaders']['last-modified'],
         }
 
     except ClientError as exception:
