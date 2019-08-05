@@ -25,7 +25,7 @@ s3 = boto3.client(
     aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
     aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
     config=Config(signature_version='s3v4'),
-    region_name='us-east-1',
+    region_name=os.environ['AWS_DEFAULT_REGION'],
 )
 bucket = os.environ['AWS_S3_BUCKET']
 app = Flask('app')
