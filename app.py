@@ -1,3 +1,4 @@
+import os
 import signal
 
 from gevent import (
@@ -20,7 +21,7 @@ def entry_point():
 
 
 if __name__ == '__main__':
-    server = WSGIServer(('', 8080), app)
+    server = WSGIServer(('', int(os.environ['PORT'])), app)
 
     def server_stop(_, __):
         server.stop()
