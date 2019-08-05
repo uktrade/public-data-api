@@ -117,6 +117,7 @@ def create_application(
 ):
     process = subprocess.Popen(
         ['python3', 'app.py', ],
+        stderr=subprocess.PIPE,  # Silence logs
         env={
             **os.environ,
             'PORT': str(port),
