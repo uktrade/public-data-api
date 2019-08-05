@@ -18,14 +18,14 @@ class TestS3Proxy(unittest.TestCase):
 
         stop_application()
 
-    def test_root(self):
+    def test_key(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
 
         wait_until_started()
 
-        response = requests.get('http://127.0.0.1:8080/')
-        self.assertEqual(response.content, b'Hello World!')
+        response = requests.get('http://127.0.0.1:8080/some/key')
+        self.assertEqual(response.content, b'some/key')
 
 
 def create_application(port, max_attempts=100):

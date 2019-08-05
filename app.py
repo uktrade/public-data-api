@@ -15,9 +15,9 @@ monkey.patch_all()
 app = Flask('app')
 
 
-@app.route('/')
-def entry_point():
-    return 'Hello World!'
+@app.route('/<path:path>')
+def entry_point(path):
+    return path
 
 
 if __name__ == '__main__':
