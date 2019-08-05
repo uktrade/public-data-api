@@ -3,7 +3,12 @@ import time
 import socket
 import subprocess
 import unittest
+import uuid
 
+import boto3
+from botocore.client import (
+    Config,
+)
 import requests
 
 
@@ -24,8 +29,18 @@ class TestS3Proxy(unittest.TestCase):
 
         wait_until_started()
 
-        response = requests.get('http://127.0.0.1:8080/some/key')
-        self.assertEqual(response.content, b'some/key')
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+
+        client = get_s3_client()
+        client.put_object(
+            Bucket='my-bucket',
+            Key=key,
+            Body=b'some-bytes',
+        )
+
+        response = requests.get(f'http://127.0.0.1:8080/{key}')
+        print(response.content)
+        self.assertEqual(response.content, b'some-bytes')
 
 
 def create_application(port, max_attempts=100):
@@ -34,6 +49,11 @@ def create_application(port, max_attempts=100):
         env={
             **os.environ,
             'PORT': str(port),
+            'AWS_DEFAULT_REGION': 'us-east-1',
+            'AWS_ACCESS_KEY_ID': 'AKIAIOSFODNN7EXAMPLE',
+            'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/',
+            'AWS_S3_BUCKET': 'my-bucket',
         }
     )
 
@@ -52,3 +72,14 @@ def create_application(port, max_attempts=100):
         process.wait(timeout=5)
 
     return wait_until_started, stop
+
+
+def get_s3_client():
+    return boto3.client(
+        's3',
+        endpoint_url='http://127.0.0.1:9000/',
+        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
+        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        config=Config(signature_version='s3v4'),
+        region_name='us-east-1',
+    )
