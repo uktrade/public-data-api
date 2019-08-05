@@ -1,0 +1,42 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: python:3.7.2
+        environment:
+          PRE_COMMIT_HOME: /root/cache/pre-commit
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements_test.txt" }}-{{ checksum ".pre-commit-config.yaml" }}
+          paths:
+            - /root/cache/pip
+            - /root/cache/pre-commit
+            - ./cc-test-reporter
+      - run:
+          name: Install dependencies
+          command: |
+            pip install --cache-dir /root/cache/pip -r requirements_test.txt
+            pre-commit install --install-hooks
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
+      - save_cache:
+          key: v1-dependencies-{{ checksum "requirements_test.txt" }}-{{ checksum ".pre-commit-config.yaml" }}
+          paths:
+            - /root/cache/pip
+            - /root/cache/pre-commit
+            - ./cc-test-reporter
+      - run:
+          name: Run linting
+          command: pre-commit run --all-files
+      - run:
+          name: Run tests
+          command: |
+            set -xu
+            ./cc-test-reporter before-build
+            ./test.sh
+            coverage combine
+            coverage xml
+            ./cc-test-reporter after-build --exit-code $?
