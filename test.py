@@ -43,6 +43,50 @@ class TestS3Proxy(unittest.TestCase):
         self.assertEqual(response.content, content)
         self.assertEqual(response.headers['content-length'], str(len(content)))
 
+    def test_range_request_from_start(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+
+        wait_until_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+
+        client = get_s3_client()
+        client.put_object(
+            Bucket='my-bucket',
+            Key=key,
+            Body=content,
+        )
+
+        response = requests.get(f'http://127.0.0.1:8080/{key}', headers={
+            'range': 'bytes=0-',
+        })
+        self.assertEqual(response.content, content)
+        self.assertEqual(response.headers['content-length'], str(len(content)))
+
+    def test_range_request_after_start(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+
+        wait_until_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+
+        client = get_s3_client()
+        client.put_object(
+            Bucket='my-bucket',
+            Key=key,
+            Body=content,
+        )
+
+        response = requests.get(f'http://127.0.0.1:8080/{key}', headers={
+            'range': 'bytes=1-',
+        })
+        self.assertEqual(response.content, content[1:])
+        self.assertEqual(response.headers['content-length'], str(len(content) - 1))
+
     def test_bad_aws_credentials(self):
         wait_until_started, stop_application = create_application(
             8080, aws_access_key_id='not-exist')

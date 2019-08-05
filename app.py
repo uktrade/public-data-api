@@ -13,6 +13,7 @@ from botocore.exceptions import (
 from flask import (
     Flask,
     Response,
+    request,
 )
 from gevent.pywsgi import (
     WSGIServer,
@@ -45,6 +46,9 @@ def proxy(path):
         obj = s3.get_object(
             Bucket=bucket,
             Key=path,
+            **({
+                'Range': request.headers['range']
+            } if 'range' in request.headers else {})
         )
         metadata = obj['ResponseMetadata']
 
@@ -59,6 +63,9 @@ def proxy(path):
             'date': metadata['HTTPHeaders']['date'],
             'etag': metadata['HTTPHeaders']['etag'],
             'last-modified': metadata['HTTPHeaders']['last-modified'],
+            **({
+                'content-range': metadata['HTTPHeaders']['content-range'],
+            } if 'content-range' in metadata['HTTPHeaders'] else {})
         }
 
     except ClientError as exception:
