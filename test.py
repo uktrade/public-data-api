@@ -33,7 +33,7 @@ def create_application(port, max_attempts=100):
             try:
                 with socket.create_connection(('127.0.0.1', port), timeout=0.1):
                     break
-            except OSError:
+            except ConnectionRefusedError:
                 if i == max_attempts - 1:
                     raise
                 time.sleep(0.01)
