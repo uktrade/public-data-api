@@ -34,6 +34,7 @@ proxied_s3_headers = [
     'accept-ranges',
     'content-length',
     'content-type',
+    'date',
     'etag',
     'last-modified',
 ]
