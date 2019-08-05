@@ -37,9 +37,10 @@ app = Flask('app')
 @app.route('/<path:path>')
 def proxy(path):
     # boto3 uses exceptions for non 200s. We unify the flows to proxy (some)
-    # errors in the same way as success back to the client. We don't proxy
-    # (for example) 403s, since if the request makes it to S3, it should
-    # return an object
+    # errors in the same way as success back to the client. The only client
+    # error that is ever expected is a 404/NoSuchKey, so those are the only
+    # ones we proxy to the client. Other errors are the server's fault, so
+    # we surface as a 500
     try:
         obj = s3.get_object(
             Bucket=bucket,
@@ -62,8 +63,7 @@ def proxy(path):
 
     except ClientError as exception:
         metadata = exception.response['ResponseMetadata']
-        if metadata['HTTPStatusCode'] != 404:
-            # Everything that isn't a 404 is our fault
+        if exception.response['Error']['Code'] != 'NoSuchKey':
             raise
 
         def body_bytes():
