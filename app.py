@@ -71,7 +71,7 @@ def proxy(path):
                 yield
 
         headers = {
-            'content-length': 0,
+            'content-length': '0',
             'date': metadata['HTTPHeaders']['date'],
         }
 
