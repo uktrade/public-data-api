@@ -3,6 +3,8 @@ import socket
 import subprocess
 import unittest
 
+import requests
+
 
 class TestS3Proxy(unittest.TestCase):
 
@@ -10,17 +12,23 @@ class TestS3Proxy(unittest.TestCase):
         stop_application = create_application()
         self.addCleanup(stop_application)
 
+        response = requests.get('http://127.0.0.1:8080/')
+        self.assertEqual(response.content, b'Hello World!')
+
 
 def create_application():
     process = subprocess.Popen(
         ['python3', 'app.py', ]
     )
 
-    for _ in range(0, 10):
+    max_attempts = 100
+    for i in range(0, max_attempts):
         try:
-            with socket.create_connection(('127.0.0.1', 8080), timeout=0.2):
+            with socket.create_connection(('127.0.0.1', 8080), timeout=0.1):
                 break
         except OSError:
+            if i == max_attempts - 1:
+                raise
             time.sleep(0.01)
 
     def stop():
