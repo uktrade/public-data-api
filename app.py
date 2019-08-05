@@ -45,13 +45,14 @@ def proxy(path):
         Bucket=bucket,
         Key=path,
     )
+    metadata = obj['ResponseMetadata']
 
     def body_bytes():
         for chunk in iter(lambda: obj['Body'].read(16384), b''):
             yield chunk
 
     return Response(body_bytes(), headers={
-        header_key: obj['ResponseMetadata']['HTTPHeaders'][header_key]
+        header_key: metadata['HTTPHeaders'][header_key]
         for header_key in returned_header_keys
     })
 
