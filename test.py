@@ -30,17 +30,18 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
 
         client = get_s3_client()
         client.put_object(
             Bucket='my-bucket',
             Key=key,
-            Body=b'some-bytes',
+            Body=content,
         )
 
         response = requests.get(f'http://127.0.0.1:8080/{key}')
-        self.assertEqual(response.content, b'some-bytes')
-        self.assertEqual(response.headers['content-length'], '10')
+        self.assertEqual(response.content, content)
+        self.assertEqual(response.headers['content-length'], str(len(content)))
 
 
 def create_application(port, max_attempts=100):

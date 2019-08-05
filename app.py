@@ -37,7 +37,12 @@ def proxy(path):
         Bucket=bucket,
         Key=path,
     )
-    return Response(obj['Body'].read(), headers={
+
+    def body_bytes():
+        for chunk in iter(lambda: obj['Body'].read(16384), b''):
+            yield chunk
+
+    return Response(body_bytes(), headers={
         'content-length': obj['ContentLength'],
     })
 
