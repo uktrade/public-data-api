@@ -30,7 +30,7 @@ s3 = boto3.client(
 bucket = os.environ['AWS_S3_BUCKET']
 app = Flask('app')
 
-returned_header_keys = [
+proxied_s3_headers = [
     'accept-ranges',
     'content-length',
     'content-type',
@@ -53,7 +53,7 @@ def proxy(path):
 
     return Response(body_bytes(), headers={
         header_key: metadata['HTTPHeaders'][header_key]
-        for header_key in returned_header_keys
+        for header_key in proxied_s3_headers
     })
 
 
