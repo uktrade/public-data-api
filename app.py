@@ -9,6 +9,7 @@ from botocore.client import (
 )
 from flask import (
     Flask,
+    Response,
 )
 from gevent.pywsgi import (
     WSGIServer,
@@ -36,7 +37,9 @@ def proxy(path):
         Bucket=bucket,
         Key=path,
     )
-    return obj['Body'].read()
+    return Response(obj['Body'].read(), headers={
+        'content-length': obj['ContentLength'],
+    })
 
 
 if __name__ == '__main__':

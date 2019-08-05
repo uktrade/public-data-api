@@ -39,8 +39,8 @@ class TestS3Proxy(unittest.TestCase):
         )
 
         response = requests.get(f'http://127.0.0.1:8080/{key}')
-        print(response.content)
         self.assertEqual(response.content, b'some-bytes')
+        self.assertEqual(response.headers['content-length'], '10')
 
 
 def create_application(port, max_attempts=100):
