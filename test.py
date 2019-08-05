@@ -43,6 +43,64 @@ class TestS3Proxy(unittest.TestCase):
         self.assertEqual(response.content, content)
         self.assertEqual(response.headers['content-length'], str(len(content)))
 
+    def test_multiple_concurrent_requests(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+
+        wait_until_started()
+
+        key_1 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        key_2 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content_1 = str(uuid.uuid4()).encode() * 1000000
+        content_2 = str(uuid.uuid4()).encode() * 1000000
+
+        client = get_s3_client()
+        client.put_object(Bucket='my-bucket', Key=key_1, Body=content_1)
+        client.put_object(Bucket='my-bucket', Key=key_2, Body=content_2)
+
+        response_1 = requests.get(f'http://127.0.0.1:8080/{key_1}', stream=True)
+        response_2 = requests.get(f'http://127.0.0.1:8080/{key_2}', stream=True)
+
+        iter_1 = response_1.iter_content(chunk_size=16384)
+        iter_2 = response_2.iter_content(chunk_size=16384)
+
+        response_content_1 = []
+        response_content_2 = []
+
+        num_single = 0
+        num_both = 0
+
+        # We This gives a reasonable guarantee that the server can handle
+        # multiple requests concurrently, and we haven't accidentally added
+        # something blocking
+        while True:
+            try:
+                chunk_1 = next(iter_1)
+            except StopIteration:
+                chunk_1 = b''
+            else:
+                response_content_1.append(chunk_1)
+
+            try:
+                chunk_2 = next(iter_2)
+            except StopIteration:
+                chunk_2 = b''
+            else:
+                response_content_2.append(chunk_2)
+
+            if chunk_1 and chunk_2:
+                num_both += 1
+            else:
+                num_single += 1
+
+            if not chunk_1 and not chunk_2:
+                break
+
+        self.assertEqual(b''.join(response_content_1), content_1)
+        self.assertEqual(b''.join(response_content_2), content_2)
+        self.assertGreater(num_both, 1000)
+        self.assertLess(num_single, 100)
+
     def test_range_request_from_start(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
