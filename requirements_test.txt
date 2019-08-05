@@ -6,11 +6,14 @@
 #
 aspy.yaml==1.3.0          # via pre-commit
 astroid==2.2.5            # via pylint
+boto3==1.9.200
+botocore==1.12.200        # via boto3, s3transfer
 certifi==2019.6.16        # via requests
 cfgv==2.0.1               # via pre-commit
 chardet==3.0.4            # via requests
 click==7.0                # via flask
 coverage==4.5.4
+docutils==0.14            # via botocore
 flask==1.1.1
 gevent==1.4.0
 greenlet==0.4.15          # via gevent
@@ -20,15 +23,18 @@ importlib-metadata==0.19  # via pre-commit
 isort==4.3.21             # via pylint
 itsdangerous==1.1.0       # via flask
 jinja2==2.10.1            # via flask
+jmespath==0.9.4           # via boto3, botocore
 lazy-object-proxy==1.4.1  # via astroid
 markupsafe==1.1.1         # via jinja2
 mccabe==0.6.1             # via pylint
 nodeenv==1.3.3            # via pre-commit
 pre-commit==1.18.0
 pylint==2.3.1
+python-dateutil==2.8.0    # via botocore
 pyyaml==5.1.2             # via aspy.yaml, pre-commit
 requests==2.22.0
-six==1.12.0               # via astroid, cfgv, pre-commit
+s3transfer==0.2.1         # via boto3
+six==1.12.0               # via astroid, cfgv, pre-commit, python-dateutil
 toml==0.10.0              # via pre-commit
 typed-ast==1.4.0          # via astroid
 urllib3==1.25.3
