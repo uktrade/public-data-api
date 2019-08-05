@@ -30,6 +30,14 @@ s3 = boto3.client(
 bucket = os.environ['AWS_S3_BUCKET']
 app = Flask('app')
 
+returned_header_keys = [
+    'accept-ranges',
+    'content-length',
+    'content-type',
+    'etag',
+    'last-modified',
+]
+
 
 @app.route('/<path:path>')
 def proxy(path):
@@ -43,11 +51,8 @@ def proxy(path):
             yield chunk
 
     return Response(body_bytes(), headers={
-        'accept-ranges': obj['AcceptRanges'],
-        'content-length': obj['ContentLength'],
-        'content-type': obj['ContentType'],
-        'etag': obj['ETag'],
-        'last-modified': obj['LastModified'],
+        header_key: obj['ResponseMetadata']['HTTPHeaders'][header_key]
+        for header_key in returned_header_keys
     })
 
 
