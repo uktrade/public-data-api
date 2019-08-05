@@ -9,6 +9,15 @@ import requests
 
 class TestS3Proxy(unittest.TestCase):
 
+    def test_meta_create_application_fails(self):
+        wait_until_started, stop_application = create_application(
+            8080, max_attempts=1)
+
+        with self.assertRaises(ConnectionError):
+            wait_until_started()
+
+        stop_application()
+
     def test_root(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
