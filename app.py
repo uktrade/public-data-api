@@ -7,6 +7,9 @@ import boto3
 from botocore.client import (
     Config,
 )
+from botocore.exceptions import (
+    ClientError,
+)
 from flask import (
     Flask,
     Response,
@@ -42,20 +45,43 @@ proxied_s3_headers = [
 
 @app.route('/<path:path>')
 def proxy(path):
-    obj = s3.get_object(
-        Bucket=bucket,
-        Key=path,
-    )
-    metadata = obj['ResponseMetadata']
+    # boto3 uses exceptions for non 200s. We unify the flows to proxy (some)
+    # errors in the same way as success back to the client. We don't proxy
+    # (for example) 403s, since if the request makes it to S3, it should
+    # return an object
+    try:
+        obj = s3.get_object(
+            Bucket=bucket,
+            Key=path,
+        )
+        metadata = obj['ResponseMetadata']
 
-    def body_bytes():
-        for chunk in iter(lambda: obj['Body'].read(16384), b''):
-            yield chunk
+        def body_bytes():
+            for chunk in iter(lambda: obj['Body'].read(16384), b''):
+                yield chunk
 
-    return Response(body_bytes(), headers={
-        header_key: metadata['HTTPHeaders'][header_key]
-        for header_key in proxied_s3_headers
-    })
+        headers = {
+            header_key: metadata['HTTPHeaders'][header_key]
+            for header_key in proxied_s3_headers
+            if header_key in metadata['HTTPHeaders']
+        }
+
+    except ClientError as exception:
+        metadata = exception.response['ResponseMetadata']
+        if metadata['HTTPStatusCode'] != 404:
+            # Everything that isn't a 404 is our fault
+            raise
+
+        def body_bytes():
+            while False:
+                yield
+
+        headers = {
+            'content-length': 0,
+            'date': metadata['HTTPHeaders']['date'],
+        }
+
+    return Response(body_bytes(), status=metadata['HTTPStatusCode'], headers=headers)
 
 
 if __name__ == '__main__':

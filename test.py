@@ -23,7 +23,7 @@ class TestS3Proxy(unittest.TestCase):
 
         stop_application()
 
-    def test_key(self):
+    def test_key_that_exists(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
 
@@ -43,15 +43,41 @@ class TestS3Proxy(unittest.TestCase):
         self.assertEqual(response.content, content)
         self.assertEqual(response.headers['content-length'], str(len(content)))
 
+    def test_bad_aws_credentials(self):
+        wait_until_started, stop_application = create_application(
+            8080, aws_access_key_id='not-exist')
+        self.addCleanup(stop_application)
 
-def create_application(port, max_attempts=100):
+        wait_until_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+
+        response = requests.get(f'http://127.0.0.1:8080/{key}')
+        self.assertEqual(response.status_code, 500)
+
+    def test_key_that_does_not_exist(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+
+        wait_until_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+
+        response = requests.get(f'http://127.0.0.1:8080/{key}')
+        self.assertEqual(response.status_code, 404)
+
+
+def create_application(
+        port, max_attempts=100,
+        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
+):
     process = subprocess.Popen(
         ['python3', 'app.py', ],
         env={
             **os.environ,
             'PORT': str(port),
             'AWS_DEFAULT_REGION': 'us-east-1',
-            'AWS_ACCESS_KEY_ID': 'AKIAIOSFODNN7EXAMPLE',
+            'AWS_ACCESS_KEY_ID': aws_access_key_id,
             'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/',
             'AWS_S3_BUCKET': 'my-bucket',
