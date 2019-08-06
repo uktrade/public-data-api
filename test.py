@@ -160,6 +160,7 @@ def create_application(
     process = subprocess.Popen(
         ['python3', 'app.py', ],
         stderr=subprocess.PIPE,  # Silence logs
+        stdout=subprocess.PIPE,
         env={
             **os.environ,
             'PORT': str(port),
@@ -184,6 +185,8 @@ def create_application(
     def stop():
         process.terminate()
         process.wait(timeout=5)
+        process.stderr.close()
+        process.stdout.close()
 
     return wait_until_started, stop
 
