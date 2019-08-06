@@ -1,5 +1,6 @@
 -r requirements.in
 
+boto3==1.9.200
 coverage==4.5.4
 pre-commit==1.18.0
 pylint==2.3.1
