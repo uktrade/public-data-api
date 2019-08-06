@@ -3,6 +3,9 @@ from gevent import (
 )
 monkey.patch_all()
 
+import os
+import signal
+
 import boto3
 from botocore.client import (
     Config,
@@ -18,9 +21,6 @@ from flask import (
 from gevent.pywsgi import (
     WSGIServer,
 )
-
-import os
-import signal
 
 
 s3 = boto3.client(
