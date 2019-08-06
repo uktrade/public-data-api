@@ -50,6 +50,20 @@ def proxy(path):
                 'Range': request.headers['range']
             } if 'range' in request.headers else {})
         )
+    except ClientError as exception:
+        metadata = exception.response['ResponseMetadata']
+        if exception.response['Error']['Code'] != 'NoSuchKey':
+            raise
+
+        def body_bytes():
+            while False:
+                yield
+
+        headers = {
+            'content-length': '0',
+            'date': metadata['HTTPHeaders']['date'],
+        }
+    else:
         metadata = obj['ResponseMetadata']
 
         def body_bytes():
@@ -66,20 +80,6 @@ def proxy(path):
             **({
                 'content-range': metadata['HTTPHeaders']['content-range'],
             } if 'content-range' in metadata['HTTPHeaders'] else {})
-        }
-
-    except ClientError as exception:
-        metadata = exception.response['ResponseMetadata']
-        if exception.response['Error']['Code'] != 'NoSuchKey':
-            raise
-
-        def body_bytes():
-            while False:
-                yield
-
-        headers = {
-            'content-length': '0',
-            'date': metadata['HTTPHeaders']['date'],
         }
 
     return Response(body_bytes(), status=metadata['HTTPStatusCode'], headers=headers)
