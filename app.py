@@ -72,14 +72,14 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
     return start, stop
 
 
-def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
-                      service, region, host, method, path, params, body_hash):
+def aws_sigv4_headers(aws_access_key_id, aws_secret_access_key, pre_auth_headers,
+                      service, region_name, host, method, path, params, body_hash):
     algorithm = 'AWS4-HMAC-SHA256'
 
     now = datetime.utcnow()
     amzdate = now.strftime('%Y%m%dT%H%M%SZ')
     datestamp = now.strftime('%Y%m%d')
-    credential_scope = f'{datestamp}/{region}/{service}/aws4_request'
+    credential_scope = f'{datestamp}/{region_name}/{service}/aws4_request'
 
     pre_auth_headers_lower = tuple((
         (header_key.lower(), ' '.join(header_value.split()))
@@ -112,15 +112,15 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
         string_to_sign = f'{algorithm}\n{amzdate}\n{credential_scope}\n' + \
                          hashlib.sha256(canonical_request().encode('ascii')).hexdigest()
 
-        date_key = sign(('AWS4' + secret_access_key).encode('ascii'), datestamp)
-        region_key = sign(date_key, region)
+        date_key = sign(('AWS4' + aws_secret_access_key).encode('ascii'), datestamp)
+        region_key = sign(date_key, region_name)
         service_key = sign(region_key, service)
         request_key = sign(service_key, 'aws4_request')
         return sign(request_key, string_to_sign).hex()
 
     return (
         (b'authorization', (
-            f'{algorithm} Credential={access_key_id}/{credential_scope}, '
+            f'{algorithm} Credential={aws_access_key_id}/{credential_scope}, '
             f'SignedHeaders={signed_headers}, Signature=' + signature()).encode('ascii')
          ),
         (b'x-amz-date', amzdate.encode('ascii')),
