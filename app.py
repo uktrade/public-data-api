@@ -11,7 +11,9 @@ from functools import (
 )
 import hashlib
 import hmac
+import json
 import os
+import secrets
 import signal
 import urllib.parse
 
@@ -19,6 +21,7 @@ from flask import (
     Flask,
     Response,
     request,
+    session,
 )
 from gevent.pywsgi import (
     WSGIServer,
@@ -27,8 +30,9 @@ import requests
 
 
 def proxy_app(
-        sso_url,
-        endpoint_url, aws_access_key_id, aws_secret_access_key, region_name, bucket, port,
+        sso_url, sso_client_id, sso_client_secret,
+        endpoint_url, aws_access_key_id, aws_secret_access_key, region_name, bucket, secret_key,
+        port,
 ):
 
     proxied_request_headers = ['range', ]
@@ -45,17 +49,89 @@ def proxy_app(
         server.stop()
 
     def authenticate_by_sso(f):
+        auth_path = 'o/authorize/'
+        token_path = 'o/token/'
         me_path = 'api/v1/user/me/'
+        grant_type = 'authorization_code'
+        scope = 'read write'
+        response_type = 'code'
+
+        redirect_from_sso_path = '/__redirect_from_sso'
+        session_state_prefix_key = 'sso_state_'
+        session_token_key = 'sso_access_token'
 
         @wraps(f)
         def _authenticate_by_sso(*args, **kwargs):
-            with requests.get(sso_url + me_path) as me_response:
-                code = me_response.status_code
 
-            return \
-                f(*args, **kwargs) if code == 200 else \
-                Response(status=403) if code == 403 else \
-                Response(status=500)
+            def get_callback_uri():
+                return request.url_root + redirect_from_sso_path[1:]
+
+            def redirect_to_sso():
+                callback_uri = urllib.parse.quote(get_callback_uri(), safe='')
+
+                state = secrets.token_hex(32)
+                final_uri = request.url
+                session.clear()
+                session[f'{session_state_prefix_key}{state}'] = final_uri
+
+                redirect_to = f'{sso_url}{auth_path}?' \
+                    f'scope={scope}&state={state}&' \
+                    f'redirect_uri={callback_uri}&' \
+                    f'response_type={response_type}&' \
+                    f'client_id={sso_client_id}'
+
+                return Response(status=302, headers={'location': redirect_to})
+
+            def redirect_to_final():
+                try:
+                    code = request.args['code']
+                    state = request.args['state']
+                    final_uri = session[f'{session_state_prefix_key}{state}']
+                except KeyError:
+                    return Response(b'', 403)
+
+                with requests.post(f'{sso_url}{token_path}',
+                                   data={
+                                       'grant_type': grant_type,
+                                       'code': code,
+                                       'client_id': sso_client_id,
+                                       'client_secret': sso_client_secret,
+                                       'redirect_uri': get_callback_uri(),
+                                   },
+                                   ) as response:
+                    content = response.content
+                if response.status_code == 200:
+                    token = json.loads(content)['access_token']
+                    session.clear()
+                    session[session_token_key] = token
+                    return Response(status=302, headers={'location': final_uri})
+
+                if response.status_code == 403:
+                    return Response(b'', 403)
+
+                return Response(b'', 500)
+
+            def get_token_code(token):
+                with requests.get(f'{sso_url}{me_path}', headers={
+                        'authorization': f'Bearer {token}'
+                }) as response:
+                    return response.status_code
+
+            if request.path == redirect_from_sso_path:
+                return redirect_to_final()
+
+            token = session.get(session_token_key, None)
+            if token is None:
+                return redirect_to_sso()
+
+            token_code = get_token_code(token)
+            if token_code == 403:
+                return redirect_to_sso()
+
+            if token_code == 200:
+                return f(*args, **kwargs)
+
+            return Response(b'', 500)
 
         return _authenticate_by_sso
 
@@ -154,6 +230,9 @@ def proxy_app(
 
     app = Flask('app')
     app.add_url_rule('/<path:path>', view_func=proxy)
+    app.config.from_mapping({
+        'SECRET_KEY': secret_key,
+    })
     server = WSGIServer(('', port), app)
 
     return start, stop
@@ -162,11 +241,14 @@ def proxy_app(
 def main():
     start, stop = proxy_app(
         os.environ['SSO_URL'],
+        os.environ['SSO_CLIENT_ID'],
+        os.environ['SSO_CLIENT_SECRET'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_ACCESS_KEY_ID'],
         os.environ['AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_DEFAULT_REGION'],
         os.environ['AWS_S3_BUCKET'],
+        os.environ['SECRET_KEY'],
         int(os.environ['PORT']),
     )
 
