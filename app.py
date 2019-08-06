@@ -6,6 +6,9 @@ monkey.patch_all()
 from datetime import (
     datetime,
 )
+from functools import (
+    wraps,
+)
 import hashlib
 import hmac
 import os
@@ -23,7 +26,10 @@ from gevent.pywsgi import (
 import requests
 
 
-def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_name, bucket, port):
+def proxy_app(
+        sso_url,
+        endpoint_url, aws_access_key_id, aws_secret_access_key, region_name, bucket, port,
+):
 
     proxied_request_headers = ['range', ]
     proxied_response_codes = [200, 206, 404, ]
@@ -38,6 +44,22 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
     def stop():
         server.stop()
 
+    def authenticate_by_sso(f):
+        me_path = 'api/v1/user/me/'
+
+        @wraps(f)
+        def _authenticate_by_sso(*args, **kwargs):
+            with requests.get(sso_url + me_path) as me_response:
+                code = me_response.status_code
+
+            return \
+                f(*args, **kwargs) if code == 200 else \
+                Response(status=403) if code == 403 else \
+                Response(status=500)
+
+        return _authenticate_by_sso
+
+    @authenticate_by_sso
     def proxy(path):
         url = endpoint_url + bucket + '/' + path
         body_hash = hashlib.sha256(b'').hexdigest()
@@ -139,6 +161,7 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
 
 def main():
     start, stop = proxy_app(
+        os.environ['SSO_URL'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_ACCESS_KEY_ID'],
         os.environ['AWS_SECRET_ACCESS_KEY'],

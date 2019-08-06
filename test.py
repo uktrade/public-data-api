@@ -3,14 +3,23 @@ from datetime import (
 )
 import hashlib
 import hmac
+from multiprocessing import (
+    Process,
+)
 import os
+import sys
 import time
+import signal
 import socket
 import subprocess
 import unittest
 import urllib.parse
 import uuid
 
+from flask import (
+    Flask,
+    Response,
+)
 import requests
 
 
@@ -25,7 +34,31 @@ class TestS3Proxy(unittest.TestCase):
 
         stop_application()
 
+    def test_meta_sso_fails(self):
+        wait_until_sso_started, stop_sso = create_sso(max_attempts=1)
+
+        with self.assertRaises(ConnectionError):
+            wait_until_sso_started()
+
+        stop_sso()
+
     def test_key_that_exists(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        with requests.get(f'http://127.0.0.1:8080/{key}') as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+
+    def test_key_that_exists_no_sso_started_returns_500(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
 
@@ -36,14 +69,49 @@ class TestS3Proxy(unittest.TestCase):
         put_object(key, content)
 
         with requests.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, content)
-            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertIn(b'500 Internal Server Error', response.content)
+            self.assertNotIn(content, response.content)
+            self.assertEqual(response.status_code, 500)
+
+    def test_key_that_exists_no_sso_perms_returns_403(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso(me_response_code=403)
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        with requests.get(f'http://127.0.0.1:8080/{key}') as response:
+            self.assertEqual(response.content, b'')
+            self.assertEqual(response.status_code, 403)
+
+    def test_key_that_exists_no_sso_404_returns_500(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso(me_response_code=404)
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        with requests.get(f'http://127.0.0.1:8080/{key}') as response:
+            self.assertEqual(response.content, b'')
+            self.assertEqual(response.status_code, 500)
 
     def test_multiple_concurrent_requests(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
-
         wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
 
         key_1 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         key_2 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
@@ -100,8 +168,10 @@ class TestS3Proxy(unittest.TestCase):
     def test_range_request_from_start(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
-
         wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -116,8 +186,10 @@ class TestS3Proxy(unittest.TestCase):
     def test_range_request_after_start(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
-
         wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -133,8 +205,10 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(
             8080, aws_access_key_id='not-exist')
         self.addCleanup(stop_application)
-
         wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
@@ -144,8 +218,10 @@ class TestS3Proxy(unittest.TestCase):
     def test_key_that_does_not_exist(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
-
         wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
@@ -164,6 +240,7 @@ def create_application(
         env={
             **os.environ,
             'PORT': str(port),
+            'SSO_URL': 'http://127.0.0.1:8081/',
             'AWS_DEFAULT_REGION': 'us-east-1',
             'AWS_ACCESS_KEY_ID': aws_access_key_id,
             'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -258,3 +335,46 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
         (b'x-amz-date', amzdate.encode('ascii')),
         (b'x-amz-content-sha256', body_hash.encode('ascii')),
     ) + pre_auth_headers
+
+
+def create_sso(max_attempts=100, me_response_code=200):
+    # Mock SSO in a different process to not block tests
+
+    def start():
+        os.environ['FLASK_ENV'] = 'development'  # Avoid warning about this not a prod server
+        app = Flask('app')
+        app.add_url_rule('/api/v1/user/me/', view_func=handle_me)
+
+        def _stop(_, __):
+            sys.exit()
+
+        signal.signal(signal.SIGTERM, _stop)
+
+        try:
+            app.run(host='', port=8081, debug=False)
+        except SystemExit:
+            # app.run doesn't seem to have a good way of killing the server,
+            # and want to exit cleanly for code coverage
+            pass
+
+    def wait_until_connected():
+        for i in range(0, max_attempts):
+            try:
+                with socket.create_connection(('127.0.0.1', 8081), timeout=0.1):
+                    break
+            except ConnectionRefusedError:
+                if i == max_attempts - 1:
+                    raise
+                time.sleep(0.01)
+
+    def stop():
+        process.terminate()
+        process.join()
+
+    def handle_me():
+        return Response(b'', status=me_response_code)
+
+    process = Process(target=start)
+    process.start()
+
+    return wait_until_connected, stop
