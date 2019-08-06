@@ -23,7 +23,7 @@ from gevent.pywsgi import (
 )
 
 
-def proxy_app():
+def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_name, bucket, port):
 
     def start():
         server.serve_forever()
@@ -81,22 +81,29 @@ def proxy_app():
 
     s3 = boto3.client(
         's3',
-        endpoint_url=os.environ['AWS_S3_ENDPOINT'],
-        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
+        endpoint_url=endpoint_url,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
         config=Config(signature_version='s3v4'),
-        region_name=os.environ['AWS_DEFAULT_REGION'],
+        region_name=region_name,
     )
-    bucket = os.environ['AWS_S3_BUCKET']
+    bucket = bucket
     app = Flask('app')
     app.add_url_rule('/<path:path>', view_func=proxy)
-    server = WSGIServer(('', int(os.environ['PORT'])), app)
+    server = WSGIServer(('', port), app)
 
     return start, stop
 
 
 def main():
-    start, stop = proxy_app()
+    start, stop = proxy_app(
+        os.environ['AWS_S3_ENDPOINT'],
+        os.environ['AWS_ACCESS_KEY_ID'],
+        os.environ['AWS_SECRET_ACCESS_KEY'],
+        os.environ['AWS_DEFAULT_REGION'],
+        os.environ['AWS_S3_BUCKET'],
+        int(os.environ['PORT']),
+    )
 
     start()
 
