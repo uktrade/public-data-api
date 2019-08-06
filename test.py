@@ -1,14 +1,16 @@
+from datetime import (
+    datetime,
+)
+import hashlib
+import hmac
 import os
 import time
 import socket
 import subprocess
 import unittest
+import urllib.parse
 import uuid
 
-import boto3
-from botocore.client import (
-    Config,
-)
 import requests
 
 
@@ -31,13 +33,7 @@ class TestS3Proxy(unittest.TestCase):
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-
-        client = get_s3_client()
-        client.put_object(
-            Bucket='my-bucket',
-            Key=key,
-            Body=content,
-        )
+        put_object(key, content)
 
         response = requests.get(f'http://127.0.0.1:8080/{key}')
         self.assertEqual(response.content, content)
@@ -54,9 +50,8 @@ class TestS3Proxy(unittest.TestCase):
         content_1 = str(uuid.uuid4()).encode() * 1000000
         content_2 = str(uuid.uuid4()).encode() * 1000000
 
-        client = get_s3_client()
-        client.put_object(Bucket='my-bucket', Key=key_1, Body=content_1)
-        client.put_object(Bucket='my-bucket', Key=key_2, Body=content_2)
+        put_object(key_1, content_1)
+        put_object(key_2, content_2)
 
         response_1 = requests.get(f'http://127.0.0.1:8080/{key_1}', stream=True)
         response_2 = requests.get(f'http://127.0.0.1:8080/{key_2}', stream=True)
@@ -109,13 +104,7 @@ class TestS3Proxy(unittest.TestCase):
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-
-        client = get_s3_client()
-        client.put_object(
-            Bucket='my-bucket',
-            Key=key,
-            Body=content,
-        )
+        put_object(key, content)
 
         response = requests.get(f'http://127.0.0.1:8080/{key}', headers={
             'range': 'bytes=0-',
@@ -131,13 +120,7 @@ class TestS3Proxy(unittest.TestCase):
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-
-        client = get_s3_client()
-        client.put_object(
-            Bucket='my-bucket',
-            Key=key,
-            Body=content,
-        )
+        put_object(key, content)
 
         response = requests.get(f'http://127.0.0.1:8080/{key}', headers={
             'range': 'bytes=1-',
@@ -204,12 +187,71 @@ def create_application(
     return wait_until_started, stop
 
 
-def get_s3_client():
-    return boto3.client(
-        's3',
-        endpoint_url='http://127.0.0.1:9000/',
-        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
-        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-        config=Config(signature_version='s3v4'),
-        region_name='us-east-1',
+def put_object(key, contents):
+    url = f'http://127.0.0.1:9000/my-bucket/{key}'
+    body_hash = hashlib.sha256(contents).hexdigest()
+    parsed_url = urllib.parse.urlsplit(url)
+
+    headers = aws_sigv4_headers(
+        'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
     )
+    print(dict(headers))
+    response = requests.put(url, data=contents, headers=dict(headers))
+    response.raise_for_status()
+
+
+def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
+                      service, region, host, method, path, params, body_hash):
+    algorithm = 'AWS4-HMAC-SHA256'
+
+    now = datetime.utcnow()
+    amzdate = now.strftime('%Y%m%dT%H%M%SZ')
+    datestamp = now.strftime('%Y%m%d')
+    credential_scope = f'{datestamp}/{region}/{service}/aws4_request'
+
+    pre_auth_headers_lower = tuple((
+        (header_key.lower(), ' '.join(header_value.split()))
+        for header_key, header_value in pre_auth_headers
+    ))
+    required_headers = (
+        ('host', host),
+        ('x-amz-content-sha256', body_hash),
+        ('x-amz-date', amzdate),
+    )
+    headers = sorted(pre_auth_headers_lower + required_headers)
+    signed_headers = ';'.join(key for key, _ in headers)
+
+    def signature():
+        def canonical_request():
+            canonical_uri = urllib.parse.quote(path, safe='/~')
+            quoted_params = sorted(
+                (urllib.parse.quote(key, safe='~'), urllib.parse.quote(value, safe='~'))
+                for key, value in params
+            )
+            canonical_querystring = '&'.join(f'{key}={value}' for key, value in quoted_params)
+            canonical_headers = ''.join(f'{key}:{value}\n' for key, value in headers)
+
+            return f'{method}\n{canonical_uri}\n{canonical_querystring}\n' + \
+                   f'{canonical_headers}\n{signed_headers}\n{body_hash}'
+
+        def sign(key, msg):
+            return hmac.new(key, msg.encode('ascii'), hashlib.sha256).digest()
+
+        string_to_sign = f'{algorithm}\n{amzdate}\n{credential_scope}\n' + \
+                         hashlib.sha256(canonical_request().encode('ascii')).hexdigest()
+
+        date_key = sign(('AWS4' + secret_access_key).encode('ascii'), datestamp)
+        region_key = sign(date_key, region)
+        service_key = sign(region_key, service)
+        request_key = sign(service_key, 'aws4_request')
+        return sign(request_key, string_to_sign).hex()
+
+    return (
+        (b'authorization', (
+            f'{algorithm} Credential={access_key_id}/{credential_scope}, '
+            f'SignedHeaders={signed_headers}, Signature=' + signature()).encode('ascii')
+         ),
+        (b'x-amz-date', amzdate.encode('ascii')),
+        (b'x-amz-content-sha256', body_hash.encode('ascii')),
+    ) + pre_auth_headers
