@@ -35,9 +35,9 @@ class TestS3Proxy(unittest.TestCase):
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
 
-        response = requests.get(f'http://127.0.0.1:8080/{key}')
-        self.assertEqual(response.content, content)
-        self.assertEqual(response.headers['content-length'], str(len(content)))
+        with requests.get(f'http://127.0.0.1:8080/{key}') as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
 
     def test_multiple_concurrent_requests(self):
         wait_until_started, stop_application = create_application(8080)
@@ -53,43 +53,44 @@ class TestS3Proxy(unittest.TestCase):
         put_object(key_1, content_1)
         put_object(key_2, content_2)
 
-        response_1 = requests.get(f'http://127.0.0.1:8080/{key_1}', stream=True)
-        response_2 = requests.get(f'http://127.0.0.1:8080/{key_2}', stream=True)
+        with \
+                requests.get(f'http://127.0.0.1:8080/{key_1}', stream=True) as response_1, \
+                requests.get(f'http://127.0.0.1:8080/{key_2}', stream=True) as response_2:
 
-        iter_1 = response_1.iter_content(chunk_size=16384)
-        iter_2 = response_2.iter_content(chunk_size=16384)
+            iter_1 = response_1.iter_content(chunk_size=16384)
+            iter_2 = response_2.iter_content(chunk_size=16384)
 
-        response_content_1 = []
-        response_content_2 = []
+            response_content_1 = []
+            response_content_2 = []
 
-        num_single = 0
-        num_both = 0
+            num_single = 0
+            num_both = 0
 
-        # We This gives a reasonable guarantee that the server can handle
-        # multiple requests concurrently, and we haven't accidentally added
-        # something blocking
-        while True:
-            try:
-                chunk_1 = next(iter_1)
-            except StopIteration:
-                chunk_1 = b''
-            else:
-                response_content_1.append(chunk_1)
+            # We This gives a reasonable guarantee that the server can handle
+            # multiple requests concurrently, and we haven't accidentally added
+            # something blocking
+            while True:
+                try:
+                    chunk_1 = next(iter_1)
+                except StopIteration:
+                    chunk_1 = b''
+                else:
+                    response_content_1.append(chunk_1)
 
-            try:
-                chunk_2 = next(iter_2)
-            except StopIteration:
-                chunk_2 = b''
-            else:
-                response_content_2.append(chunk_2)
+                try:
+                    chunk_2 = next(iter_2)
+                except StopIteration:
+                    chunk_2 = b''
+                else:
+                    response_content_2.append(chunk_2)
 
-            if chunk_1 and chunk_2:
-                num_both += 1
-            else:
-                num_single += 1
+                if chunk_1 and chunk_2:
+                    num_both += 1
+                else:
+                    num_single += 1
 
-            if not chunk_1 and not chunk_2:
-                break
+                if not chunk_1 and not chunk_2:
+                    break
 
         self.assertEqual(b''.join(response_content_1), content_1)
         self.assertEqual(b''.join(response_content_2), content_2)
@@ -106,11 +107,11 @@ class TestS3Proxy(unittest.TestCase):
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
 
-        response = requests.get(f'http://127.0.0.1:8080/{key}', headers={
-            'range': 'bytes=0-',
-        })
-        self.assertEqual(response.content, content)
-        self.assertEqual(response.headers['content-length'], str(len(content)))
+        with requests.get(f'http://127.0.0.1:8080/{key}', headers={
+                'range': 'bytes=0-',
+        }) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
 
     def test_range_request_after_start(self):
         wait_until_started, stop_application = create_application(8080)
@@ -122,11 +123,11 @@ class TestS3Proxy(unittest.TestCase):
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
 
-        response = requests.get(f'http://127.0.0.1:8080/{key}', headers={
-            'range': 'bytes=1-',
-        })
-        self.assertEqual(response.content, content[1:])
-        self.assertEqual(response.headers['content-length'], str(len(content) - 1))
+        with requests.get(f'http://127.0.0.1:8080/{key}', headers={
+                'range': 'bytes=1-',
+        }) as response:
+            self.assertEqual(response.content, content[1:])
+            self.assertEqual(response.headers['content-length'], str(len(content) - 1))
 
     def test_bad_aws_credentials(self):
         wait_until_started, stop_application = create_application(
@@ -137,8 +138,8 @@ class TestS3Proxy(unittest.TestCase):
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
-        response = requests.get(f'http://127.0.0.1:8080/{key}')
-        self.assertEqual(response.status_code, 500)
+        with requests.get(f'http://127.0.0.1:8080/{key}') as response:
+            self.assertEqual(response.status_code, 500)
 
     def test_key_that_does_not_exist(self):
         wait_until_started, stop_application = create_application(8080)
@@ -148,8 +149,8 @@ class TestS3Proxy(unittest.TestCase):
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
-        response = requests.get(f'http://127.0.0.1:8080/{key}')
-        self.assertEqual(response.status_code, 404)
+        with requests.get(f'http://127.0.0.1:8080/{key}') as response:
+            self.assertEqual(response.status_code, 404)
 
 
 def create_application(
@@ -196,9 +197,8 @@ def put_object(key, contents):
         'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
         (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
     )
-    print(dict(headers))
-    response = requests.put(url, data=contents, headers=dict(headers))
-    response.raise_for_status()
+    with requests.put(url, data=contents, headers=dict(headers)) as response:
+        response.raise_for_status()
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,

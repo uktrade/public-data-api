@@ -57,10 +57,24 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
         ))
         allow_proxy = response.status_code in proxied_response_codes
 
+        def body_upstream():
+            try:
+                for chunk in response.iter_content(16384):
+                    yield chunk
+            finally:
+                response.close()
+
+        def body_empty():
+            try:
+                for _ in response.iter_content(16384):
+                    pass
+            finally:
+                response.close()
+
         return \
-            Response(response.iter_content(16384),
+            Response(body_upstream(),
                      status=response.status_code, headers=response_headers) if allow_proxy else \
-            Response(b'', status=500)
+            Response(body_empty(), status=500)
 
     def aws_sigv4_headers(pre_auth_headers, service, host, method, path, params, body_hash):
         algorithm = 'AWS4-HMAC-SHA256'
