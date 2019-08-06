@@ -64,7 +64,6 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
                      status=response.status_code, headers=response_headers) if allow_proxy else \
             Response(b'', status=500)
 
-    bucket = bucket
     app = Flask('app')
     app.add_url_rule('/<path:path>', view_func=proxy)
     server = WSGIServer(('', port), app)
