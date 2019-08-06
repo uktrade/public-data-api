@@ -39,7 +39,6 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
         server.stop()
 
     def proxy(path):
-
         url = endpoint_url + bucket + '/' + path
         body_hash = hashlib.sha256(b'').hexdigest()
         pre_auth_headers = tuple((
