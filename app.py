@@ -41,7 +41,7 @@ def proxy_app(endpoint_url, aws_access_key_id, aws_secret_access_key, region_nam
     def proxy(path):
 
         url = endpoint_url + bucket + '/' + path
-        body_hash = hashlib.sha224(b'').hexdigest()
+        body_hash = hashlib.sha256(b'').hexdigest()
         pre_auth_headers = tuple((
             (key, request.headers[key])
             for key in proxied_request_headers if key in request.headers
