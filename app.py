@@ -181,6 +181,10 @@ def proxy_app(
                 response.close()
 
         def body_empty():
+            # Ensure this is a generator
+            while False:
+                yield
+
             try:
                 for _ in response.iter_content(16384):
                     pass
