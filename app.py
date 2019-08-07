@@ -233,7 +233,7 @@ def proxy_app(
     app.config.from_mapping({
         'SECRET_KEY': secret_key,
     })
-    server = WSGIServer(('', port), app)
+    server = WSGIServer(('0.0.0.0', port), app)
 
     return start, stop
 
