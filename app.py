@@ -64,7 +64,8 @@ def proxy_app(
         def _authenticate_by_sso(*args, **kwargs):
 
             def get_callback_uri():
-                return request.url_root + redirect_from_sso_path[1:]
+                scheme = request.headers.get('x-forwarded-proto', 'http')
+                return f'{scheme}://{request.host}{redirect_from_sso_path}'
 
             def redirect_to_sso():
                 callback_uri = urllib.parse.quote(get_callback_uri(), safe='')

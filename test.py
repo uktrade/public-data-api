@@ -63,6 +63,28 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(len(response.history), 3)
 
+    def test_key_that_exists_x_forwarded_proto_respected(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        headers = {
+            'x-forwarded-proto': 'https',
+        }
+        # We don't have a SSL server listening, so we expect an SSL error
+        with self.assertRaises(requests.exceptions.SSLError):
+            with \
+                    requests.Session() as session, \
+                    session.get(f'http://127.0.0.1:8080/{key}', headers=headers):
+                pass
+
     def test_key_that_exists_me_response_500_is_500(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
