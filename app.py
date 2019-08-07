@@ -11,29 +11,29 @@ from functools import (
 )
 import hashlib
 import hmac
+import logging
 import json
 import os
 import secrets
 import signal
+import sys
 import urllib.parse
 
 from flask import (
     Flask,
     Response,
     request,
-    session,
 )
 from gevent.pywsgi import (
     WSGIServer,
 )
-import logging
+import redis
 import requests
-import sys
 
 
 def proxy_app(
         logger,
-        port, secret_key,
+        port, redis_url,
         sso_url, sso_client_id, sso_client_secret,
         aws_access_key_id, aws_secret_access_key, endpoint_url, region_name, bucket,
 ):
@@ -44,6 +44,7 @@ def proxy_app(
         'accept-ranges', 'content-length', 'content-type', 'date', 'etag', 'last-modified',
         'content-range',
     ]
+    redis_client = redis.from_url(redis_url)
 
     def start():
         server.serve_forever()
@@ -60,13 +61,44 @@ def proxy_app(
         response_type = 'code'
 
         redirect_from_sso_path = '/__redirect_from_sso'
+
+        session_cookie_name = 'assets_session_id'
         session_state_prefix_key = 'sso_state_'
         session_token_key = 'sso_access_token'
+
+        cookie_max_age = 60 * 60 * 9
+        redis_max_age = 60 * 60 * 10
 
         @wraps(f)
         def _authenticate_by_sso(*args, **kwargs):
 
             logger.debug('Authenticating %s', request)
+
+            def get_session_value(key):
+                session_id = request.cookies[session_cookie_name]
+
+                value_bytes = redis_client.get(f'{session_id}__{key}')
+                if value_bytes is None:
+                    raise KeyError(key)
+                return value_bytes.decode()
+
+            # In our case all session values are set exactly when we want a new session cookie
+            # (which are done to mitigate session fixation attacks)
+            def with_new_session_cookie(response, session_values):
+                session_id = secrets.token_urlsafe(64)
+                response.set_cookie(
+                    session_cookie_name, session_id,
+                    httponly=True,
+                    secure=request.headers.get('x-forwarded-proto', 'http') == 'https',
+                    samesite='Lax',
+                    max_age=cookie_max_age,
+                    expires=datetime.utcnow().timestamp() + cookie_max_age,
+                )
+
+                for key, value in session_values.items():
+                    redis_client.set(f'{session_id}__{key}', value.encode(), ex=redis_max_age)
+
+                return response
 
             def get_callback_uri():
                 scheme = request.headers.get('x-forwarded-proto', 'http')
@@ -75,11 +107,7 @@ def proxy_app(
             def redirect_to_sso():
                 logger.debug('Redirecting to SSO')
                 callback_uri = urllib.parse.quote(get_callback_uri(), safe='')
-
                 state = secrets.token_hex(32)
-                final_uri = request.url
-                session.clear()
-                session[f'{session_state_prefix_key}{state}'] = final_uri
 
                 redirect_to = f'{sso_url}{auth_path}?' \
                     f'scope={scope}&state={state}&' \
@@ -87,13 +115,16 @@ def proxy_app(
                     f'response_type={response_type}&' \
                     f'client_id={sso_client_id}'
 
-                return Response(status=302, headers={'location': redirect_to})
+                return with_new_session_cookie(
+                    Response(status=302, headers={'location': redirect_to}),
+                    {f'{session_state_prefix_key}{state}': request.url}
+                )
 
             def redirect_to_final():
                 try:
                     code = request.args['code']
                     state = request.args['state']
-                    final_uri = session[f'{session_state_prefix_key}{state}']
+                    final_uri = get_session_value(f'{session_state_prefix_key}{state}')
                 except KeyError:
                     logger.exception('Unable to redirect to final')
                     return Response(b'', 403)
@@ -112,9 +143,10 @@ def proxy_app(
                     content = response.content
                 if response.status_code == 200:
                     token = json.loads(content)['access_token']
-                    session.clear()
-                    session[session_token_key] = token
-                    return Response(status=302, headers={'location': final_uri})
+                    return with_new_session_cookie(
+                        Response(status=302, headers={'location': final_uri}),
+                        {session_token_key: token}
+                    )
 
                 if response.status_code == 403:
                     logger.debug('token_path response is 403')
@@ -132,8 +164,9 @@ def proxy_app(
             if request.path == redirect_from_sso_path:
                 return redirect_to_final()
 
-            token = session.get(session_token_key, None)
-            if token is None:
+            try:
+                token = get_session_value(session_token_key)
+            except KeyError:
                 return redirect_to_sso()
 
             token_code = get_token_code(token)
@@ -253,9 +286,6 @@ def proxy_app(
 
     app = Flask('app')
     app.add_url_rule('/<path:path>', view_func=proxy)
-    app.config.from_mapping({
-        'SECRET_KEY': secret_key,
-    })
     server = WSGIServer(('0.0.0.0', port), app)
 
     return start, stop
@@ -271,7 +301,7 @@ def main():
     start, stop = proxy_app(
         logger,
         int(os.environ['PORT']),
-        os.environ['SECRET_KEY'],
+        os.environ['REDIS_URL'],
         os.environ['SSO_URL'],
         os.environ['SSO_CLIENT_ID'],
         os.environ['SSO_CLIENT_SECRET'],

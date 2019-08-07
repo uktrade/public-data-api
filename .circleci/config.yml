@@ -12,6 +12,7 @@ jobs:
           MINIO_REGION: us-east-1
         entrypoint: sh
         command: ['-c', 'mkdir -p /data/my-bucket && minio server /data']
+      - image: redis:3.2.11
     working_directory: ~/repo
     steps:
       - checkout

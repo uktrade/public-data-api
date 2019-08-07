@@ -7,5 +7,6 @@ An OAuth-authenticated streaming proxy to S3
 
 ```bash
 ./minio-start.sh  # Only required once
+./redis-start.sh  # Only required once
 ./test.sh
 ```
