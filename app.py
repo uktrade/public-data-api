@@ -90,7 +90,6 @@ def proxy_app(
                     session_cookie_name, session_id,
                     httponly=True,
                     secure=request.headers.get('x-forwarded-proto', 'http') == 'https',
-                    samesite='Lax',
                     max_age=cookie_max_age,
                     expires=datetime.utcnow().timestamp() + cookie_max_age,
                 )
