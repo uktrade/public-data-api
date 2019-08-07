@@ -26,10 +26,13 @@ from flask import (
 from gevent.pywsgi import (
     WSGIServer,
 )
+import logging
 import requests
+import sys
 
 
 def proxy_app(
+        logger,
         port, secret_key,
         sso_url, sso_client_id, sso_client_secret,
         aws_access_key_id, aws_secret_access_key, endpoint_url, region_name, bucket,
@@ -63,11 +66,14 @@ def proxy_app(
         @wraps(f)
         def _authenticate_by_sso(*args, **kwargs):
 
+            logger.debug('Authenticating %s', request)
+
             def get_callback_uri():
                 scheme = request.headers.get('x-forwarded-proto', 'http')
                 return f'{scheme}://{request.host}{redirect_from_sso_path}'
 
             def redirect_to_sso():
+                logger.debug('Redirecting to SSO')
                 callback_uri = urllib.parse.quote(get_callback_uri(), safe='')
 
                 state = secrets.token_hex(32)
@@ -89,7 +95,10 @@ def proxy_app(
                     state = request.args['state']
                     final_uri = session[f'{session_state_prefix_key}{state}']
                 except KeyError:
+                    logger.exception('Unable to redirect to final')
                     return Response(b'', 403)
+
+                logger.debug('Attempting to redirect to final: %s', final_uri)
 
                 with requests.post(f'{sso_url}{token_path}',
                                    data={
@@ -108,8 +117,10 @@ def proxy_app(
                     return Response(status=302, headers={'location': final_uri})
 
                 if response.status_code == 403:
+                    logger.debug('token_path response is 403')
                     return Response(b'', 403)
 
+                logger.debug('token_path error')
                 return Response(b'', 500)
 
             def get_token_code(token):
@@ -138,6 +149,8 @@ def proxy_app(
 
     @authenticate_by_sso
     def proxy(path):
+        logger.debug('Attempt to proxy: %s', request)
+
         url = endpoint_url + bucket + '/' + path
         body_hash = hashlib.sha256(b'').hexdigest()
         pre_auth_headers = tuple((
@@ -156,11 +169,15 @@ def proxy_app(
         ))
         allow_proxy = response.status_code in proxied_response_codes
 
+        logger.debug('Response: %s', response)
+        logger.debug('Allowing proxy: %s', allow_proxy)
+
         def body_upstream():
             try:
                 for chunk in response.iter_content(16384):
                     yield chunk
             finally:
+                logger.debug('Closing proxied response')
                 response.close()
 
         def body_empty():
@@ -168,6 +185,7 @@ def proxy_app(
                 for _ in response.iter_content(16384):
                     pass
             finally:
+                logger.debug('Closing empty response')
                 response.close()
 
         return \
@@ -240,7 +258,14 @@ def proxy_app(
 
 
 def main():
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(stdout_handler)
+
     start, stop = proxy_app(
+        logger,
         int(os.environ['PORT']),
         os.environ['SECRET_KEY'],
         os.environ['SSO_URL'],
