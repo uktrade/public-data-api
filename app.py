@@ -30,9 +30,9 @@ import requests
 
 
 def proxy_app(
+        port, secret_key,
         sso_url, sso_client_id, sso_client_secret,
-        endpoint_url, aws_access_key_id, aws_secret_access_key, region_name, bucket, secret_key,
-        port,
+        aws_access_key_id, aws_secret_access_key, endpoint_url, region_name, bucket,
 ):
 
     proxied_request_headers = ['range', ]
@@ -241,16 +241,16 @@ def proxy_app(
 
 def main():
     start, stop = proxy_app(
+        int(os.environ['PORT']),
+        os.environ['SECRET_KEY'],
         os.environ['SSO_URL'],
         os.environ['SSO_CLIENT_ID'],
         os.environ['SSO_CLIENT_SECRET'],
-        os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_ACCESS_KEY_ID'],
         os.environ['AWS_SECRET_ACCESS_KEY'],
+        os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_DEFAULT_REGION'],
         os.environ['AWS_S3_BUCKET'],
-        os.environ['SECRET_KEY'],
-        int(os.environ['PORT']),
     )
 
     def server_stop(_, __):
