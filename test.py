@@ -362,6 +362,7 @@ def create_application(
         env={
             **os.environ,
             'PORT': str(port),
+            'REDIS_URL': 'redis://127.0.0.1:6379/0',
             'SSO_URL': 'http://127.0.0.1:8081/',
             'SSO_CLIENT_ID': 'the-client-id',
             'SSO_CLIENT_SECRET': 'the-client-secret',
@@ -370,7 +371,6 @@ def create_application(
             'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/',
             'AWS_S3_BUCKET': 'my-bucket',
-            'SECRET_KEY': 'the-secret',
         }
     )
 
