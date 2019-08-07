@@ -383,6 +383,55 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 500)
 
+    def test_direct_redirection_endpoint_with_state_code_443(self):
+        wait_until_started, stop_application = create_application(
+            8080, aws_access_key_id='not-exist')
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        params = {
+            'state': 'the-state',
+            'code': 'the-code',
+        }
+        with \
+                requests.Session() as session, \
+                session.get(f'http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
+            self.assertEqual(resp.status_code, 403)
+
+    def test_direct_redirection_endpoint_with_code_no_state_443(self):
+        wait_until_started, stop_application = create_application(
+            8080, aws_access_key_id='not-exist')
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        params = {
+            'code': 'the-code',
+        }
+        with \
+                requests.Session() as session, \
+                session.get(f'http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
+            self.assertEqual(resp.status_code, 403)
+
+    def test_direct_redirection_endpoint_no_state_no_code_443(self):
+        wait_until_started, stop_application = create_application(
+            8080, aws_access_key_id='not-exist')
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        with \
+                requests.Session() as session, \
+                session.get(f'http://127.0.0.1:8080/__redirect_from_sso') as resp:
+            self.assertEqual(resp.status_code, 403)
+
     def test_key_that_does_not_exist(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
