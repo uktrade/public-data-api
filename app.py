@@ -173,10 +173,10 @@ def proxy_app(
             if token_code == 403:
                 return redirect_to_sso()
 
-            if token_code == 200:
-                return f(*args, **kwargs)
+            if token_code != 200:
+                return Response(b'', 500)
 
-            return Response(b'', 500)
+            return f(*args, **kwargs)
 
         return _authenticate_by_sso
 
