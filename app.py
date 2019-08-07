@@ -150,10 +150,9 @@ def proxy_app(
                     logger.debug('token_path error')
                     return Response(b'', 500)
 
-                token = json.loads(content)['access_token']
                 return with_new_session_cookie(
                     Response(status=302, headers={'location': final_uri}),
-                    {session_token_key: token}
+                    {session_token_key: json.loads(content)['access_token']}
                 )
 
             def get_token_code(token):
