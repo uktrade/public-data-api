@@ -80,10 +80,8 @@ class TestS3Proxy(unittest.TestCase):
         }
         # We don't have a SSL server listening, so we expect an SSL error
         with self.assertRaises(requests.exceptions.SSLError):
-            with \
-                    requests.Session() as session, \
-                    session.get(f'http://127.0.0.1:8080/{key}', headers=headers):
-                pass
+            with requests.Session() as session:
+                session.get(f'http://127.0.0.1:8080/{key}', headers=headers).__enter__()
 
     def test_key_that_exists_me_response_500_is_500(self):
         wait_until_started, stop_application = create_application(8080)
