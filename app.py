@@ -134,15 +134,14 @@ def proxy_app(
 
                 logger.debug('Attempting to redirect to final: %s', final_uri)
 
-                with requests.post(f'{sso_url}{token_path}',
-                                   data={
-                                       'grant_type': grant_type,
-                                       'code': code,
-                                       'client_id': sso_client_id,
-                                       'client_secret': sso_client_secret,
-                                       'redirect_uri': get_callback_uri(),
-                                   },
-                                   ) as response:
+                data = {
+                    'grant_type': grant_type,
+                    'code': code,
+                    'client_id': sso_client_id,
+                    'client_secret': sso_client_secret,
+                    'redirect_uri': get_callback_uri(),
+                }
+                with requests.post(f'{sso_url}{token_path}', data=data) as response:
                     content = response.content
 
                 if response.status_code == 403:
