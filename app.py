@@ -141,19 +141,20 @@ def proxy_app(
                                    },
                                    ) as response:
                     content = response.content
-                if response.status_code == 200:
-                    token = json.loads(content)['access_token']
-                    return with_new_session_cookie(
-                        Response(status=302, headers={'location': final_uri}),
-                        {session_token_key: token}
-                    )
 
                 if response.status_code == 403:
                     logger.debug('token_path response is 403')
                     return Response(b'', 403)
 
-                logger.debug('token_path error')
-                return Response(b'', 500)
+                if response.status_code != 200:
+                    logger.debug('token_path error')
+                    return Response(b'', 500)
+
+                token = json.loads(content)['access_token']
+                return with_new_session_cookie(
+                    Response(status=302, headers={'location': final_uri}),
+                    {session_token_key: token}
+                )
 
             def get_token_code(token):
                 with requests.get(f'{sso_url}{me_path}', headers={
