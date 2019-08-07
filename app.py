@@ -104,6 +104,10 @@ def proxy_app(
                 scheme = request.headers.get('x-forwarded-proto', 'http')
                 return f'{scheme}://{request.host}{redirect_from_sso_path}'
 
+            def get_request_url_with_scheme():
+                scheme = request.headers.get('x-forwarded-proto', 'http')
+                return f'{scheme}://{request.host}{request.full_path}'
+
             def redirect_to_sso():
                 logger.debug('Redirecting to SSO')
                 callback_uri = urllib.parse.quote(get_callback_uri(), safe='')
@@ -117,7 +121,7 @@ def proxy_app(
 
                 return with_new_session_cookie(
                     Response(status=302, headers={'location': redirect_to}),
-                    {f'{session_state_prefix_key}{state}': request.url}
+                    {f'{session_state_prefix_key}{state}': get_request_url_with_scheme()}
                 )
 
             def redirect_to_final():
