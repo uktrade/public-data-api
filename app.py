@@ -252,12 +252,12 @@ def main():
         int(os.environ['PORT']),
     )
 
-    start()
-
     def server_stop(_, __):
         stop()
 
     signal.signal(signal.SIGTERM, server_stop)
+
+    start()
 
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
 [run]
 parallel = True
 branch = True
+concurrency = multiprocessing
