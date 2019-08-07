@@ -63,6 +63,28 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(len(response.history), 3)
 
+    def test_key_that_exists_second_request_succeeds_no_redirect(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        with requests.Session() as session:
+
+            with session.get(f'http://127.0.0.1:8080/{key}'):
+                pass
+
+            with session.get(f'http://127.0.0.1:8080/{key}') as response:
+                self.assertEqual(response.content, content)
+                self.assertEqual(response.headers['content-length'], str(len(content)))
+                self.assertEqual(len(response.history), 0)
+
     def test_key_that_exists_x_forwarded_proto_respected(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
