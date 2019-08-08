@@ -148,9 +148,9 @@ def proxy_app(
                 with requests.post(f'{sso_url}{token_path}', data=data) as response:
                     content = response.content
 
-                if response.status_code == 403:
-                    logger.debug('token_path response is 403')
-                    return Response(b'', 403)
+                if response.status_code in [401, 403]:
+                    logger.debug('token_path response is %s', response.status_code)
+                    return Response(b'', response.status_code)
 
                 if response.status_code != 200:
                     logger.debug('token_path error')
@@ -176,7 +176,8 @@ def proxy_app(
                 return redirect_to_sso()
 
             token_code = get_token_code(token)
-            if token_code == 403:
+            if token_code in [401, 403]:
+                logger.debug('token_code response is %s', token_code)
                 return redirect_to_sso()
 
             if token_code != 200:
