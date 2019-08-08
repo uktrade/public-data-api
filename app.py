@@ -307,7 +307,7 @@ def main():
     start, stop = proxy_app(
         logger,
         int(os.environ['PORT']),
-        json.loads(os.environ['VCAP_SERVICES'])['redis'][0]['uri'],
+        json.loads(os.environ['VCAP_SERVICES'])['redis'][0]['credentials']['uri'],
         os.environ['SSO_URL'],
         os.environ['SSO_CLIENT_ID'],
         os.environ['SSO_CLIENT_SECRET'],

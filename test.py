@@ -482,7 +482,8 @@ def create_application(
         env={
             **os.environ,
             'PORT': str(port),
-            'VCAP_SERVICES': json.dumps({'redis': [{'uri': 'redis://127.0.0.1:6379/0'}]}),
+            'VCAP_SERVICES': json.dumps({
+                'redis': [{'credentials': {'uri': 'redis://127.0.0.1:6379/0'}}]}),
             'SSO_URL': 'http://127.0.0.1:8081/',
             'SSO_CLIENT_ID': 'the-client-id',
             'SSO_CLIENT_SECRET': 'the-client-secret',

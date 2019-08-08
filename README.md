@@ -20,7 +20,7 @@ The below environment variables are also required, but typically populated by Pa
 | Variable        | Description | Example |
 | ---             | ---         | ---     |
 | `PORT`          | The port for the application to listen on | `8080`
-| `VCAP SERVICES` | A JSON-encoded dictionary containing the URI to a redis instance | `{"redis": [{"uri": "redis://my-redis-instance.domain.com:6379/0"}]}`
+| `VCAP SERVICES` | A JSON-encoded dictionary containing the URI to a redis instance | `{"redis": [{"credentials": {"uri": "redis://my-redis.domain.com:6379/0"}}]}`
 
 
 ## Permissions and 404s
