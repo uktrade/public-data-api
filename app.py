@@ -312,7 +312,7 @@ def main():
         os.environ['AWS_ACCESS_KEY_ID'],
         os.environ['AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
-        os.environ['AWS_DEFAULT_REGION'],
+        os.environ['AWS_S3_REGION'],
         os.environ['AWS_S3_BUCKET'],
     )
 
