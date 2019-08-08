@@ -466,8 +466,7 @@ def create_application(
             'AWS_S3_REGION': 'us-east-1',
             'AWS_ACCESS_KEY_ID': aws_access_key_id,
             'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-            'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/',
-            'AWS_S3_BUCKET': 'my-bucket',
+            'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
         }
     )
 

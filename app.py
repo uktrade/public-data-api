@@ -35,7 +35,7 @@ def proxy_app(
         logger,
         port, redis_url,
         sso_url, sso_client_id, sso_client_secret,
-        aws_access_key_id, aws_secret_access_key, endpoint_url, region_name, bucket,
+        aws_access_key_id, aws_secret_access_key, endpoint_url, region_name,
 ):
 
     proxied_request_headers = ['range', ]
@@ -188,7 +188,7 @@ def proxy_app(
     def proxy(path):
         logger.debug('Attempt to proxy: %s', request)
 
-        url = endpoint_url + bucket + '/' + path
+        url = endpoint_url + path
         body_hash = hashlib.sha256(b'').hexdigest()
         pre_auth_headers = tuple((
             (key, request.headers[key])
@@ -313,7 +313,6 @@ def main():
         os.environ['AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
-        os.environ['AWS_S3_BUCKET'],
     )
 
     def server_stop(_, __):
