@@ -11,9 +11,9 @@ An OAuth-authenticated streaming proxy to S3
 | `SSO_CLIENT_ID`         | The client ID of the application registered at `SSO_URL` | _not shown_
 | `SSO_CLIENT_SECRET`     | The client secret of the SSO application with ID `SSO_CLIENT_ID` | _not shown_
 | `AWS_S3_REGION`         | The AWS region of the S3 bucket | `eu-west-2`
+| `AWS_S3_ENDPOINT`       | The URL to the bucket, optionally including a key prefix, and will typically end in a slash. This supports both path and domain-style bucket-access. | `https://my-bucket.s3-eu-west-2.amazonaws.com/`<br>`https://my-bucket.s3-eu-west-2.amazonaws.com/key-prefix`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/key-prefix/`
 | `AWS_ACCESS_KEY_ID`     | The AWS access key ID that has GetObject, and optionally ListBucket, permissions | _not shown_
 | `AWS_SECRET_ACCESS_KEY` | The secret part of the key corresponding to `AWS_ACCESS_KEY_ID` | _not shown_
-| `AWS_S3_ENDPOINT`       | The URL to the bucket, optionally including a key prefix, and will typically end in a slash. This supports both path and domain-style bucket-access. | `https://my-bucket.s3-eu-west-2.amazonaws.com/`<br>`https://my-bucket.s3-eu-west-2.amazonaws.com/key-prefix`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/key-prefix/`
 
 The below environment variables are also required, but typically populated by PaaS.
 
