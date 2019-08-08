@@ -63,7 +63,6 @@ def proxy_app(
         redirect_from_sso_path = '/__redirect_from_sso'
 
         session_cookie_name = 'assets_session_id'
-        session_key_prefix = 'assets'
         session_state_key_prefix = 'sso_state'
         session_token_key = 'sso_token'
 
@@ -78,7 +77,7 @@ def proxy_app(
             def get_session_value(key):
                 session_id = request.cookies[session_cookie_name]
 
-                value_bytes = redis_client.get(f'{session_key_prefix}__{session_id}__{key}')
+                value_bytes = redis_client.get(f'{session_cookie_name}__{session_id}__{key}')
                 if value_bytes is None:
                     raise KeyError(key)
                 return value_bytes.decode()
@@ -96,7 +95,7 @@ def proxy_app(
                 )
 
                 for key, value in session_values.items():
-                    redis_client.set(f'{session_key_prefix}__{session_id}__{key}', value.encode(),
+                    redis_client.set(f'{session_cookie_name}__{session_id}__{key}', value.encode(),
                                      ex=redis_max_age)
 
                 return response
