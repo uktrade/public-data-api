@@ -64,6 +64,29 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(len(response.history), 3)
 
+    def test_key_that_exists_no_session_403(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        url_1 = f'http://localhost:8080/{key}'
+        with requests.get(url_1, allow_redirects=False) as resp_1:
+            url_2 = resp_1.headers['location']
+
+        with requests.get(url_2, allow_redirects=False) as resp_2:
+            url_3 = resp_2.headers['location']
+
+        with requests.get(url_3, allow_redirects=False) as resp_3:
+            self.assertEqual(resp_3.content, b'')
+            self.assertEqual(resp_3.status_code, 403)
+
     def test_key_that_exists_second_request_succeeds_no_redirect(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
