@@ -63,8 +63,9 @@ def proxy_app(
         redirect_from_sso_path = '/__redirect_from_sso'
 
         session_cookie_name = 'assets_session_id'
-        session_state_prefix_key = 'sso_state_'
-        session_token_key = 'sso_access_token'
+        session_key_prefix = 'assets'
+        session_state_key_prefix = 'sso_state'
+        session_token_key = 'sso_token'
 
         cookie_max_age = 60 * 60 * 9
         redis_max_age = 60 * 60 * 10
@@ -77,7 +78,7 @@ def proxy_app(
             def get_session_value(key):
                 session_id = request.cookies[session_cookie_name]
 
-                value_bytes = redis_client.get(f'{session_id}__{key}')
+                value_bytes = redis_client.get(f'{session_key_prefix}__{session_id}__{key}')
                 if value_bytes is None:
                     raise KeyError(key)
                 return value_bytes.decode()
@@ -95,7 +96,8 @@ def proxy_app(
                 )
 
                 for key, value in session_values.items():
-                    redis_client.set(f'{session_id}__{key}', value.encode(), ex=redis_max_age)
+                    redis_client.set(f'{session_key_prefix}__{session_id}__{key}', value.encode(),
+                                     ex=redis_max_age)
 
                 return response
 
@@ -120,14 +122,14 @@ def proxy_app(
 
                 return with_new_session_cookie(
                     Response(status=302, headers={'location': redirect_to}),
-                    {f'{session_state_prefix_key}{state}': get_request_url_with_scheme()}
+                    {f'{session_state_key_prefix}__{state}': get_request_url_with_scheme()}
                 )
 
             def redirect_to_final():
                 try:
                     code = request.args['code']
                     state = request.args['state']
-                    final_uri = get_session_value(f'{session_state_prefix_key}{state}')
+                    final_uri = get_session_value(f'{session_state_key_prefix}__{state}')
                 except KeyError:
                     logger.exception('Unable to redirect to final')
                     return Response(b'', 403)
