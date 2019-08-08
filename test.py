@@ -470,10 +470,28 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 404)
 
+    def test_healthcheck(self):
+        healthcheck_key = str(uuid.uuid4())
+
+        wait_until_started, stop_application = create_application(
+            8080, healthcheck_key=healthcheck_key)
+        self.addCleanup(stop_application)
+        wait_until_started()
+
+        with requests.get(f'http://127.0.0.1:8080/{healthcheck_key}') as resp_1:
+            self.assertEqual(resp_1.status_code, 404)
+
+        put_object(healthcheck_key, b'OK')
+
+        with requests.get(f'http://127.0.0.1:8080/{healthcheck_key}') as resp_1:
+            self.assertEqual(resp_1.status_code, 200)
+            self.assertEqual(resp_1.content, b'OK')
+
 
 def create_application(
         port, max_attempts=100,
         aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
+        healthcheck_key='heathcheck.txt',
 ):
     process = subprocess.Popen(
         ['python3', 'app.py', ],
@@ -491,6 +509,7 @@ def create_application(
             'AWS_ACCESS_KEY_ID': aws_access_key_id,
             'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
+            'AWS_S3_HEALTHCHECK_KEY': healthcheck_key,
         }
     )
 

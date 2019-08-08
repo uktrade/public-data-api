@@ -35,7 +35,7 @@ def proxy_app(
         logger,
         port, redis_url,
         sso_url, sso_client_id, sso_client_secret,
-        aws_access_key_id, aws_secret_access_key, endpoint_url, region_name,
+        aws_access_key_id, aws_secret_access_key, endpoint_url, region_name, healthcheck_key,
 ):
 
     proxied_request_headers = ['range', ]
@@ -72,6 +72,10 @@ def proxy_app(
 
         @wraps(f)
         def _authenticate_by_sso(*args, **kwargs):
+
+            if request.path == f'/{healthcheck_key}':
+                logger.debug('Allowing healthcheck')
+                return f(*args, **kwargs)
 
             logger.debug('Authenticating %s', request)
 
@@ -316,6 +320,7 @@ def main():
         os.environ['AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
+        os.environ['AWS_S3_HEALTHCHECK_KEY'],
     )
 
     def server_stop(_, __):
