@@ -29,6 +29,11 @@ The below environment variables are also required, but typically populated by Pa
 If the AWS user has the ListBucket permission, 404s are proxied through to the user to aid debugging.
 
 
+## Shutdown
+
+On SIGTERM any in-progress requests will complete before the process exits. At the time of writing PaaS will then forcibly kill the process with SIGKILL if it has not exited within 10 seconds.
+
+
 ### Running locally
 
 ```

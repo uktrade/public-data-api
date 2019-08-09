@@ -1,5 +1,7 @@
 from gevent import (
-    monkey
+    get_hub,
+    monkey,
+    spawn,
 )
 monkey.patch_all()
 
@@ -48,9 +50,10 @@ def proxy_app(
 
     def start():
         server.serve_forever()
+        get_hub().join()
 
     def stop():
-        server.stop()
+        spawn(server.stop)
 
     def authenticate_by_sso(f):
         auth_path = 'o/authorize/'
