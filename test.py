@@ -375,7 +375,37 @@ class TestS3Proxy(unittest.TestCase):
 
             for chunk in response.iter_content(chunk_size=16384):
                 chunks.append(chunk)
-                time.sleep(0.01)
+                time.sleep(0.02)
+
+        self.assertEqual(b''.join(chunks), content)
+
+    def test_key_that_exists_after_multiple_sigterm_completes(self):
+        # PaaS can apparently send multiple sigterms
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        process = wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        chunks = []
+
+        with \
+                requests.Session() as session, \
+                session.get(f'http://127.0.0.1:8080/{key}', stream=True) as response:
+
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            process.terminate()
+            time.sleep(0.1)
+            process.terminate()
+
+            for chunk in response.iter_content(chunk_size=16384):
+                chunks.append(chunk)
+                time.sleep(0.02)
 
         self.assertEqual(b''.join(chunks), content)
 
