@@ -375,6 +375,7 @@ class TestS3Proxy(unittest.TestCase):
 
             for chunk in response.iter_content(chunk_size=16384):
                 chunks.append(chunk)
+                time.sleep(0.01)
 
         self.assertEqual(b''.join(chunks), content)
 
