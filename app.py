@@ -89,7 +89,7 @@ def proxy_app(
                 return value_bytes.decode()
 
             # In our case all session values are set exactly when we want a new session cookie
-            # (which are done to mitigate session fixation attacks)
+            # (done to mitigate session fixation attacks)
             def with_new_session_cookie(response, session_values):
                 session_id = secrets.token_urlsafe(64)
                 response.set_cookie(
