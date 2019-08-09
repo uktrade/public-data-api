@@ -1,9 +1,8 @@
 from gevent import (
-    get_hub,
     monkey,
-    spawn,
 )
 monkey.patch_all()
+import gevent
 
 from datetime import (
     datetime,
@@ -50,10 +49,9 @@ def proxy_app(
 
     def start():
         server.serve_forever()
-        get_hub().join()
 
     def stop():
-        spawn(server.stop)
+        server.stop()
 
     def authenticate_by_sso(f):
         auth_path = 'o/authorize/'
@@ -326,12 +324,9 @@ def main():
         os.environ['AWS_S3_HEALTHCHECK_KEY'],
     )
 
-    def server_stop(_, __):
-        stop()
-
-    signal.signal(signal.SIGTERM, server_stop)
-
+    gevent.signal(signal.SIGTERM, stop)
     start()
+    gevent.get_hub().join()
 
 
 if __name__ == '__main__':
