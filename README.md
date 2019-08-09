@@ -34,6 +34,11 @@ If the AWS user has the ListBucket permission, 404s are proxied through to the u
 On SIGTERM any in-progress requests will complete before the process exits. At the time of writing PaaS will then forcibly kill the process with SIGKILL if it has not exited within 10 seconds.
 
 
+## Range requests
+
+The headers `range`, `content-range` and `accept-ranges` and proxied to allow range requests. This means that video should be able to be proxied with reasonable seeking behaviour.
+
+
 ### Running locally
 
 ```
