@@ -8,6 +8,7 @@ from multiprocessing import (
     Process,
 )
 import os
+import re
 import sys
 import time
 import signal
@@ -107,6 +108,60 @@ class TestS3Proxy(unittest.TestCase):
             sock.close()
 
             self.assertIn(f'location: http://127.0.0.1:8080/{key}\r\n', resp_4.decode())
+
+    def test_key_that_exists_with_trailing_question_mark(self):
+        # Ensure that the server preserves trailing question marks through
+        # redirects. Python requests can strip this, so we use raw socket
+        # requests
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(('127.0.0.1', 8080))
+        req_1 = \
+            f'GET /{key}? HTTP/1.1\r\n' \
+            f'host:127.0.0.1:8080\r\n' \
+            f'\r\n'
+        sock.send(req_1.encode())
+
+        resp_1 = b''
+        while b'\r\n\r\n' not in resp_1:
+            resp_1 += sock.recv(4096)
+        sock.close()
+
+        url_2 = re.search(b'location: (.*?)\r\n', resp_1, re.IGNORECASE)[1]
+        cookie = re.search(b'set-cookie: (.*?)=(.*?);', resp_1, re.IGNORECASE)
+        cookie_name, cookie_value = cookie[1].decode(), cookie[2].decode()
+
+        resp_2 = requests.get(url_2, allow_redirects=False)
+        url_3 = resp_2.headers['location']
+
+        url_3_parsed = urllib.parse.urlsplit(url_3)
+        url_3_full_path = url_3_parsed.path + \
+            ('?' + url_3_parsed.query if url_3_parsed.query else '')
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(('127.0.0.1', 8080))
+        req = \
+            f'GET {url_3_full_path} HTTP/1.1\r\n' \
+            f'host:127.0.0.1\r\n' \
+            f'cookie:{cookie_name}={cookie_value}\r\n' \
+            f'\r\n'
+        sock.send(req.encode())
+
+        resp_4 = b''
+        while b'\r\n\r\n' not in resp_4:
+            resp_4 += sock.recv(4096)
+        sock.close()
+
+        self.assertIn(f'location: http://127.0.0.1:8080/{key}?\r\n', resp_4.decode())
 
     def test_key_that_exists_no_session_403(self):
         wait_until_started, stop_application = create_application(8080)

@@ -15,7 +15,6 @@ import hmac
 import logging
 import json
 import os
-import re
 import secrets
 import signal
 import sys
@@ -27,6 +26,7 @@ from flask import (
     request,
 )
 from gevent.pywsgi import (
+    WSGIHandler,
     WSGIServer,
 )
 import redis
@@ -113,14 +113,8 @@ def proxy_app(
                 return f'{scheme}://{request.host}{redirect_from_sso_path}'
 
             def get_request_url_with_scheme():
-                # This method sets the scheme correctly, and does not include a trailing question
-                # mark. This means that URLs _with_ a trailing question mark will finally redirect
-                # to one without, but this would be rare, and if it does happen would almost-always
-                # have no effect on the final content. At the time of writing there seems to be no
-                # way of knowing if a request is made with or without a trailing question mark in
-                # Flask + gevent.pywsgi
                 scheme = request.headers.get('x-forwarded-proto', 'http')
-                return re.sub(r'^http://', f'{scheme}://', request.url)
+                return f'{scheme}://{request.host}{request.environ["REQUEST_LINE_PATH"]}'
 
             def redirect_to_sso():
                 logger.debug('Redirecting to SSO')
@@ -167,10 +161,12 @@ def proxy_app(
                     logger.debug('token_path error')
                     return Response(b'', 500)
 
-                return with_new_session_cookie(
+                response = with_new_session_cookie(
                     Response(status=302, headers={'location': final_uri}),
                     {session_token_key: json.loads(content)['access_token']}
                 )
+                response.autocorrect_location_header = False
+                return response
 
             def get_token_code(token):
                 with requests.get(f'{sso_url}{me_path}', headers={
@@ -302,9 +298,18 @@ def proxy_app(
             (b'x-amz-content-sha256', body_hash.encode('ascii')),
         ) + pre_auth_headers
 
+    class RequestLinePathHandler(WSGIHandler):
+        # The default WSGIHandler does not preseve a trailing question mark
+        # from the original request-line path sent by the client
+        def get_environ(self):
+            return {
+                **super().get_environ(),
+                'REQUEST_LINE_PATH': self.path,
+            }
+
     app = Flask('app')
     app.add_url_rule('/<path:path>', view_func=proxy)
-    server = WSGIServer(('0.0.0.0', port), app)
+    server = WSGIServer(('0.0.0.0', port), app, handler_class=RequestLinePathHandler)
 
     return start, stop
 
