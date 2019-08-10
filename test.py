@@ -409,6 +409,79 @@ class TestS3Proxy(unittest.TestCase):
 
         self.assertEqual(b''.join(chunks), content)
 
+    def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        process = wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        chunks = []
+
+        with \
+                requests.Session() as session, \
+                session.get(f'http://127.0.0.1:8080/{key}', stream=True) as response:
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+
+            process.terminate()
+
+            with self.assertRaises(requests.exceptions.ConnectionError):
+                session.get(f'http://127.0.0.1:8080/{key}', stream=True)
+
+            for chunk in response.iter_content(chunk_size=16384):
+                chunks.append(chunk)
+                time.sleep(0.02)
+
+        self.assertEqual(b''.join(chunks), content)
+
+    def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(self):
+        # Check that connections that were open before the SIGTERM still work
+        # after. Unsure if this is desired on PaaS, so this is more of
+        # documenting current behaviour
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        process = wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 10000
+        put_object(key, content)
+
+        chunks = []
+
+        with requests.Session() as session:
+            # Ensure we have two connections
+            with \
+                    session.get(f'http://127.0.0.1:8080/{key}', stream=True) as resp_2, \
+                    session.get(f'http://127.0.0.1:8080/{key}', stream=True) as resp_3:
+
+                for chunk in resp_2.iter_content(chunk_size=16384):
+                    pass
+
+                for chunk in resp_3.iter_content(chunk_size=16384):
+                    pass
+
+            with session.get(f'http://127.0.0.1:8080/{key}', stream=True) as resp_4:
+
+                process.terminate()
+
+                # No exception raised since the connection is already open
+                with session.get(f'http://127.0.0.1:8080/{key}'):
+                    pass
+
+                for chunk in resp_4.iter_content(chunk_size=16384):
+                    time.sleep(0.02)
+                    chunks.append(chunk)
+
+        self.assertEqual(b''.join(chunks), content)
+
     def test_range_request_from_start(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
