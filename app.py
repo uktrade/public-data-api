@@ -15,6 +15,7 @@ import hmac
 import logging
 import json
 import os
+import re
 import secrets
 import signal
 import sys
@@ -100,7 +101,6 @@ def proxy_app(
                     max_age=cookie_max_age,
                     expires=datetime.utcnow().timestamp() + cookie_max_age,
                 )
-
                 for key, value in session_values.items():
                     redis_client.set(
                         f'{redis_prefix}__{session_cookie_name}__{session_id}__{key}',
@@ -113,8 +113,14 @@ def proxy_app(
                 return f'{scheme}://{request.host}{redirect_from_sso_path}'
 
             def get_request_url_with_scheme():
+                # This method sets the scheme correctly, and does not include a trailing question
+                # mark. This means that URLs _with_ a trailing question mark will finally redirect
+                # to one without, but this would be rare, and if it does happen would almost-always
+                # have no effect on the final content. At the time of writing there seems to be no
+                # way of knowing if a request is made with or without a trailing question mark in
+                # Flask + gevent.pywsgi
                 scheme = request.headers.get('x-forwarded-proto', 'http')
-                return f'{scheme}://{request.host}{request.full_path}'
+                return re.sub(r'^http://', f'{scheme}://', request.url)
 
             def redirect_to_sso():
                 logger.debug('Redirecting to SSO')
