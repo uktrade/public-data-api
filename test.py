@@ -106,6 +106,50 @@ class TestS3Proxy(unittest.TestCase):
                 self.assertEqual(resp_2_4.content, content)
                 self.assertEqual(resp_2_4.headers['content-length'], str(len(content)))
 
+    def test_key_that_exists_parallel_requests_new_session_on_redirection_endpoint(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso(tokens_returned=('the-token', 'the-token'))
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        put_object(key, content)
+
+        with \
+                requests.Session() as sess_1, \
+                requests.Session() as sess_2:
+            with sess_1.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_1_1:
+                url_1_2 = resp_1_1.headers['location']
+
+            with sess_1.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_2_1:
+                url_2_2 = resp_2_1.headers['location']
+
+            with sess_1.get(url_1_2, allow_redirects=False) as resp_1_2:
+                url_1_2 = resp_1_2.headers['location']
+
+            with sess_1.get(url_2_2, allow_redirects=False) as resp_2_2:
+                url_2_2 = resp_2_2.headers['location']
+
+            with sess_1.get(url_1_2, allow_redirects=False) as resp_1_3:
+                url_1_3 = resp_1_3.headers['location']
+
+            # No cookies so must not have stored anything in server-side state
+            with sess_2.get(url_1_2, allow_redirects=False) as resp_2_3:
+                url_2_3 = resp_2_3.headers['location']
+
+            with sess_1.get(url_1_3) as resp_1_4:
+                self.assertEqual(resp_1_4.status_code, 200)
+                self.assertEqual(resp_1_4.content, content)
+                self.assertEqual(resp_1_4.headers['content-length'], str(len(content)))
+
+            with sess_2.get(url_2_3) as resp_2_4:
+                self.assertEqual(resp_2_4.status_code, 200)
+                self.assertEqual(resp_2_4.content, content)
+                self.assertEqual(resp_2_4.headers['content-length'], str(len(content)))
+
     def test_key_that_exists_no_trailing_question_mark(self):
         # Ensure that the server does not redirect to a URL with a trailing
         # question mark. A raw socket request is make to have access to the
