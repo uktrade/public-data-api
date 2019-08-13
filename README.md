@@ -39,6 +39,11 @@ On SIGTERM any in-progress requests will complete before the process exits. At t
 The headers `range`, `content-range` and `accept-ranges` and proxied to allow range requests. This means that video should be able to be proxied with reasonable seeking behaviour.
 
 
+## Parallel flows with new sessions
+
+Parallel requests for users that have no existing cookies are supported
+
+
 ### Running locally
 
 ```
