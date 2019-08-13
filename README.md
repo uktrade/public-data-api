@@ -3,7 +3,7 @@
 An OAuth-authenticated streaming proxy to S3
 
 
-### Required environment variables
+## Required environment variables
 
 | Variable                | Description | Example |
 | ---                     | ---         | ---     |
@@ -44,7 +44,7 @@ The headers `range`, `content-range` and `accept-ranges` and proxied to allow ra
 Parallel requests for users that have no existing cookies are supported
 
 
-### Running locally
+## Running locally
 
 ```
 python3 -m app
