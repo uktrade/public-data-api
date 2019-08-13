@@ -81,14 +81,18 @@ def proxy_app(
 
             logger.debug('Authenticating %s', request)
 
-            def get_session_value(key):
-                session_id = request.cookies[session_cookie_name]
-
-                value_bytes = redis_client.get(
-                    f'{redis_prefix}__{session_cookie_name}__{session_id}__{key}')
+            def redis_get(key):
+                value_bytes = redis_client.get(f'{redis_prefix}__{key}')
                 if value_bytes is None:
                     raise KeyError(key)
                 return value_bytes.decode()
+
+            def redis_set(key, value, ex):
+                redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
+
+            def get_session_value(key):
+                session_id = request.cookies[session_cookie_name]
+                return redis_get(f'{session_cookie_name}__{session_id}__{key}')
 
             # In our case all session values are set exactly when we want a new session cookie
             # (done to mitigate session fixation attacks)
@@ -102,9 +106,7 @@ def proxy_app(
                     expires=datetime.utcnow().timestamp() + cookie_max_age,
                 )
                 for key, value in session_values.items():
-                    redis_client.set(
-                        f'{redis_prefix}__{session_cookie_name}__{session_id}__{key}',
-                        value.encode(), ex=redis_max_age)
+                    redis_set(f'{session_cookie_name}__{session_id}__{key}', value, redis_max_age)
 
                 return response
 
