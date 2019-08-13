@@ -70,7 +70,8 @@ def proxy_app(
         session_token_key = 'sso_token'
 
         cookie_max_age = 60 * 60 * 9
-        redis_max_age = 60 * 60 * 10
+        redis_max_age_session = 60 * 60 * 10
+        redis_max_age_state = 60
 
         @wraps(f)
         def _authenticate_by_sso(*args, **kwargs):
@@ -81,14 +82,18 @@ def proxy_app(
 
             logger.debug('Authenticating %s', request)
 
-            def get_session_value(key):
-                session_id = request.cookies[session_cookie_name]
-
-                value_bytes = redis_client.get(
-                    f'{redis_prefix}__{session_cookie_name}__{session_id}__{key}')
+            def redis_get(key):
+                value_bytes = redis_client.get(f'{redis_prefix}__{key}')
                 if value_bytes is None:
                     raise KeyError(key)
                 return value_bytes.decode()
+
+            def redis_set(key, value, ex):
+                redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
+
+            def get_session_value(key):
+                session_id = request.cookies[session_cookie_name]
+                return redis_get(f'{session_cookie_name}__{session_id}__{key}')
 
             # In our case all session values are set exactly when we want a new session cookie
             # (done to mitigate session fixation attacks)
@@ -102,9 +107,9 @@ def proxy_app(
                     expires=datetime.utcnow().timestamp() + cookie_max_age,
                 )
                 for key, value in session_values.items():
-                    redis_client.set(
-                        f'{redis_prefix}__{session_cookie_name}__{session_id}__{key}',
-                        value.encode(), ex=redis_max_age)
+                    redis_set(
+                        f'{session_cookie_name}__{session_id}__{key}', value,
+                        redis_max_age_session)
 
                 return response
 
@@ -120,6 +125,9 @@ def proxy_app(
                 logger.debug('Redirecting to SSO')
                 callback_uri = urllib.parse.quote(get_callback_uri(), safe='')
                 state = secrets.token_hex(32)
+                redis_set(
+                    f'{session_state_key_prefix}__{state}', get_request_url_with_scheme(),
+                    redis_max_age_state)
 
                 redirect_to = f'{sso_url}{auth_path}?' \
                     f'scope={scope}&state={state}&' \
@@ -127,16 +135,13 @@ def proxy_app(
                     f'response_type={response_type}&' \
                     f'client_id={sso_client_id}'
 
-                return with_new_session_cookie(
-                    Response(status=302, headers={'location': redirect_to}),
-                    {f'{session_state_key_prefix}__{state}': get_request_url_with_scheme()}
-                )
+                return Response(status=302, headers={'location': redirect_to})
 
             def redirect_to_final():
                 try:
                     code = request.args['code']
                     state = request.args['state']
-                    final_uri = get_session_value(f'{session_state_key_prefix}__{state}')
+                    final_uri = redis_get(f'{session_state_key_prefix}__{state}')
                 except KeyError:
                     logger.exception('Unable to redirect to final')
                     return Response(b'', 403)
