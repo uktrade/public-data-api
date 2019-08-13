@@ -46,6 +46,7 @@ def proxy_app(
         'accept-ranges', 'content-length', 'content-type', 'date', 'etag', 'last-modified',
         'content-range',
     ]
+    redis_prefix = 's3proxy'
     redis_client = redis.from_url(redis_url)
 
     def start():
@@ -53,6 +54,15 @@ def proxy_app(
 
     def stop():
         server.stop()
+
+    def redis_get(key):
+        value_bytes = redis_client.get(f'{redis_prefix}__{key}')
+        if value_bytes is None:
+            raise KeyError(key)
+        return value_bytes.decode()
+
+    def redis_set(key, value, ex):
+        redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
 
     def authenticate_by_sso(f):
         auth_path = 'o/authorize/'
@@ -64,7 +74,6 @@ def proxy_app(
 
         redirect_from_sso_path = '/__redirect_from_sso'
 
-        redis_prefix = 's3proxy'
         session_cookie_name = 'assets_session_id'
         session_state_key_prefix = 'sso_state'
         session_token_key = 'sso_token'
@@ -81,15 +90,6 @@ def proxy_app(
                 return f(*args, **kwargs)
 
             logger.debug('Authenticating %s', request)
-
-            def redis_get(key):
-                value_bytes = redis_client.get(f'{redis_prefix}__{key}')
-                if value_bytes is None:
-                    raise KeyError(key)
-                return value_bytes.decode()
-
-            def redis_set(key, value, ex):
-                redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
 
             def get_session_value(key):
                 session_id = request.cookies[session_cookie_name]
