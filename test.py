@@ -136,7 +136,7 @@ class TestS3Proxy(unittest.TestCase):
             with sess_1.get(url_1_2, allow_redirects=False) as resp_1_3:
                 url_1_3 = resp_1_3.headers['location']
 
-            # No cookies, so no dependant on anything in the session
+            # No cookies so must not have stored anything in server-side state
             with sess_2.get(url_1_2, allow_redirects=False) as resp_2_3:
                 url_2_3 = resp_2_3.headers['location']
 
@@ -149,46 +149,6 @@ class TestS3Proxy(unittest.TestCase):
                 self.assertEqual(resp_2_4.status_code, 200)
                 self.assertEqual(resp_2_4.content, content)
                 self.assertEqual(resp_2_4.headers['content-length'], str(len(content)))
-                self.assertEqual(len(resp_2_4.history), 2)
-
-    def test_key_that_exists_parallel_requests_mix_state_on_redirection_endpoint(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(tokens_returned=('the-token', 'the-token'))
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with requests.Session() as sess:
-            with sess.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_1_1:
-                url_1_2 = resp_1_1.headers['location']
-
-            with sess.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_2_1:
-                url_2_2 = resp_2_1.headers['location']
-
-            with sess.get(url_1_2, allow_redirects=False) as resp_1_2:
-                url_1_2 = urllib.parse.urlsplit(resp_1_2.headers['location'])
-
-            with sess.get(url_2_2, allow_redirects=False) as resp_2_2:
-                url_2_2 = urllib.parse.urlsplit(resp_2_2.headers['location'])
-
-            query_1 = urllib.parse.parse_qs(url_1_2.query)
-            state_1_1, _ = query_1['state'][0].split('__')
-            _, state_2_2 = urllib.parse.parse_qs(url_2_2.query)['state'][0].split('__')
-
-            mixed_state_url = urllib.parse.urlunsplit(urllib.parse.SplitResult(
-                url_1_2.scheme,
-                url_1_2.netloc,
-                url_1_2.path,
-                f'code={query_1["code"][0]}&state={state_1_1}__{state_2_2}',
-                fragment=''
-            ))
-            with sess.get(mixed_state_url, allow_redirects=False) as resp:
-                self.assertEqual(resp.status_code, 403)
 
     def test_key_that_exists_no_trailing_question_mark(self):
         # Ensure that the server does not redirect to a URL with a trailing
@@ -263,8 +223,6 @@ class TestS3Proxy(unittest.TestCase):
         sock.close()
 
         url_2 = re.search(b'location: (.*?)\r\n', resp_1, re.IGNORECASE)[1]
-        cookie = re.search(b'set-cookie: (.*?)=(.*?);', resp_1, re.IGNORECASE)
-        cookie_name, cookie_value = cookie[1].decode(), cookie[2].decode()
 
         resp_2 = requests.get(url_2, allow_redirects=False)
         url_3 = resp_2.headers['location']
@@ -277,7 +235,6 @@ class TestS3Proxy(unittest.TestCase):
         req = \
             f'GET {url_3_full_path} HTTP/1.1\r\n' \
             f'host:127.0.0.1\r\n' \
-            f'cookie:{cookie_name}={cookie_value}\r\n' \
             f'\r\n'
         sock.send(req.encode())
 
@@ -957,7 +914,7 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
 
 
 def create_sso(
-        max_attempts=200, is_logged_in=True,
+        max_attempts=100, is_logged_in=True,
         client_id='the-client-id',
         client_secret='the-client-secret',
         tokens_returned=('the-token',), token_expected='the-token',
