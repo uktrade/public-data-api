@@ -55,15 +55,6 @@ def proxy_app(
     def stop():
         server.stop()
 
-    def redis_get(key):
-        value_bytes = redis_client.get(f'{redis_prefix}__{key}')
-        if value_bytes is None:
-            raise KeyError(key)
-        return value_bytes.decode()
-
-    def redis_set(key, value, ex):
-        redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
-
     def authenticate_by_sso(f):
         auth_path = 'o/authorize/'
         token_path = 'o/token/'
@@ -248,6 +239,15 @@ def proxy_app(
             Response(body_upstream(),
                      status=response.status_code, headers=response_headers) if allow_proxy else \
             Response(body_empty(), status=500)
+
+    def redis_get(key):
+        value_bytes = redis_client.get(f'{redis_prefix}__{key}')
+        if value_bytes is None:
+            raise KeyError(key)
+        return value_bytes.decode()
+
+    def redis_set(key, value, ex):
+        redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
 
     def aws_sigv4_headers(pre_auth_headers, service, host, method, path, params, body_hash):
         algorithm = 'AWS4-HMAC-SHA256'
