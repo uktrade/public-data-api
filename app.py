@@ -47,6 +47,7 @@ def proxy_app(
         'content-range',
     ]
     redis_prefix = 's3proxy'
+    redis_max_age = 60 * 60 * 10
     redis_client = redis.from_url(redis_url)
 
     def start():
@@ -66,12 +67,9 @@ def proxy_app(
         redirect_from_sso_path = '/__redirect_from_sso'
 
         session_cookie_name = 'assets_session_id'
-        session_state_key_prefix = 'sso_state'
         session_token_key = 'sso_token'
 
         cookie_max_age = 60 * 60 * 9
-        redis_max_age_session = 60 * 60 * 10
-        redis_max_age_state = 60
 
         @wraps(f)
         def _authenticate_by_sso(*args, **kwargs):
@@ -98,9 +96,7 @@ def proxy_app(
                     expires=datetime.utcnow().timestamp() + cookie_max_age,
                 )
                 for key, value in session_values.items():
-                    redis_set(
-                        f'{session_cookie_name}__{session_id}__{key}', value,
-                        redis_max_age_session)
+                    redis_set(f'{session_cookie_name}__{session_id}__{key}', value)
 
                 return response
 
@@ -112,13 +108,25 @@ def proxy_app(
                 scheme = request.headers.get('x-forwarded-proto', 'http')
                 return f'{scheme}://{request.host}{request.environ["REQUEST_LINE_PATH"]}'
 
-            def redirect_to_sso():
+            def redirect_to_sso(final_uri):
                 logger.debug('Redirecting to SSO')
+                # State is made of two parts: one corresponding to a value in server-side session
+                # and one corresponding to "global" values. If the one that is meant to be in the
+                # session isn't there, say, due to someone sending their redirection link to
+                # someone else, or parallel requests that each start new sessions, then the global
+                # part _not_ in the session still stores the final URL, so we redirect back to SSO
+                # to then come back here.
+                #
+                # If the redirection to and back from SSO takes longer than either redis_max_age or
+                # cookie_max_age, the user will see a 403. This is solveable, but suspect not
+                # needed
                 callback_uri = urllib.parse.quote(get_callback_uri(), safe='')
-                state = secrets.token_hex(32)
-                redis_set(
-                    f'{session_state_key_prefix}__{state}', get_request_url_with_scheme(),
-                    redis_max_age_state)
+                non_session_state_key = secrets.token_hex(32)
+                state_value = final_uri
+                redis_set(non_session_state_key, state_value)
+
+                session_state_key = secrets.token_hex(32)
+                state = f'{non_session_state_key}__{session_state_key}'
 
                 redirect_to = f'{sso_url}{auth_path}?' \
                     f'scope={scope}&state={state}&' \
@@ -126,15 +134,28 @@ def proxy_app(
                     f'response_type={response_type}&' \
                     f'client_id={sso_client_id}'
 
-                return Response(status=302, headers={'location': redirect_to})
+                return with_new_session_cookie(
+                    Response(status=302, headers={'location': redirect_to}),
+                    {session_state_key: non_session_state_key}
+                )
 
             def redirect_to_final():
                 try:
                     code = request.args['code']
-                    state = request.args['state']
-                    final_uri = redis_get(f'{session_state_key_prefix}__{state}')
-                except KeyError:
+                    non_session_state_key, session_state_key = request.args['state'].split('__')
+                    final_uri = redis_get(non_session_state_key)
+                except (KeyError, ValueError):
                     logger.exception('Unable to redirect to final')
+                    return Response(b'', 403)
+
+                try:
+                    session_state_value = get_session_value(session_state_key)
+                except KeyError:
+                    logger.debug('Session state not found. Redirecting back to SSO')
+                    return redirect_to_sso(final_uri)
+
+                if session_state_value != non_session_state_key:
+                    logger.exception('Global and session states do not match')
                     return Response(b'', 403)
 
                 logger.debug('Attempting to redirect to final: %s', final_uri)
@@ -176,12 +197,12 @@ def proxy_app(
             try:
                 token = get_session_value(session_token_key)
             except KeyError:
-                return redirect_to_sso()
+                return redirect_to_sso(get_request_url_with_scheme())
 
             token_code = get_token_code(token)
             if token_code in [401, 403]:
                 logger.debug('token_code response is %s', token_code)
-                return redirect_to_sso()
+                return redirect_to_sso(get_request_url_with_scheme())
 
             if token_code != 200:
                 return Response(b'', 500)
@@ -246,8 +267,8 @@ def proxy_app(
             raise KeyError(key)
         return value_bytes.decode()
 
-    def redis_set(key, value, ex):
-        redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=ex)
+    def redis_set(key, value):
+        redis_client.set(f'{redis_prefix}__{key}', value.encode(), ex=redis_max_age)
 
     def aws_sigv4_headers(pre_auth_headers, service, host, method, path, params, body_hash):
         algorithm = 'AWS4-HMAC-SHA256'
