@@ -69,6 +69,11 @@ def proxy_app(
         session_state_key_prefix = 'sso_state'
         session_token_key = 'sso_token'
 
+        expired_message = \
+            b'<p style="font-weight: bold; font-family: Helvetica, Arial, sans-serif">' \
+            b'Sign in may have taken too long. Please try the original link again.' \
+            b'</p>'
+
         cookie_max_age = 60 * 60 * 9
         redis_max_age_session = 60 * 60 * 10
         redis_max_age_state = 60
@@ -132,10 +137,15 @@ def proxy_app(
                 try:
                     code = request.args['code']
                     state = request.args['state']
+                except KeyError:
+                    logger.exception('Missing code or state')
+                    return Response(b'', 400)
+
+                try:
                     final_uri = redis_get(f'{session_state_key_prefix}__{state}')
                 except KeyError:
-                    logger.exception('Unable to redirect to final')
-                    return Response(b'', 403)
+                    logger.exception('Unable to find state in Redis')
+                    return Response(expired_message, 403, headers={'content-type': 'text/html'})
 
                 logger.debug('Attempting to redirect to final: %s', final_uri)
 
