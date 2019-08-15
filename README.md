@@ -44,6 +44,11 @@ The headers `range`, `content-range` and `accept-ranges` and proxied to allow ra
 Parallel requests for users that have no existing cookies are supported
 
 
+## Key-limitation
+
+The path `/__redirect_from_sso` is used as part of SSO authentication. This corresponds to the key `__redirect_from_sso`, and so the object with this key cannot be proxied.
+
+
 ## Running locally
 
 ```
