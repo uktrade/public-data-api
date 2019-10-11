@@ -226,29 +226,23 @@ def proxy_app(
         logger.debug('Allowing proxy: %s', allow_proxy)
 
         def body_upstream():
-            try:
-                for chunk in response.iter_content(16384):
-                    yield chunk
-            finally:
-                logger.debug('Closing proxied response')
-                response.close()
+            for chunk in response.iter_content(16384):
+                yield chunk
 
         def body_empty():
             # Ensure this is a generator
             while False:
                 yield
 
-            try:
-                for _ in response.iter_content(16384):
-                    pass
-            finally:
-                logger.debug('Closing empty response')
-                response.close()
+            for _ in response.iter_content(16384):
+                pass
 
-        return \
+        downstream_response = \
             Response(body_upstream(),
                      status=response.status_code, headers=response_headers) if allow_proxy else \
             Response(body_empty(), status=500)
+        downstream_response.call_on_close(response.close)
+        return downstream_response
 
     def redis_get(key):
         value_bytes = redis_client.get(f'{redis_prefix}__{key}')
