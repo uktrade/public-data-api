@@ -317,6 +317,8 @@ def proxy_app(
             }
 
     app = Flask('app')
+
+    app.add_url_rule('/', view_func=proxy, defaults={'path': '/'})
     app.add_url_rule('/<path:path>', view_func=proxy)
     server = WSGIServer(('0.0.0.0', port), app, handler_class=RequestLinePathHandler)
 

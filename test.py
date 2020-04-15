@@ -811,6 +811,22 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 404)
 
+    def test_root_path_redirects_to_sso(self):
+        wait_until_started, stop_application = create_application(8080)
+        self.addCleanup(stop_application)
+        wait_until_started()
+        wait_until_sso_started, stop_sso = create_sso()
+        self.addCleanup(stop_sso)
+        wait_until_sso_started()
+
+        url_1 = f'http://localhost:8080/'
+        with requests.get(url_1, allow_redirects=False) as resp:
+            status_code = resp.status_code
+            url = resp.headers['location']
+
+        self.assertEqual(status_code, 302)
+        self.assertTrue(url.startswith('http://127.0.0.1:8081/o/authorize/'))
+
     def test_healthcheck(self):
         healthcheck_key = str(uuid.uuid4())
 
