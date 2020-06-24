@@ -762,7 +762,7 @@ class TestS3Proxy(unittest.TestCase):
         }
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
+                session.get('http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
             self.assertEqual(resp.status_code, 403)
 
     def test_direct_redirection_endpoint_with_code_no_state_400(self):
@@ -779,7 +779,7 @@ class TestS3Proxy(unittest.TestCase):
         }
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
+                session.get('http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
             self.assertEqual(resp.status_code, 400)
 
     def test_direct_redirection_endpoint_no_state_no_code_400(self):
@@ -793,7 +793,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/__redirect_from_sso') as resp:
+                session.get('http://127.0.0.1:8080/__redirect_from_sso') as resp:
             self.assertEqual(resp.status_code, 400)
 
     def test_key_that_does_not_exist(self):
@@ -819,7 +819,7 @@ class TestS3Proxy(unittest.TestCase):
         self.addCleanup(stop_sso)
         wait_until_sso_started()
 
-        url_1 = f'http://localhost:8080/'
+        url_1 = 'http://localhost:8080/'
         with requests.get(url_1, allow_redirects=False) as resp:
             status_code = resp.status_code
             url = resp.headers['location']
