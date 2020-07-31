@@ -3,27 +3,14 @@ from datetime import (
 )
 import hashlib
 import hmac
-import json
-from multiprocessing import (
-    Process,
-)
 import os
-import re
-import sys
 import time
-import signal
 import socket
 import subprocess
 import unittest
 import urllib.parse
 import uuid
 
-from flask import (
-    Flask,
-    Response,
-    request,
-)
-import redis
 import requests
 
 
@@ -38,21 +25,10 @@ class TestS3Proxy(unittest.TestCase):
 
         stop_application()
 
-    def test_meta_sso_fails(self):
-        wait_until_sso_started, stop_sso = create_sso(max_attempts=1)
-
-        with self.assertRaises(ConnectionError):
-            wait_until_sso_started()
-
-        stop_sso()
-
     def test_key_that_exists(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -63,452 +39,12 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
-            self.assertEqual(len(response.history), 3)
-
-    def test_key_that_exists_parallel_requests_same_session(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(tokens_returned=('the-token', 'the-token'))
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with requests.Session() as session:
-            with session.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_1_1:
-                url_1_2 = resp_1_1.headers['location']
-
-            with session.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_2_1:
-                url_2_2 = resp_2_1.headers['location']
-
-            with session.get(url_1_2, allow_redirects=False) as resp_1_2:
-                url_1_2 = resp_1_2.headers['location']
-
-            with session.get(url_2_2, allow_redirects=False) as resp_2_2:
-                url_2_2 = resp_2_2.headers['location']
-
-            with session.get(url_1_2, allow_redirects=False) as resp_1_3:
-                url_1_3 = resp_1_3.headers['location']
-
-            with session.get(url_1_2, allow_redirects=False) as resp_2_3:
-                url_2_3 = resp_2_3.headers['location']
-
-            with session.get(url_1_3) as resp_1_4:
-                self.assertEqual(resp_1_4.status_code, 200)
-                self.assertEqual(resp_1_4.content, content)
-                self.assertEqual(resp_1_4.headers['content-length'], str(len(content)))
-
-            with session.get(url_2_3) as resp_2_4:
-                self.assertEqual(resp_2_4.status_code, 200)
-                self.assertEqual(resp_2_4.content, content)
-                self.assertEqual(resp_2_4.headers['content-length'], str(len(content)))
-
-    def test_key_that_exists_parallel_requests_new_session_on_redirection_endpoint(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(tokens_returned=('the-token', 'the-token'))
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as sess_1, \
-                requests.Session() as sess_2:
-            with sess_1.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_1_1:
-                url_1_2 = resp_1_1.headers['location']
-
-            with sess_1.get(f'http://127.0.0.1:8080/{key}', allow_redirects=False) as resp_2_1:
-                url_2_2 = resp_2_1.headers['location']
-
-            with sess_1.get(url_1_2, allow_redirects=False) as resp_1_2:
-                url_1_2 = resp_1_2.headers['location']
-
-            with sess_1.get(url_2_2, allow_redirects=False) as resp_2_2:
-                url_2_2 = resp_2_2.headers['location']
-
-            with sess_1.get(url_1_2, allow_redirects=False) as resp_1_3:
-                url_1_3 = resp_1_3.headers['location']
-
-            # No cookies so must not have stored anything in server-side state
-            with sess_2.get(url_1_2, allow_redirects=False) as resp_2_3:
-                url_2_3 = resp_2_3.headers['location']
-
-            with sess_1.get(url_1_3) as resp_1_4:
-                self.assertEqual(resp_1_4.status_code, 200)
-                self.assertEqual(resp_1_4.content, content)
-                self.assertEqual(resp_1_4.headers['content-length'], str(len(content)))
-
-            with sess_2.get(url_2_3) as resp_2_4:
-                self.assertEqual(resp_2_4.status_code, 200)
-                self.assertEqual(resp_2_4.content, content)
-                self.assertEqual(resp_2_4.headers['content-length'], str(len(content)))
-
-    def test_key_that_exists_no_trailing_question_mark(self):
-        # Ensure that the server does not redirect to a URL with a trailing
-        # question mark. A raw socket request is make to have access to the
-        # raw bytes of the response, which are hidden if using Python requests
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        url_1 = f'http://127.0.0.1:8080/{key}'
-        with \
-                requests.Session() as session:
-            with session.get(url_1, allow_redirects=False) as resp_1:
-                url_2 = resp_1.headers['location']
-                cookies_str = ';'.join(f'{key}={value}' for key, value in resp_1.cookies.items())
-
-            with session.get(url_2, allow_redirects=False) as resp_2:
-                url_3 = resp_2.headers['location']
-
-            url_3_parsed = urllib.parse.urlsplit(url_3)
-            url_3_full_path = url_3_parsed.path + \
-                ('?' + url_3_parsed.query if url_3_parsed.query else '')
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect(('127.0.0.1', 8080))
-            req = \
-                f'GET {url_3_full_path} HTTP/1.1\r\n' \
-                f'host:127.0.0.1\r\n' \
-                f'cookie:{cookies_str}\r\n' \
-                f'\r\n'
-            sock.send(req.encode())
-
-            resp_4 = b''
-            while b'\r\n\r\n' not in resp_4:
-                resp_4 += sock.recv(4096)
-            sock.close()
-
-            self.assertIn(f'location: http://127.0.0.1:8080/{key}\r\n', resp_4.decode())
-
-    def test_key_that_exists_with_trailing_question_mark(self):
-        # Ensure that the server preserves trailing question marks through
-        # redirects. Python requests can strip this, so we use raw socket
-        # requests
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', 8080))
-        req_1 = \
-            f'GET /{key}? HTTP/1.1\r\n' \
-            f'host:127.0.0.1:8080\r\n' \
-            f'\r\n'
-        sock.send(req_1.encode())
-
-        resp_1 = b''
-        while b'\r\n\r\n' not in resp_1:
-            resp_1 += sock.recv(4096)
-        sock.close()
-
-        url_2 = re.search(b'location: (.*?)\r\n', resp_1, re.IGNORECASE)[1]
-
-        resp_2 = requests.get(url_2, allow_redirects=False)
-        url_3 = resp_2.headers['location']
-
-        url_3_parsed = urllib.parse.urlsplit(url_3)
-        url_3_full_path = url_3_parsed.path + \
-            ('?' + url_3_parsed.query if url_3_parsed.query else '')
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', 8080))
-        req = \
-            f'GET {url_3_full_path} HTTP/1.1\r\n' \
-            f'host:127.0.0.1\r\n' \
-            f'\r\n'
-        sock.send(req.encode())
-
-        resp_4 = b''
-        while b'\r\n\r\n' not in resp_4:
-            resp_4 += sock.recv(4096)
-        sock.close()
-
-        self.assertIn(f'location: http://127.0.0.1:8080/{key}?\r\n', resp_4.decode())
-
-    def test_key_that_exists_no_session_302(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        url_1 = f'http://localhost:8080/{key}'
-        with requests.get(url_1, allow_redirects=False) as resp_1:
-            url_2 = resp_1.headers['location']
-
-        with requests.get(url_2, allow_redirects=False) as resp_2:
-            url_3 = resp_2.headers['location']
-
-        with requests.get(url_3, allow_redirects=False) as resp_3:
-            self.assertEqual(resp_3.content, b'')
-            self.assertEqual(resp_3.status_code, 302)
-
-    def test_key_that_exists_second_request_succeeds_no_redirect(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with requests.Session() as session:
-
-            with session.get(f'http://127.0.0.1:8080/{key}'):
-                pass
-
-            with session.get(f'http://127.0.0.1:8080/{key}') as response:
-                self.assertEqual(response.content, content)
-                self.assertEqual(response.headers['content-length'], str(len(content)))
-                self.assertEqual(len(response.history), 0)
-
-    def test_key_that_exists_redis_cleared_then_succeeds(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(tokens_returned=['the-token', 'the-token'])
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with requests.Session() as session:
-
-            with session.get(f'http://127.0.0.1:8080/{key}'):
-                pass
-
-            redis_client = redis.from_url('redis://127.0.0.1:6379/0')
-            redis_client.flushdb()
-
-            with session.get(f'http://127.0.0.1:8080/{key}') as response:
-                pass
-
-            self.assertEqual(response.content, content)
-            self.assertEqual(response.headers['content-length'], str(len(content)))
-            self.assertEqual(len(response.history), 3)
-
-    def test_key_that_exists_redis_cleared_on_redirection_shows_message(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with requests.Session() as session:
-
-            url_1 = f'http://127.0.0.1:8080/{key}'
-            with session.get(url_1, allow_redirects=False) as resp_1:
-                url_2 = resp_1.headers['location']
-
-            with session.get(url_2, allow_redirects=False) as resp_2:
-                url_3 = resp_2.headers['location']
-
-            redis_client = redis.from_url('redis://127.0.0.1:6379/0')
-            redis_client.flushdb()
-
-            with session.get(url_3, allow_redirects=False) as resp_3:
-                pass
-
-            self.assertIn(b'Please try the original link again.', resp_3.content)
-            self.assertEqual(resp_3.status_code, 403)
-
-    def test_key_that_exists_x_forwarded_proto_respected(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        headers = {
-            'x-forwarded-proto': 'https',
-        }
-        # We don't have a SSL server listening, so we expect an SSL error
-        with self.assertRaises(requests.exceptions.SSLError):
-            with requests.Session() as session:
-                session.get(f'http://127.0.0.1:8080/{key}', headers=headers).__enter__()
-
-    def test_key_that_exists_me_response_500_is_500(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(me_response_code=500)
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, b'')
-            self.assertEqual(response.status_code, 500)
-
-    def test_key_that_exists_no_sso_started_returns_500(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with requests.Session() as session:
-
-            with session.get(f'http://127.0.0.1:8080/{key}') as response_1:
-                self.assertEqual(response_1.content, content)
-
-            stop_sso()
-
-            with session.get(f'http://127.0.0.1:8080/{key}') as response_2:
-                self.assertIn(b'500 Internal Server Error', response_2.content)
-                self.assertNotIn(content, response_2.content)
-                self.assertEqual(response_2.status_code, 500)
-
-    def test_key_that_exists_bad_code_perms_returns_403(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(code_returned='not-the-code')
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, b'')
-            self.assertEqual(response.status_code, 403)
-
-    def test_key_that_exists_bad_secret_returns_403(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(client_secret='not-the-secret')
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, b'')
-            self.assertEqual(response.status_code, 403)
-
-    def test_key_that_exists_bad_token_perms_redirects_again_to_success(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(
-            tokens_returned=['not-the-token', 'the-token'],
-        )
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, content)
-            self.assertEqual(len(response.history), 6)
-
-    def test_key_that_exists_soo_token_returns_500_returns_500(self):
-        # Make sure we don't get into infinite redirect
-
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(tokens_returned=())
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, b'')
-            self.assertEqual(response.status_code, 500)
-
-    def test_key_that_exists_not_logged_in_shows_login(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso(is_logged_in=False)
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
-
-        with \
-                requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
-            self.assertEqual(response.content, b'The login page')
+            self.assertEqual(len(response.history), 0)
 
     def test_multiple_concurrent_requests(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key_1 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         key_2 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
@@ -567,9 +103,6 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         process = wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -595,9 +128,6 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         process = wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -624,9 +154,6 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         process = wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -657,9 +184,6 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         process = wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 10000
@@ -697,9 +221,6 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -716,9 +237,6 @@ class TestS3Proxy(unittest.TestCase):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -736,9 +254,6 @@ class TestS3Proxy(unittest.TestCase):
             8080, aws_access_key_id='not-exist')
         self.addCleanup(stop_application)
         wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
@@ -747,62 +262,10 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 500)
 
-    def test_direct_redirection_endpoint_with_state_code_443(self):
-        wait_until_started, stop_application = create_application(
-            8080, aws_access_key_id='not-exist')
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        params = {
-            'state': 'the-state',
-            'code': 'the-code',
-        }
-        with \
-                requests.Session() as session, \
-                session.get('http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
-            self.assertEqual(resp.status_code, 403)
-
-    def test_direct_redirection_endpoint_with_code_no_state_400(self):
-        wait_until_started, stop_application = create_application(
-            8080, aws_access_key_id='not-exist')
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        params = {
-            'code': 'the-code',
-        }
-        with \
-                requests.Session() as session, \
-                session.get('http://127.0.0.1:8080/__redirect_from_sso', params=params) as resp:
-            self.assertEqual(resp.status_code, 400)
-
-    def test_direct_redirection_endpoint_no_state_no_code_400(self):
-        wait_until_started, stop_application = create_application(
-            8080, aws_access_key_id='not-exist')
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        with \
-                requests.Session() as session, \
-                session.get('http://127.0.0.1:8080/__redirect_from_sso') as resp:
-            self.assertEqual(resp.status_code, 400)
-
     def test_key_that_does_not_exist(self):
         wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
@@ -811,27 +274,12 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 404)
 
-    def test_root_path_redirects_to_sso(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-        wait_until_sso_started, stop_sso = create_sso()
-        self.addCleanup(stop_sso)
-        wait_until_sso_started()
-
-        url_1 = 'http://localhost:8080/'
-        with requests.get(url_1, allow_redirects=False) as resp:
-            status_code = resp.status_code
-            url = resp.headers['location']
-
-        self.assertEqual(status_code, 302)
-        self.assertTrue(url.startswith('http://127.0.0.1:8081/o/authorize/'))
-
     def test_healthcheck(self):
+        # When the API becomes more structured than just a proxy, it may need this key to be
+        # specifically allowed
         healthcheck_key = str(uuid.uuid4())
 
-        wait_until_started, stop_application = create_application(
-            8080, healthcheck_key=healthcheck_key)
+        wait_until_started, stop_application = create_application(8080)
         self.addCleanup(stop_application)
         wait_until_started()
 
@@ -848,7 +296,6 @@ class TestS3Proxy(unittest.TestCase):
 def create_application(
         port, max_attempts=100,
         aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
-        healthcheck_key='heathcheck.txt',
 ):
     process = subprocess.Popen(
         ['python3', 'app.py', ],
@@ -857,16 +304,10 @@ def create_application(
         env={
             **os.environ,
             'PORT': str(port),
-            'VCAP_SERVICES': json.dumps({
-                'redis': [{'credentials': {'uri': 'redis://127.0.0.1:6379/0'}}]}),
-            'SSO_URL': 'http://127.0.0.1:8081/',
-            'SSO_CLIENT_ID': 'the-client-id',
-            'SSO_CLIENT_SECRET': 'the-client-secret',
             'AWS_S3_REGION': 'us-east-1',
             'AWS_ACCESS_KEY_ID': aws_access_key_id,
             'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
-            'AWS_S3_HEALTHCHECK_KEY': healthcheck_key,
         }
     )
 
@@ -878,7 +319,7 @@ def create_application(
             except (OSError, ConnectionRefusedError):
                 if i == max_attempts - 1:
                     raise
-                time.sleep(0.01)
+                time.sleep(0.02)
         return process
 
     def stop():
@@ -957,91 +398,3 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
         (b'x-amz-date', amzdate.encode('ascii')),
         (b'x-amz-content-sha256', body_hash.encode('ascii')),
     ) + pre_auth_headers
-
-
-def create_sso(
-        max_attempts=100, is_logged_in=True,
-        client_id='the-client-id',
-        client_secret='the-client-secret',
-        tokens_returned=('the-token',), token_expected='the-token',
-        code_returned='the-code', code_expected='the-code',
-        me_response_code=200,
-):
-    # Mock SSO in a different process to not block tests
-
-    def start():
-        os.environ['FLASK_ENV'] = 'development'  # Avoid warning about this not a prod server
-        app = Flask('app')
-        app.add_url_rule('/api/v1/user/me/', view_func=handle_me, methods=['GET'])
-        app.add_url_rule('/o/authorize/', view_func=handle_authorize, methods=['GET'])
-        app.add_url_rule('/o/token/', view_func=handle_token, methods=['POST'])
-
-        def _stop(_, __):
-            sys.exit()
-
-        signal.signal(signal.SIGTERM, _stop)
-
-        try:
-            app.run(host='', port=8081, debug=False)
-        except SystemExit:
-            # app.run doesn't seem to have a good way of killing the server,
-            # and want to exit cleanly for code coverage
-            pass
-
-    def wait_until_connected():
-        for i in range(0, max_attempts):
-            try:
-                with socket.create_connection(('127.0.0.1', 8081), timeout=0.1):
-                    break
-            except (OSError, ConnectionRefusedError):
-                if i == max_attempts - 1:
-                    raise
-                time.sleep(0.01)
-
-    def stop():
-        process.terminate()
-        process.join()
-
-    def handle_me():
-        correct = request.headers.get('authorization', '') == f'Bearer {token_expected}'
-        me = {
-            'email': 'test@test.com',
-            'first_name': 'Peter',
-            'last_name': 'Piper',
-            'user_id': '7f93c2c7-bc32-43f3-87dc-40d0b8fb2cd2',
-        }
-        return \
-            Response(json.dumps(me), status=me_response_code) if correct else \
-            Response(status=403)
-
-    def handle_authorize():
-        args = request.args
-        redirect_url = f'{args["redirect_uri"]}?state={args["state"]}&code={code_returned}'
-        return \
-            Response(status=302, headers={'location': redirect_url}) if is_logged_in else \
-            Response(b'The login page', status=200)
-
-    token_iter = iter(tokens_returned)
-
-    def next_token():
-        nonlocal token_iter
-        try:
-            return next(token_iter)
-        except StopIteration:
-            iter(tokens_returned)
-            return next(token_iter)
-
-    def handle_token():
-        correct = \
-            request.form['code'] == code_expected and \
-            request.form['client_id'] == client_id and \
-            request.form['client_secret'] == client_secret and \
-            request.form['grant_type'] == 'authorization_code'
-        return \
-            Response(json.dumps({'access_token': next_token()}), status=200) if correct else \
-            Response(status=403)
-
-    process = Process(target=start)
-    process.start()
-
-    return wait_until_connected, stop
