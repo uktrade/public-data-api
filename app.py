@@ -166,7 +166,7 @@ def main():
         os.environ['AWS_S3_REGION'],
     )
 
-    gevent.signal(signal.SIGTERM, stop)
+    gevent.signal_handler(signal.SIGTERM, stop)
     start()
     gevent.get_hub().join()
 

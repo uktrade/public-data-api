@@ -319,7 +319,7 @@ def create_application(
             except (OSError, ConnectionRefusedError):
                 if i == max_attempts - 1:
                     raise
-                time.sleep(0.01)
+                time.sleep(0.02)
         return process
 
     def stop():

@@ -8,8 +8,8 @@ certifi==2019.6.16        # via requests
 chardet==3.0.4            # via requests
 click==7.0                # via flask
 flask==1.1.1              # via -r requirements.in
-gevent==1.4.0             # via -r requirements.in
-greenlet==0.4.15          # via gevent
+gevent==20.6.2            # via -r requirements.in
+greenlet==0.4.16          # via gevent
 idna==2.5                 # via requests
 itsdangerous==1.1.0       # via flask
 jinja2==2.10.1            # via flask
@@ -17,3 +17,8 @@ markupsafe==1.1.1         # via jinja2
 requests==2.22.0          # via -r requirements.in
 urllib3==1.25.3           # via -r requirements.in, requests
 werkzeug==0.15.5          # via flask
+zope.event==4.4           # via gevent
+zope.interface==5.1.0     # via gevent
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools
