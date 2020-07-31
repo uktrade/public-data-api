@@ -23,7 +23,7 @@ from flask import (
 from gevent.pywsgi import (
     WSGIServer,
 )
-import requests
+import urllib3
 
 
 def proxy_app(
@@ -31,6 +31,12 @@ def proxy_app(
         port,
         aws_access_key_id, aws_secret_access_key, endpoint_url, region_name,
 ):
+
+    parsed_endpoint = urllib.parse.urlsplit(endpoint_url)
+    PoolClass = \
+        urllib3.HTTPConnectionPool if parsed_endpoint.scheme == 'http' else \
+        urllib3.HTTPSConnectionPool
+    http = PoolClass(parsed_endpoint.hostname, port=parsed_endpoint.port, maxsize=1000)
 
     proxied_request_headers = ['range', ]
     proxied_response_codes = [200, 206, 404, ]
@@ -58,34 +64,30 @@ def proxy_app(
         request_headers = aws_sigv4_headers(
             pre_auth_headers, 's3', parsed_url.netloc, 'GET', parsed_url.path, (), body_hash,
         )
-        response = requests.get(url, headers=dict(request_headers), stream=True)
 
+        response = http.request('GET', url, headers=dict(request_headers), preload_content=False)
         response_headers = tuple((
             (key, response.headers[key])
             for key in proxied_response_headers if key in response.headers
         ))
-        allow_proxy = response.status_code in proxied_response_codes
+        allow_proxy = response.status in proxied_response_codes
 
         logger.debug('Response: %s', response)
         logger.debug('Allowing proxy: %s', allow_proxy)
-
-        def body_upstream():
-            for chunk in response.iter_content(16384):
-                yield chunk
 
         def body_empty():
             # Ensure this is a generator
             while False:
                 yield
 
-            for _ in response.iter_content(16384):
+            for _ in response.stream(16384, decode_content=False):
                 pass
 
         downstream_response = \
-            Response(body_upstream(),
-                     status=response.status_code, headers=response_headers) if allow_proxy else \
+            Response(response.stream(16384, decode_content=False),
+                     status=response.status, headers=response_headers) if allow_proxy else \
             Response(body_empty(), status=500)
-        downstream_response.call_on_close(response.close)
+        downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
     def aws_sigv4_headers(pre_auth_headers, service, host, method, path, params, body_hash):
