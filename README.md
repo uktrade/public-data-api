@@ -34,6 +34,38 @@ On SIGTERM any in-progress requests will complete before the process exits. At t
 The headers `range`, `content-range` and `accept-ranges` and proxied to allow range requests. This means that video should be able to be proxied with reasonable seeking behaviour.
 
 
+## S3 Select requests
+
+S3 Select queries are supported on JSON objects via GET requests. For example, if you have the JSON object at `/data.json`
+
+```json
+{
+    "top": [
+        {"a": "b", "c": "d"},
+        {"a": "b", "c": "e"},
+        {"h": "i", "i": "j"}
+    ]
+}
+```
+
+Then a GET request to `/data.json?query_sql=thequery`, where `thequery` is the URL-encoded version of the SQL query
+
+```
+SELECT * FROM S3Object[*].top[*] AS t WHERE t.a = 'b'
+```
+
+would return a JSON object, where the matching rows are under the `rows` key of the top-level object.
+
+```json
+{
+    "rows": [
+        {"a": "b", "c": "d"},
+        {"a": "b", "c": "e"},
+    ]
+}
+```
+
+
 ## Running locally
 
 ```
