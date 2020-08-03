@@ -14,22 +14,58 @@ import uuid
 import requests
 
 
+def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
+    def decorator(original_test):
+        def test_with_application(self):
+            process = subprocess.Popen(
+                ['python3', 'app.py', ],
+                stderr=subprocess.PIPE,  # Silence logs
+                stdout=subprocess.PIPE,
+                env={
+                    **os.environ,
+                    'PORT': str(port),
+                    'AWS_S3_REGION': 'us-east-1',
+                    'AWS_ACCESS_KEY_ID': aws_access_key_id,
+                    'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                    'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
+                }
+            )
+
+            def stop():
+                process.terminate()
+                process.wait(timeout=5)
+                process.stderr.close()
+                process.stdout.close()
+
+            try:
+                for i in range(0, max_attempts):
+                    try:
+                        with socket.create_connection(('127.0.0.1', port), timeout=0.1):
+                            break
+                    except (OSError, ConnectionRefusedError):
+                        if i == max_attempts - 1:
+                            raise
+                        time.sleep(0.02)
+                original_test(self, process)
+            finally:
+                stop()
+
+        return test_with_application
+    return decorator
+
+
 class TestS3Proxy(unittest.TestCase):
 
-    def test_meta_create_application_fails(self):
-        wait_until_started, stop_application = create_application(
-            8080, max_attempts=1)
+    def test_meta_with_application_fails(self):
+        @with_application(8080, max_attempts=1)
+        def test(*_):
+            pass
 
         with self.assertRaises(ConnectionError):
-            wait_until_started()
+            test(self)
 
-        stop_application()
-
-    def test_key_that_exists(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-
+    @with_application(8080)
+    def test_key_that_exists(self, _):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
@@ -41,11 +77,8 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(len(response.history), 0)
 
-    def test_multiple_concurrent_requests(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-
+    @with_application(8080)
+    def test_multiple_concurrent_requests(self, _):
         key_1 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         key_2 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content_1 = str(uuid.uuid4()).encode() * 1000000
@@ -99,11 +132,8 @@ class TestS3Proxy(unittest.TestCase):
         self.assertGreater(num_both, 1000)
         self.assertLess(num_single, 100)
 
-    def test_key_that_exists_during_shutdown_completes(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        process = wait_until_started()
-
+    @with_application(8080)
+    def test_key_that_exists_during_shutdown_completes(self, process):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
@@ -123,11 +153,9 @@ class TestS3Proxy(unittest.TestCase):
 
         self.assertEqual(b''.join(chunks), content)
 
-    def test_key_that_exists_after_multiple_sigterm_completes(self):
+    @with_application(8080)
+    def test_key_that_exists_after_multiple_sigterm_completes(self, process):
         # PaaS can apparently send multiple sigterms
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        process = wait_until_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -150,11 +178,8 @@ class TestS3Proxy(unittest.TestCase):
 
         self.assertEqual(b''.join(chunks), content)
 
-    def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        process = wait_until_started()
-
+    @with_application(8080)
+    def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(self, process):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
@@ -177,13 +202,11 @@ class TestS3Proxy(unittest.TestCase):
 
         self.assertEqual(b''.join(chunks), content)
 
-    def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(self):
+    @with_application(8080)
+    def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(self, process):
         # Check that connections that were open before the SIGTERM still work
         # after. Unsure if this is desired on PaaS, so this is more of
         # documenting current behaviour
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        process = wait_until_started()
 
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 10000
@@ -217,11 +240,8 @@ class TestS3Proxy(unittest.TestCase):
 
         self.assertEqual(b''.join(chunks), content)
 
-    def test_range_request_from_start(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-
+    @with_application(8080)
+    def test_range_request_from_start(self, _):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
@@ -233,11 +253,8 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
 
-    def test_range_request_after_start(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-
+    @with_application(8080)
+    def test_range_request_after_start(self, _):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         put_object(key, content)
@@ -249,12 +266,8 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, content[1:])
             self.assertEqual(response.headers['content-length'], str(len(content) - 1))
 
-    def test_bad_aws_credentials(self):
-        wait_until_started, stop_application = create_application(
-            8080, aws_access_key_id='not-exist')
-        self.addCleanup(stop_application)
-        wait_until_started()
-
+    @with_application(8080, aws_access_key_id='not-exist')
+    def test_bad_aws_credentials(self, _):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
         with \
@@ -262,11 +275,8 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 500)
 
-    def test_key_that_does_not_exist(self):
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
-
+    @with_application(8080)
+    def test_key_that_does_not_exist(self, _):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
 
         with \
@@ -274,14 +284,11 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(f'http://127.0.0.1:8080/{key}') as response:
             self.assertEqual(response.status_code, 404)
 
-    def test_healthcheck(self):
+    @with_application(8080)
+    def test_healthcheck(self, _):
         # When the API becomes more structured than just a proxy, it may need this key to be
         # specifically allowed
         healthcheck_key = str(uuid.uuid4())
-
-        wait_until_started, stop_application = create_application(8080)
-        self.addCleanup(stop_application)
-        wait_until_started()
 
         with requests.get(f'http://127.0.0.1:8080/{healthcheck_key}') as resp_1:
             self.assertEqual(resp_1.status_code, 404)
@@ -291,44 +298,6 @@ class TestS3Proxy(unittest.TestCase):
         with requests.get(f'http://127.0.0.1:8080/{healthcheck_key}') as resp_1:
             self.assertEqual(resp_1.status_code, 200)
             self.assertEqual(resp_1.content, b'OK')
-
-
-def create_application(
-        port, max_attempts=100,
-        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
-):
-    process = subprocess.Popen(
-        ['python3', 'app.py', ],
-        stderr=subprocess.PIPE,  # Silence logs
-        stdout=subprocess.PIPE,
-        env={
-            **os.environ,
-            'PORT': str(port),
-            'AWS_S3_REGION': 'us-east-1',
-            'AWS_ACCESS_KEY_ID': aws_access_key_id,
-            'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-            'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
-        }
-    )
-
-    def wait_until_started():
-        for i in range(0, max_attempts):
-            try:
-                with socket.create_connection(('127.0.0.1', port), timeout=0.1):
-                    break
-            except (OSError, ConnectionRefusedError):
-                if i == max_attempts - 1:
-                    raise
-                time.sleep(0.02)
-        return process
-
-    def stop():
-        process.terminate()
-        process.wait(timeout=5)
-        process.stderr.close()
-        process.stdout.close()
-
-    return wait_until_started, stop
 
 
 def put_object(key, contents):
