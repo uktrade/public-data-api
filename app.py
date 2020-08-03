@@ -80,11 +80,11 @@ def proxy_app(
             while False:
                 yield
 
-            for _ in response.stream(16384, decode_content=False):
+            for _ in response.stream(65536, decode_content=False):
                 pass
 
         downstream_response = \
-            Response(response.stream(16384, decode_content=False),
+            Response(response.stream(65536, decode_content=False),
                      status=response.status, headers=response_headers) if allow_proxy else \
             Response(body_empty(), status=500)
         downstream_response.call_on_close(response.release_conn)
