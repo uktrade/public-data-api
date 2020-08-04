@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import time
+import shlex
 import socket
 import subprocess
 import unittest
@@ -18,8 +19,12 @@ import requests
 def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
         def test_with_application(self):
+            with open('Procfile', 'r') as file:
+                args = shlex.split(next(line for line in file.read().splitlines()
+                                        if line.startswith('web:'))[5:])
+
             process = subprocess.Popen(
-                ['python3', '-m', 'app'],
+                args,
                 stderr=subprocess.PIPE,  # Silence logs
                 stdout=subprocess.PIPE,
                 env={
