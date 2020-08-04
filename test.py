@@ -19,7 +19,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
     def decorator(original_test):
         def test_with_application(self):
             process = subprocess.Popen(
-                ['python3', 'app.py', ],
+                ['python3', '-m', 'app'],
                 stderr=subprocess.PIPE,  # Silence logs
                 stdout=subprocess.PIPE,
                 env={
