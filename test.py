@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import time
+import shlex
 import socket
 import subprocess
 import unittest
@@ -18,8 +19,12 @@ import requests
 def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
         def test_with_application(self):
+            with open('Procfile', 'r') as file:
+                args = shlex.split(next(line for line in file.read().splitlines()
+                                        if line.startswith('web:'))[5:])
+
             process = subprocess.Popen(
-                ['python3', 'app.py', ],
+                args,
                 stderr=subprocess.PIPE,  # Silence logs
                 stdout=subprocess.PIPE,
                 env={
@@ -399,6 +404,32 @@ class TestS3Proxy(unittest.TestCase):
         }
         expected_content = json.dumps({
             'rows': [{'a': '>&', 'd': 'e'}] * 100000 + [{'a': '🍰', 'd': 'f'}] * 100000,
+        }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+        with \
+                requests.Session() as session, \
+                session.get(f'http://127.0.0.1:8080/{key}', params=params) as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, expected_content)
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_select_no_results(self, _):
+        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        content = json.dumps({
+            'topLevel': (
+                [{'a': '>&', 'd': 'e'}] * 100000
+                + [{'a': 'c'}] * 1
+                + [{'a': '🍰', 'd': 'f'}] * 100000
+            )
+        }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+        put_object(key, content)
+
+        params = {
+            'query_sql': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = 'notexists'"
+        }
+        expected_content = json.dumps({
+            'rows': []
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
         with \
