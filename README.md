@@ -77,6 +77,5 @@ python3 -m app
 
 ```bash
 ./minio-start.sh  # Only required once
-./redis-start.sh  # Only required once
 ./test.sh
 ```
