@@ -444,7 +444,7 @@ class TestS3Proxy(unittest.TestCase):
 
 
 def put_version_data(dataset_id, version, contents):
-    return put_object(f'v1/datasets/{dataset_id}/versions/{version}/data', contents)
+    return put_object(f'{dataset_id}/{version}/data.json', contents)
 
 
 def put_object(key, contents):

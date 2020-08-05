@@ -53,10 +53,10 @@ def proxy_app(
     def stop():
         server.stop()
 
-    def proxy(path):
-        logger.debug('Attempt to proxy: %s', request)
+    def proxy(dataset_id, version):
+        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        url = endpoint_url + path
+        url = f'{endpoint_url}{dataset_id}/v{version}/data.json'
         parsed_url = urllib.parse.urlsplit(url)
         method, body, params, parse_response = \
             (
@@ -111,7 +111,8 @@ def proxy_app(
 
     app = Flask('app')
 
-    app.add_url_rule('/<path:path>', view_func=proxy)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/v<string:version>/data', view_func=proxy)
     server = WSGIServer(('0.0.0.0', port), app)
 
     return start, stop
