@@ -82,6 +82,7 @@ def proxy_app(
         ))
         encoded_params = urllib.parse.urlencode(params)
         request_headers = aws_sigv4_headers(
+            aws_access_key_id, aws_secret_access_key, region_name,
             pre_auth_headers, 's3', parsed_url.netloc, method, parsed_url.path, params, body_hash,
         )
         response = http.request(method, f'{url}?{encoded_params}', headers=dict(
@@ -111,7 +112,9 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    def aws_sigv4_headers(pre_auth_headers, service, host, method, path, params, body_hash):
+    def aws_sigv4_headers(
+            aws_access_key_id, aws_secret_access_key, region_name,
+            pre_auth_headers, service, host, method, path, params, body_hash):
         algorithm = 'AWS4-HMAC-SHA256'
 
         now = datetime.utcnow()
