@@ -72,31 +72,36 @@ class TestS3Proxy(unittest.TestCase):
 
     @with_application(8080)
     def test_key_that_exists(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
+                session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
     def test_multiple_concurrent_requests(self, _):
-        key_1 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        key_2 = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id_1 = str(uuid.uuid4())
+        dataset_id_2 = str(uuid.uuid4())
+        version_1 = 'v0.0.1'
+        version_2 = 'v0.0.2'
         content_1 = str(uuid.uuid4()).encode() * 1000000
         content_2 = str(uuid.uuid4()).encode() * 1000000
 
-        put_object(key_1, content_1)
-        put_object(key_2, content_2)
+        put_version_data(dataset_id_1, version_1, content_1)
+        put_version_data(dataset_id_2, version_2, content_2)
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key_1}', stream=True) as response_1, \
-                session.get(f'http://127.0.0.1:8080/{key_2}', stream=True) as response_2:
+                session.get(version_public_url(dataset_id_1,
+                                               version_1), stream=True) as response_1, \
+                session.get(version_public_url(dataset_id_2,
+                                               version_2), stream=True) as response_2:
 
             iter_1 = response_1.iter_content(chunk_size=16384)
             iter_2 = response_2.iter_content(chunk_size=16384)
@@ -140,15 +145,16 @@ class TestS3Proxy(unittest.TestCase):
 
     @with_application(8080)
     def test_key_that_exists_during_shutdown_completes(self, process):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         chunks = []
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', stream=True) as response:
+                session.get(version_public_url(dataset_id, version), stream=True) as response:
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
             process.terminate()
@@ -163,15 +169,16 @@ class TestS3Proxy(unittest.TestCase):
     def test_key_that_exists_after_multiple_sigterm_completes(self, process):
         # PaaS can apparently send multiple sigterms
 
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         chunks = []
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', stream=True) as response:
+                session.get(version_public_url(dataset_id, version), stream=True) as response:
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
             process.terminate()
@@ -186,21 +193,22 @@ class TestS3Proxy(unittest.TestCase):
 
     @with_application(8080)
     def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(self, process):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         chunks = []
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', stream=True) as response:
+                session.get(version_public_url(dataset_id, version), stream=True) as response:
             self.assertEqual(response.headers['content-length'], str(len(content)))
 
             process.terminate()
 
             with self.assertRaises(requests.exceptions.ConnectionError):
-                session.get(f'http://127.0.0.1:8080/{key}', stream=True)
+                session.get(version_public_url(dataset_id, version), stream=True)
 
             for chunk in response.iter_content(chunk_size=16384):
                 chunks.append(chunk)
@@ -214,17 +222,18 @@ class TestS3Proxy(unittest.TestCase):
         # after. Unsure if this is desired on PaaS, so this is more of
         # documenting current behaviour
 
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 10000
-        put_object(key, content)
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         chunks = []
 
         with requests.Session() as session:
             # Ensure we have two connections
             with \
-                    session.get(f'http://127.0.0.1:8080/{key}', stream=True) as resp_2, \
-                    session.get(f'http://127.0.0.1:8080/{key}', stream=True) as resp_3:
+                    session.get(version_public_url(dataset_id, version), stream=True) as resp_2, \
+                    session.get(version_public_url(dataset_id, version), stream=True) as resp_3:
 
                 for chunk in resp_2.iter_content(chunk_size=16384):
                     pass
@@ -232,12 +241,12 @@ class TestS3Proxy(unittest.TestCase):
                 for chunk in resp_3.iter_content(chunk_size=16384):
                     pass
 
-            with session.get(f'http://127.0.0.1:8080/{key}', stream=True) as resp_4:
+            with session.get(version_public_url(dataset_id, version), stream=True) as resp_4:
 
                 process.terminate()
 
                 # No exception raised since the connection is already open
-                with session.get(f'http://127.0.0.1:8080/{key}'):
+                with session.get(version_public_url(dataset_id, version)):
                     pass
 
                 for chunk in resp_4.iter_content(chunk_size=16384):
@@ -248,51 +257,55 @@ class TestS3Proxy(unittest.TestCase):
 
     @with_application(8080)
     def test_range_request_from_start(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         headers = {'range': 'bytes=0-'}
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', headers=headers) as response:
+                session.get(version_public_url(dataset_id, version), headers=headers) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
 
     @with_application(8080)
     def test_range_request_after_start(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         headers = {'range': 'bytes=1-'}
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', headers=headers) as response:
+                session.get(version_public_url(dataset_id, version), headers=headers) as response:
             self.assertEqual(response.content, content[1:])
             self.assertEqual(response.headers['content-length'], str(len(content) - 1))
 
     @with_application(8080, aws_access_key_id='not-exist')
     def test_bad_aws_credentials(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
+        version = 'v0.0.1'
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
+                session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 500)
 
     @with_application(8080)
     def test_key_that_does_not_exist(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
+        version = 'v0.0.1'
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}') as response:
+                session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 404)
 
     @with_application(8080)
     def test_select_all(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = json.dumps({
             'topLevel': (
                 [{'a': '>&', 'd': 'e'}] * 100000
@@ -300,7 +313,8 @@ class TestS3Proxy(unittest.TestCase):
                 + [{'a': '🍰', 'd': 'f'}] * 100000
             )
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         params = {
             'query_sql': 'SELECT * FROM S3Object[*].topLevel[*]'
@@ -315,20 +329,21 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', params=params) as response:
+                session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
     def test_select_newlines(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = json.dumps({
             'topLevel': (
                 [{'a': '\n' * 10000}] * 100
             )
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         params = {
             'query_sql': 'SELECT * FROM S3Object[*].topLevel[*]'
@@ -341,20 +356,21 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', params=params) as response:
+                session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
     def test_select_strings_that_are_almost_unicode_escapes(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = json.dumps({
             'topLevel': (
                 [{'a': '\\u003e🍰\\u0026>&\\u003e\\u0026>\\u0026\\u002\\\\u0026\\n' * 10000}] * 10
             )
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         params = {
             'query_sql': 'SELECT * FROM S3Object[*].topLevel[*]'
@@ -367,14 +383,14 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', params=params) as response:
+                session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
     def test_select_subset(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = json.dumps({
             'topLevel': (
                 [{'a': '>&', 'd': 'e'}] * 100000
@@ -382,7 +398,8 @@ class TestS3Proxy(unittest.TestCase):
                 + [{'a': '🍰', 'd': 'f'}] * 100000
             )
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         params = {
             'query_sql': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = '>&' OR t.a='🍰'"
@@ -393,14 +410,14 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', params=params) as response:
+                session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
     def test_select_no_results(self, _):
-        key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
+        dataset_id = str(uuid.uuid4())
         content = json.dumps({
             'topLevel': (
                 [{'a': '>&', 'd': 'e'}] * 100000
@@ -408,7 +425,8 @@ class TestS3Proxy(unittest.TestCase):
                 + [{'a': '🍰', 'd': 'f'}] * 100000
             )
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
-        put_object(key, content)
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
         params = {
             'query_sql': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = 'notexists'"
@@ -419,10 +437,14 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(f'http://127.0.0.1:8080/{key}', params=params) as response:
+                session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(len(response.history), 0)
+
+
+def put_version_data(dataset_id, version, contents):
+    return put_object(f'v1/datasets/{dataset_id}/versions/{version}/data', contents)
 
 
 def put_object(key, contents):
@@ -436,6 +458,10 @@ def put_object(key, contents):
     )
     with requests.put(url, data=contents, headers=dict(headers)) as response:
         response.raise_for_status()
+
+
+def version_public_url(dataset_id, version):
+    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data'
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
