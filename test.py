@@ -291,21 +291,6 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.status_code, 404)
 
     @with_application(8080)
-    def test_healthcheck(self, _):
-        # When the API becomes more structured than just a proxy, it may need this key to be
-        # specifically allowed
-        healthcheck_key = str(uuid.uuid4())
-
-        with requests.get(f'http://127.0.0.1:8080/{healthcheck_key}') as resp_1:
-            self.assertEqual(resp_1.status_code, 404)
-
-        put_object(healthcheck_key, b'OK')
-
-        with requests.get(f'http://127.0.0.1:8080/{healthcheck_key}') as resp_1:
-            self.assertEqual(resp_1.status_code, 200)
-            self.assertEqual(resp_1.content, b'OK')
-
-    @with_application(8080)
     def test_select_all(self, _):
         key = str(uuid.uuid4()) + '/' + str(uuid.uuid4())
         content = json.dumps({
