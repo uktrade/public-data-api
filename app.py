@@ -52,16 +52,22 @@ def proxy_app(
     def stop():
         server.stop()
 
+    def validate_format(handler):
+        def handler_with_validation(*args, **kwargs):
+            try:
+                _format = request.args['format']
+            except KeyError:
+                return 'The query string must have a "format" term', 400
+
+            if _format != 'json':
+                return 'The query string "format" term must equal "json"', 400
+
+            return handler(*args, **kwargs)
+        return handler_with_validation
+
+    @validate_format
     def proxy(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
-
-        try:
-            _format = request.args['format']
-        except KeyError:
-            return 'The query string must have a "format" term', 400
-
-        if _format != 'json':
-            return 'The query string "format" term must equal "json"', 400
 
         url = f'{endpoint_url}{dataset_id}/v{version}/data.json'
         parsed_url = urllib.parse.urlsplit(url)
