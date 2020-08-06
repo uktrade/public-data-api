@@ -3,6 +3,7 @@ from datetime import (
 )
 import hashlib
 import hmac
+import itertools
 import json
 import os
 import time
@@ -495,6 +496,38 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_no_latest_version(self, _):
+        dataset_id = 'does-not-exist'
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'latest')) as response:
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.content, b'Dataset not found')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_redirect_to_latest_version(self, _):
+        dataset_id = str(uuid.uuid4())
+        # Ranges chosen to make sure we have at least 3 pages from S3 list objects, and to make
+        # sure we hit as many cases as possible where if we were taking the latest version
+        # alphabetically, we would choose the wrong version
+        for major, minor, patch in itertools.product(range(0, 11), range(0, 11), range(0, 33)):
+            content = str(uuid.uuid4()).encode() * 10
+            version = f'v{major}.{minor}.{patch}'
+            put_version_data(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'latest')) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v10.10.32', response.request.url)
 
 
 def put_version_data(dataset_id, version, contents):

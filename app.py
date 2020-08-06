@@ -4,6 +4,9 @@ from gevent import (
 monkey.patch_all()
 import gevent
 
+from functools import (
+    wraps,
+)
 import hashlib
 import logging
 import os
@@ -14,6 +17,7 @@ import urllib.parse
 from flask import (
     Flask,
     Response,
+    redirect,
     request,
 )
 from gevent.pywsgi import (
@@ -25,6 +29,7 @@ from app_aws import (
     aws_sigv4_headers,
     aws_select_post_body,
     aws_select_parse_result,
+    aws_list_folders,
 )
 
 
@@ -65,6 +70,7 @@ def proxy_app(
                             headers=dict(request_headers), body=body, preload_content=False)
 
     def validate_format(handler):
+        @wraps(handler)
         def handler_with_validation(*args, **kwargs):
             try:
                 _format = request.args['format']
@@ -128,10 +134,29 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
+    @validate_format
+    def redirect_to_latest(dataset_id):
+        _format = request.args['format']
+
+        def semver_key(path):
+            v_major_str, minor_str, patch_str = path.split('.')
+            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+        folders = aws_list_folders(signed_s3_request, f'{dataset_id}/')
+        version = max(folders, default=None, key=semver_key)
+
+        if version is None:
+            return 'Dataset not found', 404
+
+        return redirect(
+            f'/v1/datasets/{dataset_id}/versions/{version}/data?format={_format}', code=302)
+
     app = Flask('app')
 
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/v<string:version>/data', view_func=proxy)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/latest/data', view_func=redirect_to_latest)
     server = WSGIServer(('0.0.0.0', port), app)
 
     return start, stop
