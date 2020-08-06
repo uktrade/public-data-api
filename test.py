@@ -82,6 +82,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -157,6 +158,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), stream=True) as response:
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
             process.terminate()
 
             for chunk in response.iter_content(chunk_size=16384):
@@ -181,6 +183,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), stream=True) as response:
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
             process.terminate()
             time.sleep(0.1)
             process.terminate()
@@ -204,6 +207,7 @@ class TestS3Proxy(unittest.TestCase):
                 requests.Session() as session, \
                 session.get(version_public_url(dataset_id, version), stream=True) as response:
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
 
             process.terminate()
 
@@ -268,6 +272,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), headers=headers) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
 
     @with_application(8080)
     def test_range_request_after_start(self, _):
@@ -282,6 +287,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), headers=headers) as response:
             self.assertEqual(response.content, content[1:])
             self.assertEqual(response.headers['content-length'], str(len(content) - 1))
+            self.assertEqual(response.headers['content-type'], 'application/json')
 
     @with_application(8080, aws_access_key_id='not-exist')
     def test_bad_aws_credentials(self, _):
@@ -322,6 +328,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -343,6 +350,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -374,6 +382,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -428,6 +437,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -455,6 +465,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -482,6 +493,7 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version), params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
+            self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
 
 
