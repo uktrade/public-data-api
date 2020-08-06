@@ -52,6 +52,18 @@ def proxy_app(
     def stop():
         server.stop()
 
+    def signed_s3_request(method, s3_key, pre_auth_headers, params, body):
+        path = f'{parsed_endpoint.path}{s3_key}'
+        body_hash = hashlib.sha256(body).hexdigest()
+        request_headers = aws_sigv4_headers(
+            aws_access_key_id, aws_secret_access_key, region_name,
+            pre_auth_headers, 's3', parsed_endpoint.netloc, method, path, params, body_hash,
+        )
+        encoded_params = urllib.parse.urlencode(params)
+        url = f'{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{path}?{encoded_params}'
+        return http.request(method, url,
+                            headers=dict(request_headers), body=body, preload_content=False)
+
     def validate_format(handler):
         def handler_with_validation(*args, **kwargs):
             try:
@@ -69,8 +81,7 @@ def proxy_app(
     def proxy(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        url = f'{endpoint_url}{dataset_id}/v{version}/data.json'
-        parsed_url = urllib.parse.urlsplit(url)
+        s3_key = f'{dataset_id}/v{version}/data.json'
         method, body, params, parse_response = \
             (
                 'POST',
@@ -81,22 +92,15 @@ def proxy_app(
             (
                 'GET',
                 b'',
-                {},
+                (),
                 lambda x, _: x,
             )
 
-        body_hash = hashlib.sha256(body).hexdigest()
         pre_auth_headers = tuple((
             (key, request.headers[key])
             for key in proxied_request_headers if key in request.headers
         ))
-        encoded_params = urllib.parse.urlencode(params)
-        request_headers = aws_sigv4_headers(
-            aws_access_key_id, aws_secret_access_key, region_name,
-            pre_auth_headers, 's3', parsed_url.netloc, method, parsed_url.path, params, body_hash,
-        )
-        response = http.request(method, f'{url}?{encoded_params}', headers=dict(
-            request_headers), body=body, preload_content=False)
+        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
 
         response_headers_no_content_type = tuple((
             (key, response.headers[key])
