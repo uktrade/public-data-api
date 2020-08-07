@@ -1,9 +1,124 @@
 # public-data-api [![CircleCI](https://circleci.com/gh/uktrade/public-data-api.svg?style=svg)](https://circleci.com/gh/uktrade/public-data-api) [![Test Coverage](https://api.codeclimate.com/v1/badges/68ec48283132a5273abc/test_coverage)](https://codeclimate.com/github/uktrade/public-data-api/test_coverage)
 
-A streaming proxy to S3
+Exposes datasets stored in an S3-comptible object storage with a light-touch API.
 
 
-## Required environment variables
+---
+
+## Concepts and common parameters
+
+A dataset has one or more immutable versions.
+
+| Name         | Description | Example
+| ---          | ---         | --- 
+| `dataset-id` | A human-readable identifier of the dataset | `capital-cities`
+| `version`    | A version in the format `vX.Y.Z`, where `X.Y.Z` is the [Semver 2.0](https://semver.org/) version of the dataset. | `v1.2.3`
+
+
+---
+
+## Endpoint: fetch a specific version of a dataset
+
+```
+GET /v1/datasets/:dataset-id/versions/:version/data
+```
+
+### Required query string parameters
+
+| Name      | Description | Example
+| ---       | ---         | ---
+| `format`  | The requested output format. In all cases, this must be `json` | `json`
+
+
+### Optional query string parameters
+
+| Name        | Description | Example
+| ---         | ---         | ---
+| `query_sql` | A query using the [S3 Select query language](https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html). If specified, the response is a JSON object with results under the `rows` key, i.e. `{"rows": [...]}` | `SELECT * FROM S3Object[*]`
+
+
+### Range requests
+
+If a `query_sql` is _not_ specified, the `range` HTTP header can be passed to select a byte-range of the dataset. See [HTTP Range Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests) for more details.
+
+### Example without a query
+
+#### Request
+
+```
+GET /v1/datasets/capital-cities/versions/v0.0.1/data?format=json
+```
+
+#### Response
+
+```
+Status: 200 OK
+{
+    "capital_cities": [
+        {"name": "London", "iso_2_country_code": "GB"},
+        {"name": "Paris", "iso_2_country_code": "FR"},
+        {"name": "Belgium", "iso_2_country_code": "BE"}
+    ]
+}
+```
+
+### Example with a query
+
+#### Request
+
+```
+GET /v1/datasets/capital-cities/versions/v0.0.1/data?format=json&query_sql=...
+```
+
+where `...` is the below, but URL-encoded
+
+```
+SELECT * FROM S3Object[*].capital_cities[*] AS city WHERE city.iso_2_country_code = 'Paris'
+```
+
+#### Response
+
+```
+Status: 200 OK
+{
+    "rows": [
+        {"name": "Paris", "iso_2_country_code": "FR"}
+    ]
+}
+```
+
+
+---
+
+## Endpoint: fetch a specific version of a dataset
+
+```
+GET /v1/datasets/:dataset-id/versions/latest/data
+```
+
+Parameters are the same as for the [Fetch a specific version of a dataset endpoint](#endpoint-fetch-a-specific-version-of-a-dataset)
+
+### Example
+
+#### Request
+
+```
+GET /v1/datasets/capital-cities/versions/latest/data?format=json
+```
+
+#### Response
+
+```
+Status: 302 Found
+Location: /v1/datasets/capital-cities/versions/v0.0.1/data?format=json
+```
+
+
+---
+
+## Technical requirements
+
+### Environment variables
 
 | Variable                | Description | Example |
 | ---                     | ---         | ---     |
@@ -19,61 +134,24 @@ The below environment variables are also required, but typically populated by Pa
 | `PORT`          | The port for the application to listen on | `8080`
 
 
-## Permissions and 404s
+### Permissions and 404s
 
 If the AWS user has the ListBucket permission, 404s are proxied through to the user to aid debugging.
 
 
-## Shutdown
+### Shutdown
 
 On SIGTERM any in-progress requests will complete before the process exits. At the time of writing PaaS will then forcibly kill the process with SIGKILL if it has not exited within 10 seconds.
 
 
-## Range requests
-
-The headers `range`, `content-range` and `accept-ranges` and proxied to allow range requests. This means that video should be able to be proxied with reasonable seeking behaviour.
-
-
-## S3 Select requests
-
-S3 Select queries are supported on JSON objects via GET requests. For example, if you have the JSON object at `/data.json`
-
-```json
-{
-    "top": [
-        {"a": "b", "c": "d"},
-        {"a": "b", "c": "e"},
-        {"h": "i", "i": "j"}
-    ]
-}
-```
-
-Then a GET request to `/data.json?query_sql=thequery`, where `thequery` is the URL-encoded version of the SQL query
-
-```
-SELECT * FROM S3Object[*].top[*] AS t WHERE t.a = 'b'
-```
-
-would return a JSON object, where the matching rows are under the `rows` key of the top-level object.
-
-```json
-{
-    "rows": [
-        {"a": "b", "c": "d"},
-        {"a": "b", "c": "e"},
-    ]
-}
-```
-
-
-## Running locally
+### Running locally
 
 ```
 python3 -m app
 ```
 
 
-## Running tests
+### Running tests
 
 ```bash
 ./minio-start.sh  # Only required once
