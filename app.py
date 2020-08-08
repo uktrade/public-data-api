@@ -136,12 +136,16 @@ def proxy_app(
 
     @validate_format
     def redirect_to_latest(dataset_id):
+        return redirect_to_latest_matching(dataset_id, lambda _: True)
+
+    def redirect_to_latest_matching(dataset_id, predicate):
         def semver_key(path):
             v_major_str, minor_str, patch_str = path.split('.')
             return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
         folders = aws_list_folders(signed_s3_request, f'{dataset_id}/')
-        version = max(folders, default=None, key=semver_key)
+        matching_folders = filter(predicate, folders)
+        version = max(matching_folders, default=None, key=semver_key)
 
         if version is None:
             return 'Dataset not found', 404
