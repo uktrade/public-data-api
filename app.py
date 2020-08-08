@@ -135,6 +135,25 @@ def proxy_app(
         return downstream_response
 
     @validate_format
+    def redirect_to_major(dataset_id, major):
+        requested_major_str = str(major)
+
+        def predicate(path):
+            v_major_str, _, _ = path.split('.')
+            return v_major_str[1:] == requested_major_str
+        return redirect_to_latest_matching(dataset_id, predicate)
+
+    @validate_format
+    def redirect_to_minor(dataset_id, major, minor):
+        requested_major_str = str(major)
+        requested_minor_str = str(minor)
+
+        def predicate(path):
+            v_major_str, minor_str, _ = path.split('.')
+            return v_major_str[1:] == requested_major_str and minor_str == requested_minor_str
+        return redirect_to_latest_matching(dataset_id, predicate)
+
+    @validate_format
     def redirect_to_latest(dataset_id):
         return redirect_to_latest_matching(dataset_id, lambda _: True)
 
@@ -164,6 +183,12 @@ def proxy_app(
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
         'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'v<int:major>/data', view_func=redirect_to_major)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor)
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
         'latest/data', view_func=redirect_to_latest)

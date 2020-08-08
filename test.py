@@ -529,6 +529,22 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(302, response.history[0].status_code)
             self.assertIn('v10.10.32', response.request.url)
 
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'v2')) as response:
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v2.10.32', response.request.url)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'v3.4')) as response:
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v3.4.32', response.request.url)
+
     @with_application(8080)
     def test_redirect_to_latest_version_query(self, _):
         dataset_id = str(uuid.uuid4())
