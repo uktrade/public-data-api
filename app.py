@@ -84,10 +84,10 @@ def proxy_app(
         return handler_with_validation
 
     @validate_format
-    def proxy(dataset_id, version):
-        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
+    def proxy(dataset_id, major, minor, patch):
+        logger.debug('Attempt to proxy: %s %s %s %s %s', request, dataset_id, major, minor, patch)
 
-        s3_key = f'{dataset_id}/v{version}/data.json'
+        s3_key = f'{dataset_id}/v{major}.{minor}.{patch}/data.json'
         method, body, params, parse_response = \
             (
                 'POST',
@@ -158,9 +158,11 @@ def proxy_app(
 
     app = Flask('app')
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/v<string:version>/data', view_func=proxy)
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/latest/data', view_func=redirect_to_latest)
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'latest/data', view_func=redirect_to_latest)
     server = WSGIServer(('0.0.0.0', port), app)
 
     return start, stop
