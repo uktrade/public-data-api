@@ -136,8 +136,6 @@ def proxy_app(
 
     @validate_format
     def redirect_to_latest(dataset_id):
-        _format = request.args['format']
-
         def semver_key(path):
             v_major_str, minor_str, patch_str = path.split('.')
             return (int(v_major_str[1:]), int(minor_str), int(patch_str))
@@ -148,11 +146,17 @@ def proxy_app(
         if version is None:
             return 'Dataset not found', 404
 
+        # It doesn't look like it's possible to return a redirect with the query string that has
+        # the _exact_ bytes that were received by the server in all cases. If a client sends
+        # non-URL-encoded UTF-8 in the query string, the below results (via code in Werkzeug) in
+        # returning a redirect to a URL with the equivalent URL-encoded string.
+        query_string = ((b'?' + request.query_string)
+                        if request.query_string else b'').decode('utf-8')
+
         return redirect(
-            f'/v1/datasets/{dataset_id}/versions/{version}/data?format={_format}', code=302)
+            f'/v1/datasets/{dataset_id}/versions/{version}/data{query_string}', code=302)
 
     app = Flask('app')
-
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/v<string:version>/data', view_func=proxy)
     app.add_url_rule(
