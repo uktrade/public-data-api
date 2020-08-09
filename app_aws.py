@@ -126,10 +126,7 @@ def aws_select_parse_result(input_iterable, output_chunk_size):
                 chunk = chunk if offset else b''
 
         def _read_single_chunk(amt):
-            raw = b''.join(chunk for chunk in _read_multiple_chunks(amt))
-            if raw:
-                return raw
-            raise NoMoreBytes()
+            return b''.join(chunk for chunk in _read_multiple_chunks(amt))
 
         return _read_multiple_chunks, _read_single_chunk
 
