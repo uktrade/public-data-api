@@ -89,7 +89,7 @@ def aws_select_post_body(sql):
         '''.encode('utf-8')
 
 
-def aws_select_parse_result(input_iterable, output_chunk_size):
+def aws_select_parse_result(input_iterable, min_output_chunk_size):
     # Returns a iterator that yields payload data in fixed size chunks. It does not depend
     # on the input_stream yielding chunks of any particular size, and internal copying or
     # concatanation of chunks is avoided
@@ -247,7 +247,7 @@ def aws_select_parse_result(input_iterable, output_chunk_size):
             if chunk:
                 yield unicode_escapes_to_utf_8(chunk)
 
-    def yield_output(_as_json_utf_8, _output_chunk_size):
+    def yield_output(_as_json_utf_8, _min_output_chunk_size):
         # Typically web servers send an HTTP chunk for every yield of the body generator, which
         # can result in quite small chunks so more packets/bytes over the wire. We avoid this.
         chunks = []
@@ -255,13 +255,10 @@ def aws_select_parse_result(input_iterable, output_chunk_size):
         for chunk in _as_json_utf_8:
             chunks.append(chunk)
             num_bytes += len(chunk)
-            if num_bytes < _output_chunk_size:
+            if num_bytes < _min_output_chunk_size:
                 continue
-            chunk = b''.join(chunks)
-            output, chunk = chunk[:_output_chunk_size], chunk[_output_chunk_size:]
-            yield output
-            num_bytes = len(chunk)
-            chunks = [chunk] if chunk else []
+            yield b''.join(chunks)
+            chunks = []
 
         if chunks:
             yield b''.join(chunks)
@@ -271,6 +268,6 @@ def aws_select_parse_result(input_iterable, output_chunk_size):
     records = yield_records(messages)
     as_json = yield_as_json(records)
     as_json_utf_8 = yield_as_utf_8(as_json)
-    output = yield_output(as_json_utf_8, output_chunk_size)
+    output = yield_output(as_json_utf_8, min_output_chunk_size)
 
     return output
