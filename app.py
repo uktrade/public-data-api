@@ -43,8 +43,7 @@ def proxy_app(
     proxied_request_headers = ['range', ]
     proxied_response_codes = [200, 206, 404, ]
     proxied_response_headers = [
-        'accept-ranges', 'content-length', 'content-type', 'date', 'etag', 'last-modified',
-        'content-range',
+        'accept-ranges', 'content-length', 'date', 'etag', 'last-modified', 'content-range',
     ]
 
     def start():
@@ -55,6 +54,14 @@ def proxy_app(
 
     def proxy(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
+
+        try:
+            _format = request.args['format']
+        except KeyError:
+            return 'The query string must have a "format" term', 400
+
+        if _format != 'json':
+            return 'The query string "format" term must equal "json"', 400
 
         url = f'{endpoint_url}{dataset_id}/v{version}/data.json'
         parsed_url = urllib.parse.urlsplit(url)
@@ -85,10 +92,12 @@ def proxy_app(
         response = http.request(method, f'{url}?{encoded_params}', headers=dict(
             request_headers), body=body, preload_content=False)
 
-        response_headers = tuple((
+        response_headers_no_content_type = tuple((
             (key, response.headers[key])
             for key in proxied_response_headers if key in response.headers
         ))
+        response_headers = response_headers_no_content_type + \
+            (('content-type', 'application/json'),)
         allow_proxy = response.status in proxied_response_codes
 
         logger.debug('Response: %s', response)
