@@ -91,10 +91,10 @@ def proxy_app(
         method, body, params, parse_response = \
             (
                 'POST',
-                aws_select_post_body(request.args['query_sql']),
+                aws_select_post_body(request.args['query-s3-select']),
                 (('select', ''), ('select-type', '2')),
                 aws_select_parse_result,
-            ) if 'query_sql' in request.args else \
+            ) if 'query-s3-select' in request.args else \
             (
                 'GET',
                 b'',
