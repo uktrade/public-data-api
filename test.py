@@ -368,7 +368,7 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version, content)
 
         params = {
-            'query_sql': 'SELECT * FROM S3Object[*].topLevel[*]'
+            'query-s3-select': 'SELECT * FROM S3Object[*].topLevel[*]'
         }
         expected_content = json.dumps({
             'rows': (
@@ -398,7 +398,7 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version, content)
 
         params = {
-            'query_sql': 'SELECT * FROM S3Object[*].topLevel[*]'
+            'query-s3-select': 'SELECT * FROM S3Object[*].topLevel[*]'
         }
         expected_content = json.dumps({
             'rows': (
@@ -425,7 +425,7 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version, content)
 
         params = {
-            'query_sql': 'SELECT * FROM S3Object[*].topLevel[*]'
+            'query-s3-select': 'SELECT * FROM S3Object[*].topLevel[*]'
         }
         expected_content = json.dumps({
             'rows': (
@@ -455,7 +455,9 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version, content)
 
         params = {
-            'query_sql': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = '>&' OR t.a='🍰'"
+            'query-s3-select':
+                'SELECT * FROM S3Object[*].topLevel[*] AS t '
+                + "WHERE t.a = '>&' OR t.a='🍰'"
         }
         expected_content = json.dumps({
             'rows': [{'a': '>&', 'd': 'e'}] * 100000 + [{'a': '🍰', 'd': 'f'}] * 100000,
@@ -483,7 +485,7 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version, content)
 
         params = {
-            'query_sql': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = 'notexists'"
+            'query-s3-select': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = 'notexists'"
         }
         expected_content = json.dumps({
             'rows': []
@@ -562,7 +564,7 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version_2, content_2)
 
         params = {
-            'query_sql': "SELECT * FROM S3Object[*].top_level[*] row WHERE row.a = 'y'"
+            'query-s3-select': "SELECT * FROM S3Object[*].top_level[*] row WHERE row.a = 'y'"
         }
         expected_content = json.dumps({
             'rows': [{'a': 'y'}],
