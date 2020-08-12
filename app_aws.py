@@ -8,7 +8,12 @@ from struct import (
     Struct,
 )
 import urllib.parse
-from xml.sax.saxutils import escape as escape_xml
+from xml.etree import (
+    ElementTree as ET,
+)
+from xml.sax.saxutils import (
+    escape as escape_xml,
+)
 
 
 def aws_sigv4_headers(
@@ -271,3 +276,39 @@ def aws_select_parse_result(input_iterable, min_output_chunk_size):
     output = yield_output(as_json_utf_8, min_output_chunk_size)
 
     return output
+
+
+def aws_list_folders(signed_s3_request, prefix):
+    namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
+    token = ''
+
+    def _list(extra_query_items=()):
+        nonlocal token
+
+        token = ''
+        query = (
+            ('max-keys', '1000'),
+            ('list-type', '2'),
+            ('delimiter', '/'),
+            ('prefix', prefix),
+        ) + extra_query_items
+        response = signed_s3_request('GET', s3_key='', pre_auth_headers=(), params=query, body=b'')
+        try:
+            body_bytes = response.read()
+        finally:
+            response.release_conn()
+
+        if response.status != 200:
+            raise Exception(response.status, body_bytes)
+
+        for element in ET.fromstring(body_bytes):
+            if element.tag == f'{namespace}CommonPrefixes':
+                for child in element:
+                    yield child.text[len(prefix):-1]
+            if element.tag == f'{namespace}NextContinuationToken':
+                token = element.text
+
+    yield from _list()
+
+    while token:
+        yield from _list((('continuation-token', token),))

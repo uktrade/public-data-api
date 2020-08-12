@@ -3,6 +3,7 @@ from datetime import (
 )
 import hashlib
 import hmac
+import itertools
 import json
 import os
 import time
@@ -495,6 +496,118 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_no_latest_version(self, _):
+        dataset_id = 'does-not-exist'
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'latest')) as response:
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.content, b'Dataset not found')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_redirect_to_latest_version(self, _):
+        dataset_id = str(uuid.uuid4())
+        # Ranges chosen to make sure we have at least 3 pages from S3 list objects, and to make
+        # sure we hit as many cases as possible where if we were taking the latest version
+        # alphabetically, we would choose the wrong version
+        for major, minor, patch in itertools.product(range(0, 11), range(0, 11), range(0, 33)):
+            content = str(uuid.uuid4()).encode() * 10
+            version = f'v{major}.{minor}.{patch}'
+            put_version_data(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'latest')) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v10.10.32', response.request.url)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'v2')) as response:
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v2.10.32', response.request.url)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'v3.4')) as response:
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v3.4.32', response.request.url)
+
+    @with_application(8080)
+    def test_redirect_to_latest_version_query(self, _):
+        dataset_id = str(uuid.uuid4())
+
+        content_1 = json.dumps({
+            'top_level': [{'a': 'y'}, {'a': 'y'}, {'common': 'b'}]
+        }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+        version_1 = 'v9.9.9'
+        put_version_data(dataset_id, version_1, content_1)
+
+        content_2 = json.dumps({
+            'top_level': [{'a': 'y'}, {'common': 'b'}]
+        }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+        version_2 = 'v10.0.0'
+        put_version_data(dataset_id, version_2, content_2)
+
+        params = {
+            'query_sql': "SELECT * FROM S3Object[*].top_level[*] row WHERE row.a = 'y'"
+        }
+        expected_content = json.dumps({
+            'rows': [{'a': 'y'}],
+        }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'latest'), params=params) as response:
+            self.assertEqual(response.content, expected_content)
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v10.0.0', response.request.url)
+
+    @with_application(8080)
+    def test_redirect_with_utf_8_in_query_string(self, _):
+        # Test that documents that non-URL encoded values in query strings are redirected to their
+        # URL-encoded equivalent. Not sure if this behaviour is desirable or not.
+        dataset_id = str(uuid.uuid4())
+        content = b'{"some":"content"}'
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+        url = version_public_url(dataset_id, 'latest')
+        url_parsed = urllib.parse.urlsplit(url)
+
+        url_full_path = url_parsed.path.encode(
+            'ascii') + b'?format=json&something=' + '🍰'.encode('utf-8')
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((url_parsed.hostname, url_parsed.port))
+        sock.send(
+            b'GET ' + url_full_path + b' HTTP/1.1\r\n'
+            b'host:127.0.0.1\r\n'
+            b'connection:close\r\n'
+            b'\r\n')
+
+        full_response = b''
+        while True:
+            response = sock.recv(4096)
+            if not response:
+                break
+            full_response += response
+        sock.close()
+
+        cake_url_encoded = urllib.parse.quote_from_bytes('🍰'.encode('utf-8')).encode('ascii')
+        self.assertIn(b'&something=' + cake_url_encoded, full_response)
 
 
 def put_version_data(dataset_id, version, contents):

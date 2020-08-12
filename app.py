@@ -4,6 +4,9 @@ from gevent import (
 monkey.patch_all()
 import gevent
 
+from functools import (
+    wraps,
+)
 import hashlib
 import logging
 import os
@@ -14,6 +17,7 @@ import urllib.parse
 from flask import (
     Flask,
     Response,
+    redirect,
     request,
 )
 from gevent.pywsgi import (
@@ -25,6 +29,7 @@ from app_aws import (
     aws_sigv4_headers,
     aws_select_post_body,
     aws_select_parse_result,
+    aws_list_folders,
 )
 
 
@@ -52,19 +57,37 @@ def proxy_app(
     def stop():
         server.stop()
 
-    def proxy(dataset_id, version):
-        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
+    def signed_s3_request(method, s3_key, pre_auth_headers, params, body):
+        path = f'{parsed_endpoint.path}{s3_key}'
+        body_hash = hashlib.sha256(body).hexdigest()
+        request_headers = aws_sigv4_headers(
+            aws_access_key_id, aws_secret_access_key, region_name,
+            pre_auth_headers, 's3', parsed_endpoint.netloc, method, path, params, body_hash,
+        )
+        encoded_params = urllib.parse.urlencode(params)
+        url = f'{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{path}?{encoded_params}'
+        return http.request(method, url,
+                            headers=dict(request_headers), body=body, preload_content=False)
 
-        try:
-            _format = request.args['format']
-        except KeyError:
-            return 'The query string must have a "format" term', 400
+    def validate_format(handler):
+        @wraps(handler)
+        def handler_with_validation(*args, **kwargs):
+            try:
+                _format = request.args['format']
+            except KeyError:
+                return 'The query string must have a "format" term', 400
 
-        if _format != 'json':
-            return 'The query string "format" term must equal "json"', 400
+            if _format != 'json':
+                return 'The query string "format" term must equal "json"', 400
 
-        url = f'{endpoint_url}{dataset_id}/v{version}/data.json'
-        parsed_url = urllib.parse.urlsplit(url)
+            return handler(*args, **kwargs)
+        return handler_with_validation
+
+    @validate_format
+    def proxy(dataset_id, major, minor, patch):
+        logger.debug('Attempt to proxy: %s %s %s %s %s', request, dataset_id, major, minor, patch)
+
+        s3_key = f'{dataset_id}/v{major}.{minor}.{patch}/data.json'
         method, body, params, parse_response = \
             (
                 'POST',
@@ -75,22 +98,15 @@ def proxy_app(
             (
                 'GET',
                 b'',
-                {},
+                (),
                 lambda x, _: x,
             )
 
-        body_hash = hashlib.sha256(body).hexdigest()
         pre_auth_headers = tuple((
             (key, request.headers[key])
             for key in proxied_request_headers if key in request.headers
         ))
-        encoded_params = urllib.parse.urlencode(params)
-        request_headers = aws_sigv4_headers(
-            aws_access_key_id, aws_secret_access_key, region_name,
-            pre_auth_headers, 's3', parsed_url.netloc, method, parsed_url.path, params, body_hash,
-        )
-        response = http.request(method, f'{url}?{encoded_params}', headers=dict(
-            request_headers), body=body, preload_content=False)
+        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
 
         response_headers_no_content_type = tuple((
             (key, response.headers[key])
@@ -118,10 +134,64 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    app = Flask('app')
+    @validate_format
+    def redirect_to_major(dataset_id, major):
+        requested_major_str = str(major)
 
+        def predicate(path):
+            v_major_str, _, _ = path.split('.')
+            return v_major_str[1:] == requested_major_str
+        return redirect_to_latest_matching(dataset_id, predicate)
+
+    @validate_format
+    def redirect_to_minor(dataset_id, major, minor):
+        requested_major_str = str(major)
+        requested_minor_str = str(minor)
+
+        def predicate(path):
+            v_major_str, minor_str, _ = path.split('.')
+            return v_major_str[1:] == requested_major_str and minor_str == requested_minor_str
+        return redirect_to_latest_matching(dataset_id, predicate)
+
+    @validate_format
+    def redirect_to_latest(dataset_id):
+        return redirect_to_latest_matching(dataset_id, lambda _: True)
+
+    def redirect_to_latest_matching(dataset_id, predicate):
+        def semver_key(path):
+            v_major_str, minor_str, patch_str = path.split('.')
+            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+        folders = aws_list_folders(signed_s3_request, f'{dataset_id}/')
+        matching_folders = filter(predicate, folders)
+        version = max(matching_folders, default=None, key=semver_key)
+
+        if version is None:
+            return 'Dataset not found', 404
+
+        # It doesn't look like it's possible to return a redirect with the query string that has
+        # the _exact_ bytes that were received by the server in all cases. If a client sends
+        # non-URL-encoded UTF-8 in the query string, the below results (via code in Werkzeug) in
+        # returning a redirect to a URL with the equivalent URL-encoded string.
+        query_string = ((b'?' + request.query_string)
+                        if request.query_string else b'').decode('utf-8')
+
+        return redirect(
+            f'/v1/datasets/{dataset_id}/versions/{version}/data{query_string}', code=302)
+
+    app = Flask('app')
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/v<string:version>/data', view_func=proxy)
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'v<int:major>/data', view_func=redirect_to_major)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor)
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/'
+        'latest/data', view_func=redirect_to_latest)
     server = WSGIServer(('0.0.0.0', port), app)
 
     return start, stop
