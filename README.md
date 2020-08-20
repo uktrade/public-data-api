@@ -34,12 +34,12 @@ GET /v1/datasets/:dataset-id/versions/:version/data
 
 | Name        | Description | Example
 | ---         | ---         | ---
-| `query_sql` | A query using the [S3 Select query language](https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html). If specified, the response is a JSON object with results under the `rows` key, i.e. `{"rows": [...]}` | `SELECT * FROM S3Object[*]`
+| `query-s3-select` | A query using the [S3 Select query language](https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html). If specified, the response is a JSON object with results under the `rows` key, i.e. `{"rows": [...]}` | `SELECT * FROM S3Object[*]`
 
 
 ### Range requests
 
-If a `query_sql` is _not_ specified, the `range` HTTP header can be passed to select a byte-range of the dataset. See [HTTP Range Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests) for more details.
+If a `query-s3-select` is _not_ specified, the `range` HTTP header can be passed to select a byte-range of the dataset. See [HTTP Range Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests) for more details.
 
 ### Example without a query
 
@@ -67,7 +67,8 @@ Status: 200 OK
 #### Request
 
 ```
-GET /v1/datasets/capital-cities/versions/v0.0.1/data?format=json&query_sql=...
+GET
+/v1/datasets/capital-cities/versions/v0.0.1/data?format=json&query-s3-select=...
 ```
 
 where `...` is the below, but URL-encoded
