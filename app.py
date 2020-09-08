@@ -24,6 +24,9 @@ from gevent.pywsgi import (
     WSGIServer,
 )
 import urllib3
+from werkzeug.middleware.proxy_fix import (
+    ProxyFix,
+)
 
 from app_aws import (
     aws_sigv4_headers,
@@ -180,6 +183,7 @@ def proxy_app(
             f'/v1/datasets/{dataset_id}/versions/{version}/data{query_string}', code=302)
 
     app = Flask('app')
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
         'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)

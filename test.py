@@ -523,6 +523,14 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
+                session.get(version_public_url(dataset_id, 'latest'),
+                            headers={'x-forwarded-proto': 'https'},
+                            allow_redirects=False
+                            ) as response:
+            self.assertTrue(response.headers['location'].startswith('https://'))
+
+        with \
+                requests.Session() as session, \
                 session.get(version_public_url(dataset_id, 'latest')) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
