@@ -1,3 +1,4 @@
+import ecs_logging
 from gevent import (
     monkey,
 )
@@ -196,17 +197,18 @@ def proxy_app(
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
         'latest/data', view_func=redirect_to_latest)
-    server = WSGIServer(('0.0.0.0', port), app)
+    server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
 
 
 def main():
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.DEBUG)
+
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(stdout_handler)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ecs_logging.StdlibFormatter())
+    logger.addHandler(handler)
 
     start, stop = proxy_app(
         logger,
