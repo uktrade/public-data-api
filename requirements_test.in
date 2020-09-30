@@ -4,3 +4,4 @@ coverage==5.2.1
 pre-commit==1.18.0
 pylint==2.3.1
 requests==2.24.0
+sentry-sdk[flask]==0.10.2

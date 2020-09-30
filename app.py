@@ -23,6 +23,8 @@ from flask import (
 from gevent.pywsgi import (
     WSGIServer,
 )
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 import urllib3
 from werkzeug.middleware.proxy_fix import (
     ProxyFix,
@@ -216,6 +218,12 @@ def main():
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
     )
+
+    if 'SENTRY_DSN' in os.environ:
+        sentry_sdk.init(
+            dsn=os.environ['SENTRY_DSN'],
+            integrations=[FlaskIntegration()]
+        )
 
     gevent.signal_handler(signal.SIGTERM, stop)
     start()

@@ -4,14 +4,17 @@
 #
 #    pip-compile --output-file=requirements.txt requirements.in
 #
+blinker==1.4              # via sentry-sdk
+certifi==2020.6.20        # via sentry-sdk
 click==7.0                # via flask
-flask==1.1.2              # via -r requirements.in
+flask==1.1.2              # via -r requirements.in, sentry-sdk
 gevent==20.6.2            # via -r requirements.in
 greenlet==0.4.16          # via gevent
 itsdangerous==1.1.0       # via flask
 jinja2==2.10.1            # via flask
 markupsafe==1.1.1         # via jinja2
-urllib3==1.25.10          # via -r requirements.in
+sentry-sdk[flask]==0.10.2  # via -r requirements.in
+urllib3==1.25.10          # via -r requirements.in, sentry-sdk
 werkzeug==0.15.5          # via flask
 zope.event==4.4           # via gevent
 zope.interface==5.1.0     # via gevent
