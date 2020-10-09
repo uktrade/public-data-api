@@ -192,9 +192,9 @@ def proxy_app(
         app,
         service_name='public-data-api',
         secret_token=os.environ['APM_SECRET_TOKEN'],
-        server_url='https://apm.elk.uktrade.digital',
+        server_url=os.environ['APM_SERVER_URL'],
         environment=os.environ['ENVIRONMENT'],
-        server_timeout=os.environ['APM_SERVER_TIMEOUT']
+        server_timeout=os.environ.get('APM_SERVER_TIMEOUT', None),
     )
 
     app.add_url_rule(
