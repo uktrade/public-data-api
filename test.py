@@ -673,23 +673,24 @@ class TestS3Proxy(unittest.TestCase):
                 }
             }
         })
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)):
+        with requests.Session() as session:
             retry = 0
             while retry < 20:
+                session.get(version_public_url(dataset_id, version))
+                time.sleep(1)
                 response = requests.get(
                     url='http://localhost:9201/apm-7.8.0-transaction/_search',
                     data=query,
                     headers={'Accept': 'application/json', 'Content-type': 'application/json'}
                 )
                 res = json.loads(response.text)
-                assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
-                if res['hits']['total']['value'] == 1:
-                    return
+                if retry > 0 and 'hits' in res and res['hits']['total']['value']:
+                    break
                 time.sleep(3)
                 retry += 1
-            assert False, 'No Elastic APM transaction found for the request'
+
+        assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
+        assert res['hits']['total']['value'] >= 1, 'No hits found'
 
     @with_application(8080)
     def test_sentry_integration(self, _):
