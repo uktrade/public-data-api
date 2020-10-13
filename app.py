@@ -201,16 +201,31 @@ def proxy_app(
 
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)
+        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>/data', view_func=redirect_to_major)
+        'v<int:major>/data', view_func=redirect_to_major
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor)
+        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'latest/data', view_func=redirect_to_latest)
+        'latest/data', view_func=redirect_to_latest
+    )
+
+    # In testing mode add an endpoint that throws an exception
+    # to test the Sentry integration.
+    if os.environ['ENVIRONMENT'] == 'test':
+        def raise_exception():
+            return str(1/0), 200
+
+        app.add_url_rule(
+            '/v1/datasets/raise-exception', view_func=raise_exception
+        )
+
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
@@ -233,11 +248,10 @@ def main():
         os.environ['AWS_S3_REGION'],
     )
 
-    if 'SENTRY_DSN' in os.environ:
-        sentry_sdk.init(
-            dsn=os.environ['SENTRY_DSN'],
-            integrations=[FlaskIntegration()]
-        )
+    sentry_sdk.init(
+        dsn=os.environ['SENTRY_DSN'],
+        integrations=[FlaskIntegration()]
+    )
 
     gevent.signal_handler(signal.SIGTERM, stop)
     start()

@@ -16,6 +16,7 @@ import uuid
 
 import requests
 
+from test_utils import MockSentryServer
 
 def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
@@ -34,12 +35,16 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                     'AWS_ACCESS_KEY_ID': aws_access_key_id,
                     'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                     'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
+                    'APM_SECRET_TOKEN': 'secret_token',
+                    'APM_SERVER_URL': 'http://localhost:8201',
+                    'ENVIRONMENT': 'test',
+                    'SENTRY_DSN': 'http://foo@localhost:9001/1',
                 }
             )
 
             def stop():
+                time.sleep(0.10)  # Sentry needs some extra time to log any errors
                 process.kill()
-                process.wait(timeout=5)
                 output, error = process.communicate()
                 process.stderr.close()
                 process.stdout.close()
@@ -64,6 +69,15 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
 
 
 class TestS3Proxy(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.sentry_server = MockSentryServer()
+        cls.sentry_server.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        requests.get(f'{cls.sentry_server.url}/shutdown')
 
     def test_meta_with_application_fails(self):
         @with_application(8080, max_attempts=1)
@@ -677,6 +691,20 @@ class TestS3Proxy(unittest.TestCase):
                 retry += 1
             assert False, 'No Elastic APM transaction found for the request'
 
+    @with_application(8080)
+    def test_sentry_integration(self, _):
+        num_errors = self.sentry_server.get_num_errors()
+
+        requests.Session().get(generate_url('raise-exception'))
+        # Need to wait for the app to submit the error to sentry
+        time.sleep(0.2)
+        self.assertEqual(self.sentry_server.get_num_errors(), num_errors+1)
+
+        requests.Session().get(generate_url('raise-exception'))
+        # Need to wait for the app to submit the error to sentry
+        time.sleep(0.2)
+        self.assertEqual(self.sentry_server.get_num_errors(), num_errors+2)
+
 
 def put_version_data(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/data.json', contents)
@@ -695,16 +723,23 @@ def put_object(key, contents):
         response.raise_for_status()
 
 
+_url_prefix = 'http://127.0.0.1:8080/v1/datasets'
+
+
+def generate_url(path):
+    return f'{_url_prefix}/{path}'
+
+
 def version_public_url(dataset_id, version):
-    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data?format=json'
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json'
 
 
 def version_public_url_no_format(dataset_id, version):
-    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data'
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data'
 
 
 def version_public_url_bad_format(dataset_id, version):
-    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data?format=csv'
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=csv'
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
