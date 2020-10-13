@@ -1,3 +1,4 @@
+import ecs_logging
 from gevent import (
     monkey,
 )
@@ -14,6 +15,7 @@ import signal
 import sys
 import urllib.parse
 
+from elasticapm.contrib.flask import ElasticAPM
 from flask import (
     Flask,
     Response,
@@ -186,6 +188,17 @@ def proxy_app(
 
     app = Flask('app')
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+
+    apm = ElasticAPM()
+    apm.init_app(
+        app,
+        service_name='public-data-api',
+        secret_token=os.environ['APM_SECRET_TOKEN'],
+        server_url=os.environ['APM_SERVER_URL'],
+        environment=os.environ['ENVIRONMENT'],
+        server_timeout=os.environ.get('APM_SERVER_TIMEOUT', None),
+    )
+
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
         'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)
@@ -198,17 +211,18 @@ def proxy_app(
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
         'latest/data', view_func=redirect_to_latest)
-    server = WSGIServer(('0.0.0.0', port), app)
+    server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
 
 
 def main():
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.DEBUG)
+
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(stdout_handler)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ecs_logging.StdlibFormatter())
+    logger.addHandler(handler)
 
     start, stop = proxy_app(
         logger,

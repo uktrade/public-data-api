@@ -23,7 +23,6 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
             with open('Procfile', 'r') as file:
                 args = shlex.split(next(line for line in file.read().splitlines()
                                         if line.startswith('web:'))[5:])
-
             process = subprocess.Popen(
                 args,
                 stderr=subprocess.PIPE,  # Silence logs
@@ -39,10 +38,12 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
             )
 
             def stop():
-                process.terminate()
+                process.kill()
                 process.wait(timeout=5)
+                output, error = process.communicate()
                 process.stderr.close()
                 process.stdout.close()
+                return output, error
 
             try:
                 for i in range(0, max_attempts):
@@ -55,8 +56,9 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                         time.sleep(0.02)
                 original_test(self, process)
             finally:
-                stop()
+                output, error = stop()
 
+            return output, error
         return test_with_application
     return decorator
 
@@ -618,6 +620,62 @@ class TestS3Proxy(unittest.TestCase):
 
         cake_url_encoded = urllib.parse.quote_from_bytes('🍰'.encode('utf-8')).encode('ascii')
         self.assertIn(b'&something=' + cake_url_encoded, full_response)
+
+    def test_logs_ecs_format(self):
+
+        url = None
+
+        @with_application(8080)
+        def make_api_call(*_):
+            nonlocal url
+            dataset_id = str(uuid.uuid4())
+            content = str(uuid.uuid4()).encode() * 100000
+            version = 'v0.0.1'
+            put_version_data(dataset_id, version, content)
+            url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
+            with requests.Session() as session, \
+                    session.get(version_public_url(dataset_id, version)) as response:
+                self.assertEqual(200, response.status_code)
+
+        output, error = make_api_call(self)
+        self.assertEqual(error, b'')
+        output_logs = output.decode().split('\n')
+        assert len(output_logs) >= 1
+        api_call_log = [json.loads(log) for log in output_logs if url in log]
+        assert len(api_call_log) == 1
+        assert 'ecs' in api_call_log[0]
+
+    @with_application(8080)
+    def test_elastic_apm(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+        url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
+        query = json.dumps({
+            'query': {
+                'match': {
+                    'url.path': url
+                }
+            }
+        })
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, version)):
+            retry = 0
+            while retry < 20:
+                response = requests.get(
+                    url='http://localhost:9201/apm-7.8.0-transaction/_search',
+                    data=query,
+                    headers={'Accept': 'application/json', 'Content-type': 'application/json'}
+                )
+                res = json.loads(response.text)
+                assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
+                if res['hits']['total']['value'] == 1:
+                    return
+                time.sleep(3)
+                retry += 1
+            assert False, 'No Elastic APM transaction found for the request'
 
 
 def put_version_data(dataset_id, version, contents):
