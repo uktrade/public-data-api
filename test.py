@@ -46,6 +46,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
             def stop():
                 time.sleep(0.10)  # Sentry needs some extra time to log any errors
                 process.kill()
+                process.wait(timeout=5)
                 output, error = process.communicate()
                 process.stderr.close()
                 process.stdout.close()
