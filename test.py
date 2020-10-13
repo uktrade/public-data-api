@@ -38,7 +38,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
             )
 
             def stop():
-                process.terminate()
+                process.kill()
                 process.wait(timeout=5)
                 output, error = process.communicate()
                 process.stderr.close()
@@ -644,6 +644,38 @@ class TestS3Proxy(unittest.TestCase):
         api_call_log = [json.loads(log) for log in output_logs if url in log]
         assert len(api_call_log) == 1
         assert 'ecs' in api_call_log[0]
+
+    @with_application(8080)
+    def test_elastic_apm(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+        url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
+        query = json.dumps({
+            'query': {
+                'match': {
+                    'url.path': url
+                }
+            }
+        })
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, version)):
+            retry = 0
+            while retry < 20:
+                response = requests.get(
+                    url='http://localhost:9201/apm-7.8.0-transaction/_search',
+                    data=query,
+                    headers={'Accept': 'application/json', 'Content-type': 'application/json'}
+                )
+                res = json.loads(response.text)
+                assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
+                if res['hits']['total']['value'] == 1:
+                    return
+                time.sleep(3)
+                retry += 1
+            assert False, 'No Elastic APM transaction found for the request'
 
 
 def put_version_data(dataset_id, version, contents):
