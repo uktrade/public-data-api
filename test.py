@@ -34,6 +34,9 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                     'AWS_ACCESS_KEY_ID': aws_access_key_id,
                     'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                     'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
+                    'APM_SECRET_TOKEN': 'secret_token',
+                    'APM_SERVER_URL': 'http://localhost:8201',
+                    'ENVIRONMENT': 'test',
                 }
             )
 
@@ -659,23 +662,24 @@ class TestS3Proxy(unittest.TestCase):
                 }
             }
         })
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)):
+        with requests.Session() as session:
             retry = 0
             while retry < 20:
+                session.get(version_public_url(dataset_id, version))
+                time.sleep(1)
                 response = requests.get(
                     url='http://localhost:9201/apm-7.8.0-transaction/_search',
                     data=query,
                     headers={'Accept': 'application/json', 'Content-type': 'application/json'}
                 )
                 res = json.loads(response.text)
-                assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
-                if res['hits']['total']['value'] == 1:
-                    return
+                if retry > 0 and 'hits' in res and res['hits']['total']['value']:
+                    break
                 time.sleep(3)
                 retry += 1
-            assert False, 'No Elastic APM transaction found for the request'
+
+        assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
+        assert res['hits']['total']['value'] >= 1, 'No hits found'
 
 
 def put_version_data(dataset_id, version, contents):
