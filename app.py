@@ -220,7 +220,7 @@ def proxy_app(
     # to test the Sentry integration.
     if os.environ['ENVIRONMENT'] == 'test':
         def raise_exception():
-            return str(1/0), 200
+            return str(1 / 0), 200
 
         app.add_url_rule(
             '/v1/datasets/raise-exception', view_func=raise_exception

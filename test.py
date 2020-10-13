@@ -18,6 +18,7 @@ import requests
 
 from test_utils import MockSentryServer
 
+
 def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
         def test_with_application(self):
@@ -699,12 +700,12 @@ class TestS3Proxy(unittest.TestCase):
         requests.Session().get(generate_url('raise-exception'))
         # Need to wait for the app to submit the error to sentry
         time.sleep(0.2)
-        self.assertEqual(self.sentry_server.get_num_errors(), num_errors+1)
+        self.assertEqual(self.sentry_server.get_num_errors(), num_errors + 1)
 
         requests.Session().get(generate_url('raise-exception'))
         # Need to wait for the app to submit the error to sentry
         time.sleep(0.2)
-        self.assertEqual(self.sentry_server.get_num_errors(), num_errors+2)
+        self.assertEqual(self.sentry_server.get_num_errors(), num_errors + 2)
 
 
 def put_version_data(dataset_id, version, contents):
