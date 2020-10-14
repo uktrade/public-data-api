@@ -4,22 +4,22 @@
 #
 #    pip-compile --output-file=requirements.txt requirements.in
 #
-blinker==1.4              # via elastic-apm, sentry-sdk
-certifi==2020.6.20        # via elastic-apm, sentry-sdk
-click==7.1.2              # via flask
+blinker==1.4              # via elastic-apm
+certifi==2020.6.20        # via elastic-apm
+click==7.0                # via flask
 ecs-logging==0.5.0        # via -r requirements.in
 elastic-apm[flask]==5.9.0  # via -r requirements.in
-flask==1.1.2              # via -r requirements.in, sentry-sdk
+flask==1.1.2              # via -r requirements.in
 gevent==20.6.2            # via -r requirements.in
-greenlet==0.4.17          # via gevent
+greenlet==0.4.16          # via gevent
 itsdangerous==1.1.0       # via flask
-jinja2==2.11.2            # via flask
+jinja2==2.10.1            # via flask
 markupsafe==1.1.1         # via jinja2
 sentry-sdk[flask]==0.10.2  # via -r requirements.in
-urllib3==1.25.10          # via -r requirements.in, elastic-apm, sentry-sdk
-werkzeug==1.0.1           # via flask
-zope.event==4.5.0         # via gevent
-zope.interface==5.1.2     # via gevent
+urllib3==1.25.10          # via -r requirements.in, elastic-apm
+werkzeug==0.15.5          # via flask
+zope.event==4.4           # via gevent
+zope.interface==5.1.0     # via gevent
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
