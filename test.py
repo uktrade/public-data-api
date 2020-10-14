@@ -16,8 +16,6 @@ import uuid
 
 import requests
 
-from test_utils import MockSentryServer
-
 
 def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
@@ -25,7 +23,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
             with open('Procfile', 'r') as file:
                 args = shlex.split(next(line for line in file.read().splitlines()
                                         if line.startswith('web:'))[5:])
-            process = subprocess.Popen(
+            web_process = subprocess.Popen(
                 args,
                 stderr=subprocess.PIPE,  # Silence logs
                 stdout=subprocess.PIPE,
@@ -39,17 +37,25 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                     'APM_SECRET_TOKEN': 'secret_token',
                     'APM_SERVER_URL': 'http://localhost:8201',
                     'ENVIRONMENT': 'test',
-                    'SENTRY_DSN': 'http://foo@localhost:9001/1',
+                    'SENTRY_DSN': 'http://foo@127.0.0.1:9001/1',
                 }
             )
 
+            sentry_process = subprocess.Popen(
+                ['python', '-m', 'mock_sentry_app'],
+                stderr=subprocess.PIPE,  # Silence logs
+                stdout=subprocess.PIPE,
+            )
+
+            processes = [sentry_process, web_process]
+
             def stop():
-                time.sleep(0.10)  # Sentry needs some extra time to log any errors
-                process.kill()
-                process.wait(timeout=5)
-                output, error = process.communicate()
-                process.stderr.close()
-                process.stdout.close()
+                for process in processes:
+                    process.kill()
+                    process.wait(timeout=5)
+                    output, error = process.communicate()
+                    process.stderr.close()
+                    process.stdout.close()
                 return output, error
 
             try:
@@ -61,7 +67,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                         if i == max_attempts - 1:
                             raise
                         time.sleep(0.02)
-                original_test(self, process)
+                original_test(self, web_process)
             finally:
                 output, error = stop()
 
@@ -71,15 +77,6 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
 
 
 class TestS3Proxy(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.sentry_server = MockSentryServer()
-        cls.sentry_server.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        requests.get(f'{cls.sentry_server.url}/shutdown')
 
     def test_meta_with_application_fails(self):
         @with_application(8080, max_attempts=1)
@@ -698,7 +695,6 @@ class TestS3Proxy(unittest.TestCase):
     def test_sentry_integration(self, _):
         # Passing a bad AWS access key will result in a 403 when calling S3
         # and this will raise an Exception that should be reported to sentry.
-        num_errors = self.sentry_server.get_num_errors()
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         version = 'v0.0.1'
@@ -709,9 +705,10 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 500)
 
-        # Need to wait for the app to submit the error to sentry
-        time.sleep(0.2)
-        self.assertEqual(self.sentry_server.get_num_errors(), num_errors + 1)
+        with \
+                requests.Session() as session, \
+                session.get('http://127.0.0.1:9001/api/1/errors') as response:
+            self.assertEqual(int(response.content), 1)
 
         # Tring the same request again should result in another error in sentry
         with \
@@ -719,9 +716,10 @@ class TestS3Proxy(unittest.TestCase):
                 session.get(version_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 500)
 
-        # Need to wait for the app to submit the error to sentry
-        time.sleep(0.2)
-        self.assertEqual(self.sentry_server.get_num_errors(), num_errors + 2)
+        with \
+                requests.Session() as session, \
+                session.get('http://127.0.0.1:9001/api/1/errors') as response:
+            self.assertEqual(int(response.content), 2)
 
 
 def put_version_data(dataset_id, version, contents):
@@ -742,10 +740,6 @@ def put_object(key, contents):
 
 
 _url_prefix = 'http://127.0.0.1:8080/v1/datasets'
-
-
-def generate_url(path):
-    return f'{_url_prefix}/{path}'
 
 
 def version_public_url(dataset_id, version):
