@@ -115,6 +115,9 @@ def proxy_app(
         ))
         response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
 
+        if response.status == 403:
+            raise Exception('Access denied')
+
         response_headers_no_content_type = tuple((
             (key, response.headers[key])
             for key in proxied_response_headers if key in response.headers
@@ -215,16 +218,6 @@ def proxy_app(
         '/v1/datasets/<string:dataset_id>/versions/'
         'latest/data', view_func=redirect_to_latest
     )
-
-    # In testing mode add an endpoint that throws an exception
-    # to test the Sentry integration.
-    if os.environ['ENVIRONMENT'] == 'test':
-        def raise_exception():
-            return str(1 / 0), 200
-
-        app.add_url_rule(
-            '/v1/datasets/raise-exception', view_func=raise_exception
-        )
 
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 

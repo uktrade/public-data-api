@@ -694,16 +694,31 @@ class TestS3Proxy(unittest.TestCase):
         assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
         assert res['hits']['total']['value'] >= 1, 'No hits found'
 
-    @with_application(8080)
+    @with_application(8080, aws_access_key_id='not-exist')
     def test_sentry_integration(self, _):
+        # Passing a bad AWS access key will result in a 403 when calling S3
+        # and this will raise an Exception that should be reported to sentry.
         num_errors = self.sentry_server.get_num_errors()
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
 
-        requests.Session().get(generate_url('raise-exception'))
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.status_code, 500)
+
         # Need to wait for the app to submit the error to sentry
         time.sleep(0.2)
         self.assertEqual(self.sentry_server.get_num_errors(), num_errors + 1)
 
-        requests.Session().get(generate_url('raise-exception'))
+        # Tring the same request again should result in another error in sentry
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.status_code, 500)
+
         # Need to wait for the app to submit the error to sentry
         time.sleep(0.2)
         self.assertEqual(self.sentry_server.get_num_errors(), num_errors + 2)
