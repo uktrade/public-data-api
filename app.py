@@ -115,9 +115,6 @@ def proxy_app(
         ))
         response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
 
-        if response.status == 403:
-            raise Exception('Access denied')
-
         response_headers_no_content_type = tuple((
             (key, response.headers[key])
             for key in proxied_response_headers if key in response.headers
@@ -129,18 +126,18 @@ def proxy_app(
         logger.debug('Response: %s', response)
         logger.debug('Allowing proxy: %s', allow_proxy)
 
-        def body_empty():
-            # Ensure this is a generator
-            while False:
-                yield
-
+        if not allow_proxy:
+            # Make sure we fetch all response bytes, so the connection can be re-used.
+            # There are not likely to be many, since it would just be an error message
+            # from S3 at most
             for _ in response.stream(65536, decode_content=False):
                 pass
+            raise Exception(f'Unexpected code from S3: {response.status}')
 
-        downstream_response = \
-            Response(parse_response(response.stream(65536, decode_content=False), 65536),
-                     status=response.status, headers=response_headers) if allow_proxy else \
-            Response(body_empty(), status=500)
+        downstream_response = Response(
+            parse_response(response.stream(65536, decode_content=False), 65536),
+            status=response.status, headers=response_headers
+        )
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
