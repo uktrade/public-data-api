@@ -1,3 +1,4 @@
+import json
 import ecs_logging
 from gevent import (
     monkey,
@@ -90,18 +91,15 @@ def proxy_app(
             return handler(*args, **kwargs)
         return handler_with_validation
 
-    @validate_format
-    def proxy(dataset_id, major, minor, patch):
-        logger.debug('Attempt to proxy: %s %s %s %s %s', request, dataset_id, major, minor, patch)
-
+    def _proxy(dataset_id, major, minor, patch, query_s3_select, headers):
         s3_key = f'{dataset_id}/v{major}.{minor}.{patch}/data.json'
         method, body, params, parse_response = \
             (
                 'POST',
-                aws_select_post_body(request.args['query-s3-select']),
+                aws_select_post_body(query_s3_select),
                 (('select', ''), ('select-type', '2')),
                 aws_select_parse_result,
-            ) if 'query-s3-select' in request.args else \
+            ) if query_s3_select is not None else \
             (
                 'GET',
                 b'',
@@ -110,10 +108,25 @@ def proxy_app(
             )
 
         pre_auth_headers = tuple((
-            (key, request.headers[key])
-            for key in proxied_request_headers if key in request.headers
+            (key, headers[key])
+            for key in proxied_request_headers if key in headers
         ))
         response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
+
+        logger.debug('Response: %s', response)
+
+        return parse_response(response.stream(65536, decode_content=False), 65536), response
+
+    @validate_format
+    def proxy(dataset_id, major, minor, patch):
+        logger.debug('Attempt to proxy: %s %s %s %s %s', request, dataset_id, major, minor, patch)
+
+        body_generator, response = _proxy(
+            dataset_id, major, minor, patch, request.args.get('query-s3-select'), request.headers)
+
+        allow_proxy = response.status in proxied_response_codes
+
+        logger.debug('Allowing proxy: %s', allow_proxy)
 
         response_headers_no_content_type = tuple((
             (key, response.headers[key])
@@ -121,10 +134,6 @@ def proxy_app(
         ))
         response_headers = response_headers_no_content_type + \
             (('content-type', 'application/json'),)
-        allow_proxy = response.status in proxied_response_codes
-
-        logger.debug('Response: %s', response)
-        logger.debug('Allowing proxy: %s', allow_proxy)
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
@@ -135,8 +144,7 @@ def proxy_app(
             raise Exception(f'Unexpected code from S3: {response.status}')
 
         downstream_response = Response(
-            parse_response(response.stream(65536, decode_content=False), 65536),
-            status=response.status, headers=response_headers
+            body_generator, status=response.status, headers=response_headers,
         )
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
@@ -186,6 +194,28 @@ def proxy_app(
         return redirect(
             f'/v1/datasets/{dataset_id}/versions/{version}/data{query_string}', code=302)
 
+    def healthcheck():
+        """
+        Healthcheck checks S3 bucket, `healthcheck` as dataset_id and v0.0.1 as version
+        containing json string {'status': 'OK'}
+        """
+        body_generator, s3_response = _proxy('healthcheck', '0', '0', '1', None, request.headers)
+        body_bytes = b''.join(chunk for chunk in body_generator)
+        body_json = json.loads(body_bytes.decode('utf-8'))
+
+        if s3_response.status == 200 and body_json.get('status') == 'OK':
+            pingdom_xml = """<?xml version="1.0" encoding="UTF-8"?>
+            <pingdom_http_custom_check>
+                <status>OK</status>
+            </pingdom_http_custom_check>\n"""
+
+            response = Response(pingdom_xml, status=200, mimetype='application/xml')
+            response.headers['Content-Type'] = 'text/xml'
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            return response
+
+        return Response(status=503)
+
     app = Flask('app')
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 
@@ -215,7 +245,9 @@ def proxy_app(
         '/v1/datasets/<string:dataset_id>/versions/'
         'latest/data', view_func=redirect_to_latest
     )
-
+    app.add_url_rule(
+        '/healthcheck', 'healthcheck', view_func=healthcheck
+    )
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
