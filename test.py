@@ -681,6 +681,36 @@ class TestS3Proxy(unittest.TestCase):
         assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
         assert res['hits']['total']['value'] >= 1, 'No hits found'
 
+    @with_application(8080)
+    def test_healthcheck_ok(self, _):
+        dataset_id = 'healthcheck'
+        content_str = {'status': 'OK'}
+        content = json.dumps(content_str).encode()
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get('http://127.0.0.1:8080/healthcheck') as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue('<status>OK</status>' in str(response.content))
+            self.assertEqual(response.headers['content-type'], 'text/xml')
+            self.assertEqual(response.headers['Cache-Control'],
+                             'no-cache, no-store, must-revalidate')
+
+    @with_application(8080)
+    def test_healthcheck_fail(self, _):
+        dataset_id = 'healthcheck'
+        content_str = {'foo': 'bar'}
+        content = json.dumps(content_str).encode()
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get('http://127.0.0.1:8080/healthcheck') as response:
+            self.assertEqual(response.status_code, 503)
+
 
 def put_version_data(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/data.json', contents)
