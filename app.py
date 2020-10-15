@@ -26,6 +26,8 @@ from flask import (
 from gevent.pywsgi import (
     WSGIServer,
 )
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 import urllib3
 from werkzeug.middleware.proxy_fix import (
     ProxyFix,
@@ -133,19 +135,17 @@ def proxy_app(
         response_headers = response_headers_no_content_type + \
             (('content-type', 'application/json'),)
 
-        def body_empty():
-            # Ensure this is a generator
-            while False:
-                yield
-
+        if not allow_proxy:
+            # Make sure we fetch all response bytes, so the connection can be re-used.
+            # There are not likely to be many, since it would just be an error message
+            # from S3 at most
             for _ in response.stream(65536, decode_content=False):
                 pass
+            raise Exception(f'Unexpected code from S3: {response.status}')
 
-        downstream_response = \
-            Response(
-                body_generator, status=response.status, headers=response_headers,
-            ) if allow_proxy else \
-            Response(body_empty(), status=500)
+        downstream_response = Response(
+            body_generator, status=response.status, headers=response_headers,
+        )
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
@@ -231,17 +231,23 @@ def proxy_app(
 
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy)
+        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>/data', view_func=redirect_to_major)
+        'v<int:major>/data', view_func=redirect_to_major
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor)
+        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/'
-        'latest/data', view_func=redirect_to_latest)
-    app.add_url_rule('/healthcheck', 'healthcheck', view_func=healthcheck)
+        'latest/data', view_func=redirect_to_latest
+    )
+    app.add_url_rule(
+        '/healthcheck', 'healthcheck', view_func=healthcheck
+    )
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
@@ -262,6 +268,11 @@ def main():
         os.environ['AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
+    )
+
+    sentry_sdk.init(
+        dsn=os.environ['SENTRY_DSN'],
+        integrations=[FlaskIntegration()]
     )
 
     gevent.signal_handler(signal.SIGTERM, stop)

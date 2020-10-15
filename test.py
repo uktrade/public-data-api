@@ -23,7 +23,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
             with open('Procfile', 'r') as file:
                 args = shlex.split(next(line for line in file.read().splitlines()
                                         if line.startswith('web:'))[5:])
-            process = subprocess.Popen(
+            web_process = subprocess.Popen(
                 args,
                 stderr=subprocess.PIPE,  # Silence logs
                 stdout=subprocess.PIPE,
@@ -37,15 +37,25 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                     'APM_SECRET_TOKEN': 'secret_token',
                     'APM_SERVER_URL': 'http://localhost:8201',
                     'ENVIRONMENT': 'test',
+                    'SENTRY_DSN': 'http://foo@127.0.0.1:9001/1',
                 }
             )
 
+            sentry_process = subprocess.Popen(
+                ['python', '-m', 'mock_sentry_app'],
+                stderr=subprocess.PIPE,  # Silence logs
+                stdout=subprocess.PIPE,
+            )
+
+            processes = [sentry_process, web_process]
+
             def stop():
-                process.kill()
-                process.wait(timeout=5)
-                output, error = process.communicate()
-                process.stderr.close()
-                process.stdout.close()
+                for process in processes:
+                    process.kill()
+                    process.wait(timeout=5)
+                    output, error = process.communicate()
+                    process.stderr.close()
+                    process.stdout.close()
                 return output, error
 
             try:
@@ -57,7 +67,7 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                         if i == max_attempts - 1:
                             raise
                         time.sleep(0.02)
-                original_test(self, process)
+                original_test(self, web_process)
             finally:
                 output, error = stop()
 
@@ -711,6 +721,36 @@ class TestS3Proxy(unittest.TestCase):
                 session.get('http://127.0.0.1:8080/healthcheck') as response:
             self.assertEqual(response.status_code, 503)
 
+    @with_application(8080, aws_access_key_id='not-exist')
+    def test_sentry_integration(self, _):
+        # Passing a bad AWS access key will result in a 403 when calling S3
+        # and this will raise an Exception that should be reported to sentry.
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.status_code, 500)
+
+        with \
+                requests.Session() as session, \
+                session.get('http://127.0.0.1:9001/api/1/errors') as response:
+            self.assertEqual(int(response.content), 1)
+
+        # Tring the same request again should result in another error in sentry
+        with \
+                requests.Session() as session, \
+                session.get(version_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.status_code, 500)
+
+        with \
+                requests.Session() as session, \
+                session.get('http://127.0.0.1:9001/api/1/errors') as response:
+            self.assertEqual(int(response.content), 2)
+
 
 def put_version_data(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/data.json', contents)
@@ -729,16 +769,19 @@ def put_object(key, contents):
         response.raise_for_status()
 
 
+_url_prefix = 'http://127.0.0.1:8080/v1/datasets'
+
+
 def version_public_url(dataset_id, version):
-    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data?format=json'
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json'
 
 
 def version_public_url_no_format(dataset_id, version):
-    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data'
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data'
 
 
 def version_public_url_bad_format(dataset_id, version):
-    return f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/{version}/data?format=csv'
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=csv'
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
