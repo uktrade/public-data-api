@@ -74,7 +74,7 @@ def aws_sigv4_headers(
 
 
 def aws_s3_request(parsed_endpoint, http, aws_access_key_id, aws_secret_access_key, region_name,
-                   method, s3_key, pre_auth_headers, params, body):
+                   method, s3_key, pre_auth_headers=(), params=(), body=b''):
     path = f'{parsed_endpoint.path}{s3_key}'
     body_hash = hashlib.sha256(body).hexdigest()
     request_headers = aws_sigv4_headers(
@@ -306,7 +306,7 @@ def aws_list_folders(signed_s3_request, prefix):
             ('delimiter', '/'),
             ('prefix', prefix),
         ) + extra_query_items
-        response = signed_s3_request('GET', s3_key='', pre_auth_headers=(), params=query, body=b'')
+        response = signed_s3_request('GET', s3_key='', params=query)
         try:
             body_bytes = response.read()
         finally:
