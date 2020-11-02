@@ -1,4 +1,6 @@
 import json
+import re
+
 import ecs_logging
 from gevent import (
     monkey,
@@ -20,8 +22,10 @@ from elasticapm.contrib.flask import ElasticAPM
 from flask import (
     Flask,
     Response,
+    abort,
     redirect,
     request,
+    url_for,
 )
 from gevent.pywsgi import (
     WSGIServer,
@@ -39,6 +43,10 @@ from app_aws import (
     aws_select_parse_result,
     aws_list_folders,
 )
+
+
+RE_VERSION_FORMAT = re.compile(
+    r'^(?P<version>v(?P<major>\d+)(?:\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?)?|latest)$')
 
 
 def proxy_app(
@@ -68,7 +76,68 @@ def proxy_app(
     def stop():
         server.stop()
 
-    def validate_format(handler):
+    def validate_and_redirect_version(handler):
+        """Reads the version from the URL path, validates that it's either `latest` or a
+        (simple) SemVer version.
+        If not, 404s.
+
+        If it's `latest`, scrapes S3 for the latest version of the dataset and redirects to it.
+            If no key exists, 404s.
+
+        If it's a major or minor version, scrapes S3 for the latest (constrained) version and
+        redirects to it.
+            If no matching key exists, 404s.
+
+        If it's a patch version, passes directly through to the underlying function.
+        """
+        @wraps(handler)
+        def handler_with_validation(*args, **kwargs):
+            match = RE_VERSION_FORMAT.match(request.view_args['version'])
+            if not match:
+                abort(404)
+
+            version, major, minor, patch = [match.group(
+                g) for g in ('version', 'major', 'minor', 'patch')]
+
+            if major and minor and patch:
+                return handler(*args, **kwargs)
+
+            if version == 'latest':
+                def predicate(_):
+                    return True
+            elif major and not minor and not patch:
+                def predicate(path):
+                    v_major_str, _, _ = path.split('.')
+                    return v_major_str[1:] == str(major)
+            else:
+                def predicate(path):
+                    v_major_str, minor_str, _ = path.split('.')
+                    return v_major_str[1:] == str(major) and minor_str == str(minor)
+
+            def semver_key(path):
+                v_major_str, minor_str, patch_str = path.split('.')
+                return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+            folders = aws_list_folders(signed_s3_request, request.view_args['dataset_id'] + '/')
+            matching_folders = filter(predicate, folders)
+            latest_matching_version = max(matching_folders, default=None, key=semver_key)
+
+            if latest_matching_version is None:
+                return 'Dataset not found', 404
+
+            # It doesn't look like it's possible to return a redirect with the query string that
+            # has the _exact_ bytes that were received by the server in all cases. If a client
+            # sends non-URL-encoded UTF-8 in the query string, the below results (via code in
+            # Werkzeug) in returning a redirect to a URL with the equivalent URL-encoded string.
+            query_string = ((b'?' + request.query_string)
+                            if request.query_string else b'').decode('utf-8')
+
+            updated_view_args = {**request.view_args, 'version': latest_matching_version}
+            return redirect(url_for(request.endpoint, **updated_view_args) + query_string)
+
+        return handler_with_validation
+
+    def validate_json_format(handler):
         @wraps(handler)
         def handler_with_validation(*args, **kwargs):
             try:
@@ -82,8 +151,8 @@ def proxy_app(
             return handler(*args, **kwargs)
         return handler_with_validation
 
-    def _proxy(dataset_id, major, minor, patch, query_s3_select, headers):
-        s3_key = f'{dataset_id}/v{major}.{minor}.{patch}/data.json'
+    def _proxy_data(dataset_id, version, query_s3_select, headers):
+        s3_key = f'{dataset_id}/{version}/data.json'
         method, body, params, parse_response = \
             (
                 'POST',
@@ -108,12 +177,13 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
-    @validate_format
-    def proxy(dataset_id, major, minor, patch):
-        logger.debug('Attempt to proxy: %s %s %s %s %s', request, dataset_id, major, minor, patch)
+    @validate_and_redirect_version
+    @validate_json_format
+    def proxy_data(dataset_id, version):
+        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        body_generator, response = _proxy(
-            dataset_id, major, minor, patch, request.args.get('query-s3-select'), request.headers)
+        body_generator, response = _proxy_data(
+            dataset_id, version, request.args.get('query-s3-select'), request.headers)
 
         allow_proxy = response.status in proxied_response_codes
 
@@ -140,57 +210,12 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    @validate_format
-    def redirect_to_major(dataset_id, major):
-        requested_major_str = str(major)
-
-        def predicate(path):
-            v_major_str, _, _ = path.split('.')
-            return v_major_str[1:] == requested_major_str
-        return redirect_to_latest_matching(dataset_id, predicate)
-
-    @validate_format
-    def redirect_to_minor(dataset_id, major, minor):
-        requested_major_str = str(major)
-        requested_minor_str = str(minor)
-
-        def predicate(path):
-            v_major_str, minor_str, _ = path.split('.')
-            return v_major_str[1:] == requested_major_str and minor_str == requested_minor_str
-        return redirect_to_latest_matching(dataset_id, predicate)
-
-    @validate_format
-    def redirect_to_latest(dataset_id):
-        return redirect_to_latest_matching(dataset_id, lambda _: True)
-
-    def redirect_to_latest_matching(dataset_id, predicate):
-        def semver_key(path):
-            v_major_str, minor_str, patch_str = path.split('.')
-            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
-
-        folders = aws_list_folders(signed_s3_request, f'{dataset_id}/')
-        matching_folders = filter(predicate, folders)
-        version = max(matching_folders, default=None, key=semver_key)
-
-        if version is None:
-            return 'Dataset not found', 404
-
-        # It doesn't look like it's possible to return a redirect with the query string that has
-        # the _exact_ bytes that were received by the server in all cases. If a client sends
-        # non-URL-encoded UTF-8 in the query string, the below results (via code in Werkzeug) in
-        # returning a redirect to a URL with the equivalent URL-encoded string.
-        query_string = ((b'?' + request.query_string)
-                        if request.query_string else b'').decode('utf-8')
-
-        return redirect(
-            f'/v1/datasets/{dataset_id}/versions/{version}/data{query_string}', code=302)
-
     def healthcheck():
         """
         Healthcheck checks S3 bucket, `healthcheck` as dataset_id and v0.0.1 as version
         containing json string {'status': 'OK'}
         """
-        body_generator, s3_response = _proxy('healthcheck', '0', '0', '1', None, request.headers)
+        body_generator, s3_response = _proxy_data('healthcheck', 'v0.0.1', None, request.headers)
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
@@ -221,20 +246,7 @@ def proxy_app(
     )
 
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy
-    )
-    app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>/data', view_func=redirect_to_major
-    )
-    app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor
-    )
-    app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'latest/data', view_func=redirect_to_latest
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
     )
     app.add_url_rule(
         '/healthcheck', 'healthcheck', view_func=healthcheck
