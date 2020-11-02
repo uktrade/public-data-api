@@ -137,7 +137,7 @@ def aws_select_parse_result(input_iterable, min_output_chunk_size):
                 try:
                     chunk = next(it)
                 except StopIteration:
-                    raise NoMoreBytes()
+                    raise NoMoreBytes() from None
                 to_yield = min(amt, len(chunk))
                 yield chunk[:to_yield]
                 amt -= to_yield
