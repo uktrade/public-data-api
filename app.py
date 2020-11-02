@@ -137,19 +137,21 @@ def proxy_app(
 
         return handler_with_validation
 
-    def validate_json_format(handler):
-        @wraps(handler)
-        def handler_with_validation(*args, **kwargs):
-            try:
-                _format = request.args['format']
-            except KeyError:
-                return 'The query string must have a "format" term', 400
+    def validate_format(ensure_format):
+        def validate_format_handler(handler):
+            @wraps(handler)
+            def handler_with_validation(*args, **kwargs):
+                try:
+                    _format = request.args['format']
+                except KeyError:
+                    return 'The query string must have a "format" term', 400
 
-            if _format != 'json':
-                return 'The query string "format" term must equal "json"', 400
+                if _format != ensure_format:
+                    return f'The query string "format" term must equal "{ensure_format}"', 400
 
-            return handler(*args, **kwargs)
-        return handler_with_validation
+                return handler(*args, **kwargs)
+            return handler_with_validation
+        return validate_format_handler
 
     def _proxy_data(dataset_id, version, query_s3_select, headers):
         s3_key = f'{dataset_id}/{version}/data.json'
@@ -178,7 +180,7 @@ def proxy_app(
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
     @validate_and_redirect_version
-    @validate_json_format
+    @validate_format('json')
     def proxy_data(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
@@ -195,6 +197,52 @@ def proxy_app(
         ))
         response_headers = response_headers_no_content_type + \
             (('content-type', 'application/json'),)
+
+        if not allow_proxy:
+            # Make sure we fetch all response bytes, so the connection can be re-used.
+            # There are not likely to be many, since it would just be an error message
+            # from S3 at most
+            for _ in response.stream(65536, decode_content=False):
+                pass
+            raise Exception(f'Unexpected code from S3: {response.status}')
+
+        downstream_response = Response(
+            body_generator, status=response.status, headers=response_headers,
+        )
+        downstream_response.call_on_close(response.release_conn)
+        return downstream_response
+
+    def _proxy_table(dataset_id, version, table, headers):
+        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+        method, body, params, parse_response = ('GET', b'', (), lambda x, _: x)
+
+        pre_auth_headers = tuple((
+            (key, headers[key])
+            for key in proxied_request_headers if key in headers
+        ))
+        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
+
+        logger.debug('Response: %s', response)
+
+        return parse_response(response.stream(65536, decode_content=False), 65536), response
+
+    @validate_and_redirect_version
+    @validate_format('csv')
+    def proxy_table(dataset_id, version, table):
+        logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
+
+        body_generator, response = _proxy_table(dataset_id, version, table, request.headers)
+
+        allow_proxy = response.status in proxied_response_codes
+
+        logger.debug('Allowing proxy: %s', allow_proxy)
+
+        response_headers_no_content_type = tuple((
+            (key, response.headers[key])
+            for key in proxied_response_headers if key in response.headers
+        ))
+        response_headers = response_headers_no_content_type + \
+            (('content-type', 'text/csv'),)
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
@@ -245,6 +293,10 @@ def proxy_app(
         server_timeout=os.environ.get('APM_SERVER_TIMEOUT', None),
     )
 
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/data',
+        view_func=proxy_table
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
     )

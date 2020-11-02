@@ -102,10 +102,26 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_table_key_that_exists(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        table = 'table'
+        version = 'v0.0.1'
+        put_version_table(dataset_id, version, table, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url(dataset_id, version, table)) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -122,10 +138,10 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id_1,
-                                               version_1), stream=True) as response_1, \
-                session.get(version_public_url(dataset_id_2,
-                                               version_2), stream=True) as response_2:
+                session.get(version_data_public_url(dataset_id_1,
+                                                    version_1), stream=True) as response_1, \
+                session.get(version_data_public_url(dataset_id_2,
+                                                    version_2), stream=True) as response_2:
 
             iter_1 = response_1.iter_content(chunk_size=16384)
             iter_2 = response_2.iter_content(chunk_size=16384)
@@ -178,7 +194,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), stream=True) as response:
+                session.get(version_data_public_url(dataset_id, version), stream=True) as response:
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -203,7 +219,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), stream=True) as response:
+                session.get(version_data_public_url(dataset_id, version), stream=True) as response:
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -229,14 +245,14 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), stream=True) as response:
+                session.get(version_data_public_url(dataset_id, version), stream=True) as response:
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
 
             processes['web'].terminate()
 
             with self.assertRaises(requests.exceptions.ConnectionError):
-                session.get(version_public_url(dataset_id, version), stream=True)
+                session.get(version_data_public_url(dataset_id, version), stream=True)
 
             for chunk in response.iter_content(chunk_size=16384):
                 chunks.append(chunk)
@@ -259,9 +275,9 @@ class TestS3Proxy(unittest.TestCase):
 
         with requests.Session() as session:
             # Ensure we have two connections
-            with \
-                    session.get(version_public_url(dataset_id, version), stream=True) as resp_2, \
-                    session.get(version_public_url(dataset_id, version), stream=True) as resp_3:
+            data_url = version_data_public_url(dataset_id, version)
+            with session.get(data_url, stream=True) as resp_2, \
+                    session.get(data_url, stream=True) as resp_3:
 
                 for chunk in resp_2.iter_content(chunk_size=16384):
                     pass
@@ -269,12 +285,11 @@ class TestS3Proxy(unittest.TestCase):
                 for chunk in resp_3.iter_content(chunk_size=16384):
                     pass
 
-            with session.get(version_public_url(dataset_id, version), stream=True) as resp_4:
-
+            with session.get(data_url, stream=True) as resp_4:
                 processes['web'].terminate()
 
                 # No exception raised since the connection is already open
-                with session.get(version_public_url(dataset_id, version)):
+                with session.get(data_url):
                     pass
 
                 for chunk in resp_4.iter_content(chunk_size=16384):
@@ -291,9 +306,10 @@ class TestS3Proxy(unittest.TestCase):
         put_version_data(dataset_id, version, content)
 
         headers = {'range': 'bytes=0-'}
+        data_url = version_data_public_url(dataset_id, version)
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), headers=headers) as response:
+                session.get(data_url, headers=headers) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -305,10 +321,11 @@ class TestS3Proxy(unittest.TestCase):
         version = 'v0.0.1'
         put_version_data(dataset_id, version, content)
 
+        data_url = version_data_public_url(dataset_id, version)
         headers = {'range': 'bytes=1-'}
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), headers=headers) as response:
+                session.get(data_url, headers=headers) as response:
             self.assertEqual(response.content, content[1:])
             self.assertEqual(response.headers['content-length'], str(len(content) - 1))
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -320,7 +337,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 500)
 
     @with_application(8080)
@@ -330,7 +347,18 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.status_code, 404)
+
+    @with_application(8080)
+    def test_table_key_that_does_not_exist(self, _):
+        dataset_id = str(uuid.uuid4())
+        version = 'v0.0.1'
+        table = 'table'
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url(dataset_id, version, table)) as response:
             self.assertEqual(response.status_code, 404)
 
     @with_application(8080)
@@ -342,17 +370,38 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url_no_format(dataset_id, version)) as response:
+                session.get(version_data_public_url_no_format(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.content, b'The query string must have a "format" term')
             self.assertEqual(len(response.history), 0)
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_table_key_that_exists_without_format(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        table = 'table'
+        put_version_table(dataset_id, version, table, content)
+
+        table_url = version_table_public_url_no_format(dataset_id, version, table)
+        with requests.Session() as session, session.get(table_url) as response:
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.content, b'The query string must have a "format" term')
+            self.assertEqual(len(response.history), 0)
+
+        table_url = version_table_public_url(dataset_id, version, table)
+        with requests.Session() as session, session.get(table_url) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -364,17 +413,38 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url_bad_format(dataset_id, version)) as response:
+                session.get(version_data_public_url_bad_format(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.content, b'The query string "format" term must equal "json"')
             self.assertEqual(len(response.history), 0)
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_table_key_that_exists_with_bad_format(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        table = 'table'
+        put_version_table(dataset_id, version, table, content)
+
+        table_url = version_table_public_url_bad_format(dataset_id, version, table)
+        with requests.Session() as session, session.get(table_url) as response:
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.content, b'The query string "format" term must equal "csv"')
+            self.assertEqual(len(response.history), 0)
+
+        table_url = version_table_public_url(dataset_id, version, table)
+        with requests.Session() as session, session.get(table_url) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -401,9 +471,8 @@ class TestS3Proxy(unittest.TestCase):
             ),
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), params=params) as response:
+        data_url = version_data_public_url(dataset_id, version)
+        with requests.Session() as session, session.get(data_url, params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -429,9 +498,8 @@ class TestS3Proxy(unittest.TestCase):
             ),
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), params=params) as response:
+        data_url = version_data_public_url(dataset_id, version)
+        with requests.Session() as session, session.get(data_url, params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(len(response.history), 0)
@@ -456,9 +524,8 @@ class TestS3Proxy(unittest.TestCase):
             ),
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), params=params) as response:
+        data_url = version_data_public_url(dataset_id, version)
+        with requests.Session() as session, session.get(data_url, params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -486,9 +553,8 @@ class TestS3Proxy(unittest.TestCase):
             'rows': [{'a': '>&', 'd': 'e'}] * 100000 + [{'a': '🍰', 'd': 'f'}] * 100000,
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), params=params) as response:
+        data_url = version_data_public_url(dataset_id, version)
+        with requests.Session() as session, session.get(data_url, params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -514,9 +580,8 @@ class TestS3Proxy(unittest.TestCase):
             'rows': []
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version), params=params) as response:
+        data_url = version_data_public_url(dataset_id, version)
+        with requests.Session() as session, session.get(data_url, params=params) as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -528,7 +593,13 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, 'latest')) as response:
+                session.get(version_data_public_url(dataset_id, 'latest')) as response:
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.content, b'Dataset not found')
+            self.assertEqual(len(response.history), 0)
+
+        table_url = version_table_public_url(dataset_id, 'latest', 'does-not-exist')
+        with requests.Session() as session, session.get(table_url) as response:
             self.assertEqual(response.status_code, 404)
             self.assertEqual(response.content, b'Dataset not found')
             self.assertEqual(len(response.history), 0)
@@ -536,6 +607,7 @@ class TestS3Proxy(unittest.TestCase):
     @with_application(8080)
     def test_redirect_to_latest_version(self, _):
         dataset_id = str(uuid.uuid4())
+        table = 'table'
         # Ranges chosen to make sure we have at least 3 pages from S3 list objects, and to make
         # sure we hit as many cases as possible where if we were taking the latest version
         # alphabetically, we would choose the wrong version
@@ -543,10 +615,11 @@ class TestS3Proxy(unittest.TestCase):
             content = str(uuid.uuid4()).encode() * 10
             version = f'v{major}.{minor}.{patch}'
             put_version_data(dataset_id, version, content)
+            put_version_table(dataset_id, version, table, content)
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, 'latest'),
+                session.get(version_data_public_url(dataset_id, 'latest'),
                             headers={'x-forwarded-proto': 'https'},
                             allow_redirects=False
                             ) as response:
@@ -554,7 +627,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, 'latest')) as response:
+                session.get(version_data_public_url(dataset_id, 'latest')) as response:
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
@@ -564,7 +637,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, 'v2')) as response:
+                session.get(version_data_public_url(dataset_id, 'v2')) as response:
             self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 1)
             self.assertEqual(302, response.history[0].status_code)
@@ -572,8 +645,54 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, 'v3.4')) as response:
+                session.get(version_data_public_url(dataset_id, 'v3.4')) as response:
             self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v3.4.32', response.request.url)
+
+    @with_application(8080)
+    def test_table_redirect_to_latest_version(self, _):
+        dataset_id = str(uuid.uuid4())
+        table = 'table'
+        # Ranges chosen to make sure we have at least 3 pages from S3 list objects, and to make
+        # sure we hit as many cases as possible where if we were taking the latest version
+        # alphabetically, we would choose the wrong version
+        for major, minor, patch in itertools.product(range(0, 11), range(0, 11), range(0, 33)):
+            content = str(uuid.uuid4()).encode() * 10
+            version = f'v{major}.{minor}.{patch}'
+            put_version_table(dataset_id, version, table, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_data_public_url(dataset_id, 'latest'),
+                            headers={'x-forwarded-proto': 'https'},
+                            allow_redirects=False
+                            ) as response:
+            self.assertTrue(response.headers['location'].startswith('https://'))
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url(dataset_id, 'latest', table)) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v10.10.32', response.request.url)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url(dataset_id, 'v2', table)) as response:
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(len(response.history), 1)
+            self.assertEqual(302, response.history[0].status_code)
+            self.assertIn('v2.10.32', response.request.url)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url(dataset_id, 'v3.4', table)) as response:
+            self.assertEqual(response.headers['content-type'], 'text/csv')
             self.assertEqual(len(response.history), 1)
             self.assertEqual(302, response.history[0].status_code)
             self.assertIn('v3.4.32', response.request.url)
@@ -601,9 +720,8 @@ class TestS3Proxy(unittest.TestCase):
             'rows': [{'a': 'y'}],
         }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-        with \
-                requests.Session() as session, \
-                session.get(version_public_url(dataset_id, 'latest'), params=params) as response:
+        data_url = version_data_public_url(dataset_id, 'latest')
+        with requests.Session() as session, session.get(data_url, params=params) as response:
             self.assertEqual(response.content, expected_content)
             self.assertEqual(response.headers['content-type'], 'application/json')
             self.assertEqual(len(response.history), 1)
@@ -618,7 +736,7 @@ class TestS3Proxy(unittest.TestCase):
         content = b'{"some":"content"}'
         version = 'v0.0.1'
         put_version_data(dataset_id, version, content)
-        url = version_public_url(dataset_id, 'latest')
+        url = version_data_public_url(dataset_id, 'latest')
         url_parsed = urllib.parse.urlsplit(url)
 
         url_full_path = url_parsed.path.encode(
@@ -676,7 +794,7 @@ class TestS3Proxy(unittest.TestCase):
             put_version_data(dataset_id, version, content)
             url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
             with requests.Session() as session, \
-                    session.get(version_public_url(dataset_id, version)) as response:
+                    session.get(version_data_public_url(dataset_id, version)) as response:
                 self.assertEqual(200, response.status_code)
 
         output, error = make_api_call(self)['web']
@@ -704,7 +822,7 @@ class TestS3Proxy(unittest.TestCase):
         with requests.Session() as session:
             retry = 0
             while retry < 20:
-                session.get(version_public_url(dataset_id, version))
+                session.get(version_data_public_url(dataset_id, version))
                 time.sleep(1)
                 response = requests.get(
                     url='http://localhost:9201/apm-7.8.0-transaction/_search',
@@ -761,7 +879,7 @@ class TestS3Proxy(unittest.TestCase):
 
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 500)
 
         with \
@@ -772,7 +890,7 @@ class TestS3Proxy(unittest.TestCase):
         # Tring the same request again should result in another error in sentry
         with \
                 requests.Session() as session, \
-                session.get(version_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 500)
 
         with \
@@ -783,6 +901,10 @@ class TestS3Proxy(unittest.TestCase):
 
 def put_version_data(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/data.json', contents)
+
+
+def put_version_table(dataset_id, version, table, contents):
+    return put_object(f'{dataset_id}/{version}/tables/{table}/data.csv', contents)
 
 
 def get_csv_data(dataset_id, version, table):
@@ -819,16 +941,28 @@ def get_object(key):
 _url_prefix = 'http://127.0.0.1:8080/v1/datasets'
 
 
-def version_public_url(dataset_id, version):
+def version_data_public_url(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json'
 
 
-def version_public_url_no_format(dataset_id, version):
+def version_data_public_url_no_format(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/data'
 
 
-def version_public_url_bad_format(dataset_id, version):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=csv'
+def version_data_public_url_bad_format(dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=txt'
+
+
+def version_table_public_url(dataset_id, version, table):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=csv'
+
+
+def version_table_public_url_no_format(dataset_id, version, table):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data'
+
+
+def version_table_public_url_bad_format(dataset_id, version, table):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=txt'
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
