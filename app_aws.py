@@ -323,3 +323,10 @@ def aws_list_folders(signed_s3_request, prefix):
 
     while token:
         yield from _list((('continuation-token', token),))
+
+
+def aws_head(signed_s3_request, key):
+    with signed_s3_request('HEAD', s3_key=key) as response:
+        response.read()
+
+    return response.status, response.headers

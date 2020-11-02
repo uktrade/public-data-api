@@ -4,3 +4,4 @@ gevent==20.6.2
 urllib3==1.25.10
 sentry-sdk[flask]==0.10.2
 elastic-apm[flask]==5.9.0
+tidy-json-to-csv==0.0.13

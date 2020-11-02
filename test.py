@@ -17,7 +17,7 @@ import uuid
 import requests
 
 
-def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
+def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
         def test_with_application(self):
             with open('Procfile', 'r') as file:
@@ -642,6 +642,27 @@ class TestS3Proxy(unittest.TestCase):
         cake_url_encoded = urllib.parse.quote_from_bytes('🍰'.encode('utf-8')).encode('ascii')
         self.assertIn(b'&something=' + cake_url_encoded, full_response)
 
+    @with_application(8080)
+    def test_csv_created(self, _):
+        dataset_id = str(uuid.uuid4())
+        version = 'v0.0.1'
+        content = b'{"top":[{"id":1,"key":"value","nested":[{"key_2":"value_2"}]}]}'
+        put_version_data(dataset_id, version, content)
+
+        time.sleep(12)
+
+        top_bytes, top_headers = get_csv_data(dataset_id, version, 'top')
+        self.assertEqual(top_bytes, b'"id","key"\r\n1,"value"\r\n')
+
+        nested_bytes, _ = get_csv_data(dataset_id, version, 'top--nested')
+        self.assertEqual(nested_bytes, b'"top__id","key_2"\r\n1,"value_2"\r\n')
+
+        time.sleep(12)
+
+        # Ensure that we haven't unnecessarily recreated the CSVs
+        _, top_headers_2 = get_csv_data(dataset_id, version, 'top')
+        self.assertEqual(top_headers['last-modified'], top_headers_2['last-modified'])
+
     def test_logs_ecs_format(self):
 
         url = None
@@ -764,6 +785,10 @@ def put_version_data(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/data.json', contents)
 
 
+def get_csv_data(dataset_id, version, table):
+    return get_object(f'{dataset_id}/{version}/tables/{table}/data.csv')
+
+
 def put_object(key, contents):
     url = f'http://127.0.0.1:9000/my-bucket/{key}'
     body_hash = hashlib.sha256(contents).hexdigest()
@@ -775,6 +800,20 @@ def put_object(key, contents):
     )
     with requests.put(url, data=contents, headers=dict(headers)) as response:
         response.raise_for_status()
+
+
+def get_object(key):
+    url = f'http://127.0.0.1:9000/my-bucket/{key}'
+    body_hash = hashlib.sha256(b'').hexdigest()
+    parsed_url = urllib.parse.urlsplit(url)
+
+    headers = aws_sigv4_headers(
+        'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        (), 's3', 'us-east-1', parsed_url.netloc, 'GET', parsed_url.path, (), body_hash,
+    )
+    with requests.get(url, headers=dict(headers)) as response:
+        response.raise_for_status()
+        return response.content, response.headers
 
 
 _url_prefix = 'http://127.0.0.1:8080/v1/datasets'
