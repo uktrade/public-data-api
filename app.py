@@ -7,9 +7,9 @@ monkey.patch_all()
 import gevent
 
 from functools import (
+    partial,
     wraps,
 )
-import hashlib
 import logging
 import os
 import signal
@@ -34,7 +34,7 @@ from werkzeug.middleware.proxy_fix import (
 )
 
 from app_aws import (
-    aws_sigv4_headers,
+    aws_s3_request,
     aws_select_post_body,
     aws_select_parse_result,
     aws_list_folders,
@@ -59,23 +59,14 @@ def proxy_app(
         'accept-ranges', 'content-length', 'date', 'etag', 'last-modified', 'content-range',
     ]
 
+    signed_s3_request = partial(aws_s3_request, parsed_endpoint, http,
+                                aws_access_key_id, aws_secret_access_key, region_name)
+
     def start():
         server.serve_forever()
 
     def stop():
         server.stop()
-
-    def signed_s3_request(method, s3_key, pre_auth_headers, params, body):
-        path = f'{parsed_endpoint.path}{s3_key}'
-        body_hash = hashlib.sha256(body).hexdigest()
-        request_headers = aws_sigv4_headers(
-            aws_access_key_id, aws_secret_access_key, region_name,
-            pre_auth_headers, 's3', parsed_endpoint.netloc, method, path, params, body_hash,
-        )
-        encoded_params = urllib.parse.urlencode(params)
-        url = f'{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{path}?{encoded_params}'
-        return http.request(method, url,
-                            headers=dict(request_headers), body=body, preload_content=False)
 
     def validate_format(handler):
         @wraps(handler)

@@ -73,6 +73,20 @@ def aws_sigv4_headers(
     ) + pre_auth_headers
 
 
+def aws_s3_request(parsed_endpoint, http, aws_access_key_id, aws_secret_access_key, region_name,
+                   method, s3_key, pre_auth_headers, params, body):
+    path = f'{parsed_endpoint.path}{s3_key}'
+    body_hash = hashlib.sha256(body).hexdigest()
+    request_headers = aws_sigv4_headers(
+        aws_access_key_id, aws_secret_access_key, region_name,
+        pre_auth_headers, 's3', parsed_endpoint.netloc, method, path, params, body_hash,
+    )
+    encoded_params = urllib.parse.urlencode(params)
+    url = f'{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{path}?{encoded_params}'
+    return http.request(method, url,
+                        headers=dict(request_headers), body=body, preload_content=False)
+
+
 def aws_select_post_body(sql):
     sql_xml_escaped = escape_xml(sql)
     return \
