@@ -21,42 +21,49 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
     def decorator(original_test):
         def test_with_application(self):
             with open('Procfile', 'r') as file:
-                args = shlex.split(next(line for line in file.read().splitlines()
-                                        if line.startswith('web:'))[5:])
-            web_process = subprocess.Popen(
-                args,
-                stderr=subprocess.PIPE,  # Silence logs
-                stdout=subprocess.PIPE,
-                env={
-                    **os.environ,
-                    'PORT': str(port),
-                    'AWS_S3_REGION': 'us-east-1',
-                    'AWS_ACCESS_KEY_ID': aws_access_key_id,
-                    'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-                    'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
-                    'APM_SECRET_TOKEN': 'secret_token',
-                    'APM_SERVER_URL': 'http://localhost:8201',
-                    'ENVIRONMENT': 'test',
-                    'SENTRY_DSN': 'http://foo@127.0.0.1:9001/1',
-                }
-            )
+                lines = file.read().splitlines()
 
-            sentry_process = subprocess.Popen(
-                ['python', '-m', 'mock_sentry_app'],
-                stderr=subprocess.PIPE,  # Silence logs
-                stdout=subprocess.PIPE,
-            )
+            process_definitions = {
+                name.strip(): shlex.split(args)
+                for line in lines + ['__sentry: python -m mock_sentry_app']
+                for name, args in [line.split(':')]
+            }
 
-            processes = [sentry_process, web_process]
+            processes = {
+                name: subprocess.Popen(
+                    args,
+                    stderr=subprocess.PIPE,  # Silence logs
+                    stdout=subprocess.PIPE,
+                    env={
+                        **os.environ,
+                        'PORT': str(port),
+                        'AWS_S3_REGION': 'us-east-1',
+                        'AWS_ACCESS_KEY_ID': aws_access_key_id,
+                        'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                        'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
+                        'APM_SECRET_TOKEN': 'secret_token',
+                        'APM_SERVER_URL': 'http://localhost:8201',
+                        'ENVIRONMENT': 'test',
+                        'SENTRY_DSN': 'http://foo@localhost:9001/1',
+                    }
+                )
+                for name, args in process_definitions.items()
+            }
 
             def stop():
-                for process in processes:
+                time.sleep(0.10)  # Sentry needs some extra time to log any errors
+                for _, process in processes.items():
                     process.kill()
+                for _, process in processes.items():
                     process.wait(timeout=5)
-                    output, error = process.communicate()
+                output_errors = {
+                    name: process.communicate()
+                    for name, process in processes.items()
+                }
+                for _, process in processes.items():
                     process.stderr.close()
                     process.stdout.close()
-                return output, error
+                return output_errors
 
             try:
                 for i in range(0, max_attempts):
@@ -67,11 +74,11 @@ def with_application(port, max_attempts=100, aws_access_key_id='AKIAIOSFODNN7EXA
                         if i == max_attempts - 1:
                             raise
                         time.sleep(0.02)
-                original_test(self, web_process)
+                original_test(self, processes)
             finally:
-                output, error = stop()
+                output_errors = stop()
 
-            return output, error
+            return output_errors
         return test_with_application
     return decorator
 
@@ -161,7 +168,7 @@ class TestS3Proxy(unittest.TestCase):
         self.assertLess(num_single, 100)
 
     @with_application(8080)
-    def test_key_that_exists_during_shutdown_completes(self, process):
+    def test_key_that_exists_during_shutdown_completes(self, processes):
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         version = 'v0.0.1'
@@ -175,7 +182,7 @@ class TestS3Proxy(unittest.TestCase):
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
-            process.terminate()
+            processes['web'].terminate()
 
             for chunk in response.iter_content(chunk_size=16384):
                 chunks.append(chunk)
@@ -184,7 +191,7 @@ class TestS3Proxy(unittest.TestCase):
         self.assertEqual(b''.join(chunks), content)
 
     @with_application(8080)
-    def test_key_that_exists_after_multiple_sigterm_completes(self, process):
+    def test_key_that_exists_after_multiple_sigterm_completes(self, processes):
         # PaaS can apparently send multiple sigterms
 
         dataset_id = str(uuid.uuid4())
@@ -200,9 +207,9 @@ class TestS3Proxy(unittest.TestCase):
 
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
-            process.terminate()
+            processes['web'].terminate()
             time.sleep(0.1)
-            process.terminate()
+            processes['web'].terminate()
 
             for chunk in response.iter_content(chunk_size=16384):
                 chunks.append(chunk)
@@ -211,7 +218,8 @@ class TestS3Proxy(unittest.TestCase):
         self.assertEqual(b''.join(chunks), content)
 
     @with_application(8080)
-    def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(self, process):
+    def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(self,
+                                                                                   processes):
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         version = 'v0.0.1'
@@ -225,7 +233,7 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
 
-            process.terminate()
+            processes['web'].terminate()
 
             with self.assertRaises(requests.exceptions.ConnectionError):
                 session.get(version_public_url(dataset_id, version), stream=True)
@@ -237,7 +245,7 @@ class TestS3Proxy(unittest.TestCase):
         self.assertEqual(b''.join(chunks), content)
 
     @with_application(8080)
-    def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(self, process):
+    def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(self, processes):
         # Check that connections that were open before the SIGTERM still work
         # after. Unsure if this is desired on PaaS, so this is more of
         # documenting current behaviour
@@ -263,7 +271,7 @@ class TestS3Proxy(unittest.TestCase):
 
             with session.get(version_public_url(dataset_id, version), stream=True) as resp_4:
 
-                process.terminate()
+                processes['web'].terminate()
 
                 # No exception raised since the connection is already open
                 with session.get(version_public_url(dataset_id, version)):
@@ -650,7 +658,7 @@ class TestS3Proxy(unittest.TestCase):
                     session.get(version_public_url(dataset_id, version)) as response:
                 self.assertEqual(200, response.status_code)
 
-        output, error = make_api_call(self)
+        output, error = make_api_call(self)['web']
         self.assertEqual(error, b'')
         output_logs = output.decode().split('\n')
         assert len(output_logs) >= 1
