@@ -1,4 +1,6 @@
 import json
+import re
+
 import ecs_logging
 from gevent import (
     monkey,
@@ -20,8 +22,10 @@ from elasticapm.contrib.flask import ElasticAPM
 from flask import (
     Flask,
     Response,
+    abort,
     redirect,
     request,
+    url_for,
 )
 from gevent.pywsgi import (
     WSGIServer,
@@ -39,6 +43,10 @@ from app_aws import (
     aws_select_parse_result,
     aws_list_folders,
 )
+
+
+RE_VERSION_FORMAT = re.compile(
+    r'^(?P<version>v(?P<major>\d+)(?:\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?)?|latest)$')
 
 
 def proxy_app(
@@ -68,22 +76,85 @@ def proxy_app(
     def stop():
         server.stop()
 
-    def validate_format(handler):
+    def validate_and_redirect_version(handler):
+        """Reads the version from the URL path, validates that it's either `latest` or a
+        (simple) SemVer version.
+        If not, 404s.
+
+        If it's `latest`, scrapes S3 for the latest version of the dataset and redirects to it.
+            If no key exists, 404s.
+
+        If it's a major or minor version, scrapes S3 for the latest (constrained) version and
+        redirects to it.
+            If no matching key exists, 404s.
+
+        If it's a patch version, passes directly through to the underlying function.
+        """
         @wraps(handler)
         def handler_with_validation(*args, **kwargs):
-            try:
-                _format = request.args['format']
-            except KeyError:
-                return 'The query string must have a "format" term', 400
+            match = RE_VERSION_FORMAT.match(request.view_args['version'])
+            if not match:
+                abort(404)
 
-            if _format != 'json':
-                return 'The query string "format" term must equal "json"', 400
+            version, major, minor, patch = [match.group(
+                g) for g in ('version', 'major', 'minor', 'patch')]
 
-            return handler(*args, **kwargs)
+            if major and minor and patch:
+                return handler(*args, **kwargs)
+
+            if version == 'latest':
+                def predicate(_):
+                    return True
+            elif major and not minor and not patch:
+                def predicate(path):
+                    v_major_str, _, _ = path.split('.')
+                    return v_major_str[1:] == str(major)
+            else:
+                def predicate(path):
+                    v_major_str, minor_str, _ = path.split('.')
+                    return v_major_str[1:] == str(major) and minor_str == str(minor)
+
+            def semver_key(path):
+                v_major_str, minor_str, patch_str = path.split('.')
+                return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+            folders = aws_list_folders(signed_s3_request, request.view_args['dataset_id'] + '/')
+            matching_folders = filter(predicate, folders)
+            latest_matching_version = max(matching_folders, default=None, key=semver_key)
+
+            if latest_matching_version is None:
+                return 'Dataset not found', 404
+
+            # It doesn't look like it's possible to return a redirect with the query string that
+            # has the _exact_ bytes that were received by the server in all cases. If a client
+            # sends non-URL-encoded UTF-8 in the query string, the below results (via code in
+            # Werkzeug) in returning a redirect to a URL with the equivalent URL-encoded string.
+            query_string = ((b'?' + request.query_string)
+                            if request.query_string else b'').decode('utf-8')
+
+            updated_view_args = {**request.view_args, 'version': latest_matching_version}
+            return redirect(url_for(request.endpoint, **updated_view_args) + query_string)
+
         return handler_with_validation
 
-    def _proxy(dataset_id, major, minor, patch, query_s3_select, headers):
-        s3_key = f'{dataset_id}/v{major}.{minor}.{patch}/data.json'
+    def validate_format(ensure_format):
+        def validate_format_handler(handler):
+            @wraps(handler)
+            def handler_with_validation(*args, **kwargs):
+                try:
+                    _format = request.args['format']
+                except KeyError:
+                    return 'The query string must have a "format" term', 400
+
+                if _format != ensure_format:
+                    return f'The query string "format" term must equal "{ensure_format}"', 400
+
+                return handler(*args, **kwargs)
+            return handler_with_validation
+        return validate_format_handler
+
+    def _proxy_data(dataset_id, version, query_s3_select, headers):
+        s3_key = f'{dataset_id}/{version}/data.json'
         method, body, params, parse_response = \
             (
                 'POST',
@@ -108,12 +179,13 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
-    @validate_format
-    def proxy(dataset_id, major, minor, patch):
-        logger.debug('Attempt to proxy: %s %s %s %s %s', request, dataset_id, major, minor, patch)
+    @validate_and_redirect_version
+    @validate_format('json')
+    def proxy_data(dataset_id, version):
+        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        body_generator, response = _proxy(
-            dataset_id, major, minor, patch, request.args.get('query-s3-select'), request.headers)
+        body_generator, response = _proxy_data(
+            dataset_id, version, request.args.get('query-s3-select'), request.headers)
 
         allow_proxy = response.status in proxied_response_codes
 
@@ -140,57 +212,58 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    @validate_format
-    def redirect_to_major(dataset_id, major):
-        requested_major_str = str(major)
+    def _proxy_table(dataset_id, version, table, headers):
+        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+        method, body, params, parse_response = ('GET', b'', (), lambda x, _: x)
 
-        def predicate(path):
-            v_major_str, _, _ = path.split('.')
-            return v_major_str[1:] == requested_major_str
-        return redirect_to_latest_matching(dataset_id, predicate)
+        pre_auth_headers = tuple((
+            (key, headers[key])
+            for key in proxied_request_headers if key in headers
+        ))
+        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
 
-    @validate_format
-    def redirect_to_minor(dataset_id, major, minor):
-        requested_major_str = str(major)
-        requested_minor_str = str(minor)
+        logger.debug('Response: %s', response)
 
-        def predicate(path):
-            v_major_str, minor_str, _ = path.split('.')
-            return v_major_str[1:] == requested_major_str and minor_str == requested_minor_str
-        return redirect_to_latest_matching(dataset_id, predicate)
+        return parse_response(response.stream(65536, decode_content=False), 65536), response
 
-    @validate_format
-    def redirect_to_latest(dataset_id):
-        return redirect_to_latest_matching(dataset_id, lambda _: True)
+    @validate_and_redirect_version
+    @validate_format('csv')
+    def proxy_table(dataset_id, version, table):
+        logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
 
-    def redirect_to_latest_matching(dataset_id, predicate):
-        def semver_key(path):
-            v_major_str, minor_str, patch_str = path.split('.')
-            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+        body_generator, response = _proxy_table(dataset_id, version, table, request.headers)
 
-        folders = aws_list_folders(signed_s3_request, f'{dataset_id}/')
-        matching_folders = filter(predicate, folders)
-        version = max(matching_folders, default=None, key=semver_key)
+        allow_proxy = response.status in proxied_response_codes
 
-        if version is None:
-            return 'Dataset not found', 404
+        logger.debug('Allowing proxy: %s', allow_proxy)
 
-        # It doesn't look like it's possible to return a redirect with the query string that has
-        # the _exact_ bytes that were received by the server in all cases. If a client sends
-        # non-URL-encoded UTF-8 in the query string, the below results (via code in Werkzeug) in
-        # returning a redirect to a URL with the equivalent URL-encoded string.
-        query_string = ((b'?' + request.query_string)
-                        if request.query_string else b'').decode('utf-8')
+        response_headers_no_content_type = tuple((
+            (key, response.headers[key])
+            for key in proxied_response_headers if key in response.headers
+        ))
+        response_headers = response_headers_no_content_type + \
+            (('content-type', 'text/csv'),)
 
-        return redirect(
-            f'/v1/datasets/{dataset_id}/versions/{version}/data{query_string}', code=302)
+        if not allow_proxy:
+            # Make sure we fetch all response bytes, so the connection can be re-used.
+            # There are not likely to be many, since it would just be an error message
+            # from S3 at most
+            for _ in response.stream(65536, decode_content=False):
+                pass
+            raise Exception(f'Unexpected code from S3: {response.status}')
+
+        downstream_response = Response(
+            body_generator, status=response.status, headers=response_headers,
+        )
+        downstream_response.call_on_close(response.release_conn)
+        return downstream_response
 
     def healthcheck():
         """
         Healthcheck checks S3 bucket, `healthcheck` as dataset_id and v0.0.1 as version
         containing json string {'status': 'OK'}
         """
-        body_generator, s3_response = _proxy('healthcheck', '0', '0', '1', None, request.headers)
+        body_generator, s3_response = _proxy_data('healthcheck', 'v0.0.1', None, request.headers)
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
@@ -221,20 +294,11 @@ def proxy_app(
     )
 
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>.<int:patch>/data', view_func=proxy
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/data',
+        view_func=proxy_table
     )
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>/data', view_func=redirect_to_major
-    )
-    app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'v<int:major>.<int:minor>/data', view_func=redirect_to_minor
-    )
-    app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/'
-        'latest/data', view_func=redirect_to_latest
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
     )
     app.add_url_rule(
         '/healthcheck', 'healthcheck', view_func=healthcheck
@@ -255,15 +319,15 @@ def main():
     start, stop = proxy_app(
         logger,
         int(os.environ['PORT']),
-        os.environ['AWS_ACCESS_KEY_ID'],
-        os.environ['AWS_SECRET_ACCESS_KEY'],
+        os.environ['READONLY_AWS_ACCESS_KEY_ID'],
+        os.environ['READONLY_AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
     )
 
     sentry_sdk.init(
         dsn=os.environ['SENTRY_DSN'],
-        integrations=[FlaskIntegration()]
+        integrations=[FlaskIntegration()],
     )
 
     gevent.signal_handler(signal.SIGTERM, stop)

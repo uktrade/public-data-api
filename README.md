@@ -125,8 +125,10 @@ Location: /v1/datasets/capital-cities/versions/v0.0.1/data?format=json
 | ---                     | ---         | ---     |
 | `AWS_S3_REGION`         | The AWS region of the S3 bucket | `eu-west-2`
 | `AWS_S3_ENDPOINT`       | The URL to the bucket, optionally including a key prefix, and will typically end in a slash.<br>Supports both path and domain-style bucket-access. | `https://my-bucket.s3-eu-west-2.amazonaws.com/key-prefix/`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/key-prefix/`
-| `AWS_ACCESS_KEY_ID`     | The AWS access key ID that has GetObject, and optionally ListBucket, permissions | _not shown_
-| `AWS_SECRET_ACCESS_KEY` | The secret part of the AWS access key | _not shown_
+| `READONLY_AWS_ACCESS_KEY_ID`     | The AWS access key ID that has GetObject, and optionally ListBucket, permissions - used by the API | _not shown_
+| `READONLY_AWS_SECRET_ACCESS_KEY` | The secret part of the readonly AWS access key | _not shown_
+| `READ_AND_WRITE_AWS_ACCESS_KEY_ID`     | The AWS access key ID that has write permissions on the S3 bucket (for the csv-generating worker) | _not shown_
+| `READ_AND_WRITE_AWS_SECRET_ACCESS_KEY` | The secret part of the read+write AWS access key | _not shown_
 | `APM_SECRET_TOKEN`      | A secret token to authorize requests to the APM Server. | _not shown_
 | `APM_SERVER_URL`        | The URL of the APM server | https://apm.elk.uktrade.digital
 | `ENVIRONMENT`           | The current environment where the application is running | develop
