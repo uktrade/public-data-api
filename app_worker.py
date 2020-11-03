@@ -19,6 +19,7 @@ from app_aws import (
     aws_s3_request,
     aws_list_folders,
     aws_head,
+    aws_multipart_upload,
 )
 
 
@@ -57,12 +58,7 @@ def ensure_csvs(
         def save_csv(path, chunks):
             table = path.replace('_', '-')  # GDS API guidelines prefer dash to underscore
             s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-            body_bytes = b''.join(chunk for chunk in chunks)
-            with signed_s3_request('PUT', s3_key=s3_key, body=body_bytes) as response:
-                put_response_body = response.read()
-                if response.status != 200:
-                    raise Exception('Error saving CSV {} {} {}'.format(
-                        s3_key, response.status, put_response_body))
+            aws_multipart_upload(signed_s3_request, s3_key, chunks)
 
         with signed_s3_request('GET', s3_key=f'{dataset_id}/{version}/data.json') as response:
             if response.status != 200:
