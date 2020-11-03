@@ -38,8 +38,14 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                         **os.environ,
                         'PORT': str(port),
                         'AWS_S3_REGION': 'us-east-1',
-                        'AWS_ACCESS_KEY_ID': aws_access_key_id,
-                        'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                        'READONLY_AWS_ACCESS_KEY_ID': aws_access_key_id,
+                        'READONLY_AWS_SECRET_ACCESS_KEY': (
+                            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+                        ),
+                        'READ_AND_WRITE_AWS_ACCESS_KEY_ID': aws_access_key_id,
+                        'READ_AND_WRITE_AWS_SECRET_ACCESS_KEY': (
+                            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+                        ),
                         'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
                         'APM_SECRET_TOKEN': 'secret_token',
                         'APM_SERVER_URL': 'http://localhost:8201',

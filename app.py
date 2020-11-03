@@ -319,8 +319,8 @@ def main():
     start, stop = proxy_app(
         logger,
         int(os.environ['PORT']),
-        os.environ['AWS_ACCESS_KEY_ID'],
-        os.environ['AWS_SECRET_ACCESS_KEY'],
+        os.environ['READONLY_AWS_ACCESS_KEY_ID'],
+        os.environ['READONLY_AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
     )

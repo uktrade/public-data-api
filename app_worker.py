@@ -107,8 +107,8 @@ def main():
                 ensure_csvs(
                     logger,
                     http, parsed_endpoint,
-                    os.environ['AWS_ACCESS_KEY_ID'],
-                    os.environ['AWS_SECRET_ACCESS_KEY'],
+                    os.environ['READ_AND_WRITE_AWS_ACCESS_KEY_ID'],
+                    os.environ['READ_AND_WRITE_AWS_SECRET_ACCESS_KEY'],
                     os.environ['AWS_S3_REGION'],
                 )
             except Exception:
