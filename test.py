@@ -877,26 +877,16 @@ class TestS3Proxy(unittest.TestCase):
         version = 'v0.0.1'
         put_version_data(dataset_id, version, content)
 
-        with \
-                requests.Session() as session, \
-                session.get(version_data_public_url(dataset_id, version)) as response:
-            self.assertEqual(response.status_code, 500)
+        for _ in range(20):
+            with \
+                    requests.Session() as session, \
+                    session.get(version_data_public_url(dataset_id, version)) as response:
+                self.assertEqual(response.status_code, 500)
 
         with \
                 requests.Session() as session, \
                 session.get('http://127.0.0.1:9001/api/1/errors') as response:
-            self.assertEqual(int(response.content), 1)
-
-        # Tring the same request again should result in another error in sentry
-        with \
-                requests.Session() as session, \
-                session.get(version_data_public_url(dataset_id, version)) as response:
-            self.assertEqual(response.status_code, 500)
-
-        with \
-                requests.Session() as session, \
-                session.get('http://127.0.0.1:9001/api/1/errors') as response:
-            self.assertEqual(int(response.content), 2)
+            self.assertGreaterEqual(int(response.content), 20)
 
 
 def put_version_data(dataset_id, version, contents):

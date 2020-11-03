@@ -327,7 +327,7 @@ def main():
 
     sentry_sdk.init(
         dsn=os.environ['SENTRY_DSN'],
-        integrations=[FlaskIntegration()]
+        integrations=[FlaskIntegration()],
     )
 
     gevent.signal_handler(signal.SIGTERM, stop)
