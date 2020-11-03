@@ -1,8 +1,13 @@
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    wait,
+)
 from datetime import (
     datetime,
 )
 import hashlib
 import hmac
+from queue import Queue
 import re
 from struct import (
     Struct,
@@ -73,6 +78,20 @@ def aws_sigv4_headers(
     ) + pre_auth_headers
 
 
+def aws_s3_request(parsed_endpoint, http, aws_access_key_id, aws_secret_access_key, region_name,
+                   method, s3_key, pre_auth_headers=(), params=(), body=b''):
+    path = f'{parsed_endpoint.path}{s3_key}'
+    body_hash = hashlib.sha256(body).hexdigest()
+    request_headers = aws_sigv4_headers(
+        aws_access_key_id, aws_secret_access_key, region_name,
+        pre_auth_headers, 's3', parsed_endpoint.netloc, method, path, params, body_hash,
+    )
+    encoded_params = urllib.parse.urlencode(params)
+    url = f'{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{path}?{encoded_params}'
+    return http.request(method, url,
+                        headers=dict(request_headers), body=body, preload_content=False)
+
+
 def aws_select_post_body(sql):
     sql_xml_escaped = escape_xml(sql)
     return \
@@ -123,7 +142,7 @@ def aws_select_parse_result(input_iterable, min_output_chunk_size):
                 try:
                     chunk = next(it)
                 except StopIteration:
-                    raise NoMoreBytes()
+                    raise NoMoreBytes() from None
                 to_yield = min(amt, len(chunk))
                 yield chunk[:to_yield]
                 amt -= to_yield
@@ -292,11 +311,8 @@ def aws_list_folders(signed_s3_request, prefix):
             ('delimiter', '/'),
             ('prefix', prefix),
         ) + extra_query_items
-        response = signed_s3_request('GET', s3_key='', pre_auth_headers=(), params=query, body=b'')
-        try:
+        with signed_s3_request('GET', s3_key='', params=query) as response:
             body_bytes = response.read()
-        finally:
-            response.release_conn()
 
         if response.status != 200:
             raise Exception(response.status, body_bytes)
@@ -312,3 +328,94 @@ def aws_list_folders(signed_s3_request, prefix):
 
     while token:
         yield from _list((('continuation-token', token),))
+
+
+def aws_head(signed_s3_request, key):
+    with signed_s3_request('HEAD', s3_key=key) as response:
+        response.read()
+
+    return response.status, response.headers
+
+
+def aws_multipart_upload(signed_s3_request, key, chunks,
+                         max_concurrent=3, part_size=5_000_000, max_upload_time=60 * 10):
+
+    def parts():
+        queue = []
+        queue_length = 0
+
+        for chunk in chunks:
+            queue.append(chunk)
+            queue_length += len(chunk)
+
+            while queue_length >= part_size:
+                to_send_later = b''.join(queue)
+                chunk, to_send_later = \
+                    to_send_later[:part_size], to_send_later[part_size:]
+
+                queue = \
+                    [to_send_later] if to_send_later else \
+                    []
+                queue_length = len(to_send_later)
+
+                yield chunk
+
+        if queue_length:
+            yield b''.join(queue)
+
+    def start():
+        with signed_s3_request('POST', key, params=(('uploads', ''),)) as response:
+            response_body = response.read()
+            if response.status != 200:
+                raise Exception('Unable to start upload {} {} {}'.format(
+                    key, response.status, response_body))
+            return re.search(b'<UploadId>(.*)</UploadId>', response_body)[1].decode('utf-8')
+
+    def upload(upload_id, part_number, part):
+        params = (('uploadId', upload_id), ('partNumber', str(part_number)))
+        with signed_s3_request('PUT', key, params=params, body=part) as response:
+            response_body = response.read()
+            if response.status != 200:
+                raise Exception('Unable to upload part {} {} {}'.format(
+                    upload_id, part_number, response_body))
+            return part_number, response.headers['etag']
+
+    def complete(upload_id, part_numbers_etags):
+        body = (
+            '<CompleteMultipartUpload>' + ''.join(
+                f'<Part><PartNumber>{part_number}</PartNumber><ETag>{part_etag}</ETag></Part>'
+                for part_number, part_etag in part_numbers_etags
+            ) + '</CompleteMultipartUpload>'
+        ).encode('utf-8')
+        params = (('uploadId', upload_id),)
+        with signed_s3_request('POST', key, params=params, body=body) as response:
+            response_body = response.read()
+            if response.status != 200:
+                raise Exception('Upload to complete upload {} {} {}'.format(
+                    upload_id, key, response_body))
+
+    # Upload in multiple threads so the iteration over incoming chunks is less likely to stall.
+    # We also limit the ThreadPoolExecutor so we block iteration over incoming chunks so we don't
+    # buffer all incoming bytes into memory
+
+    upload_id = start()
+
+    class ThreadPoolExecutorSingleItemWorkQueue(ThreadPoolExecutor):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._work_queue = Queue(maxsize=1)
+
+    with ThreadPoolExecutorSingleItemWorkQueue(max_workers=max_concurrent) as executor:
+        uploads = [
+            executor.submit(upload, upload_id, part_number, part)
+            for part_number, part in enumerate(parts(), 1)
+        ]
+        wait(uploads, timeout=max_upload_time)
+
+    for upload in uploads:
+        exception = upload.exception()
+        if exception:
+            raise exception from None
+
+    part_numbers_etags = [upload.result() for upload in uploads]
+    complete(upload_id, part_numbers_etags)
