@@ -92,9 +92,10 @@ def main():
     handler.setFormatter(ecs_logging.StdlibFormatter())
     logger.addHandler(handler)
 
-    sentry_sdk.init(
-        dsn=os.environ['SENTRY_DSN'],
-    )
+    if os.environ.get('SENTRY_DSN'):
+        sentry_sdk.init(
+            dsn=os.environ['SENTRY_DSN'],
+        )
 
     parsed_endpoint = urllib.parse.urlsplit(os.environ['AWS_S3_ENDPOINT'])
     PoolClass = \

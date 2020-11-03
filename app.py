@@ -325,10 +325,11 @@ def main():
         os.environ['AWS_S3_REGION'],
     )
 
-    sentry_sdk.init(
-        dsn=os.environ['SENTRY_DSN'],
-        integrations=[FlaskIntegration()],
-    )
+    if os.environ.get('SENTRY_DSN'):
+        sentry_sdk.init(
+            dsn=os.environ['SENTRY_DSN'],
+            integrations=[FlaskIntegration()],
+        )
 
     gevent.signal_handler(signal.SIGTERM, stop)
     start()
