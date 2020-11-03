@@ -306,11 +306,8 @@ def aws_list_folders(signed_s3_request, prefix):
             ('delimiter', '/'),
             ('prefix', prefix),
         ) + extra_query_items
-        response = signed_s3_request('GET', s3_key='', params=query)
-        try:
+        with signed_s3_request('GET', s3_key='', params=query) as response:
             body_bytes = response.read()
-        finally:
-            response.release_conn()
 
         if response.status != 200:
             raise Exception(response.status, body_bytes)
