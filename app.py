@@ -267,7 +267,14 @@ def proxy_app(
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
-        if s3_response.status == 200 and body_json.get('status') == 'OK':
+        # v1 healthcheck format
+        ok_status = body_json.get('status')
+
+        # v2 healthcheck format
+        if isinstance(ok_status, list):
+            ok_status = ok_status[0].get('id')
+
+        if s3_response.status == 200 and ok_status:
             pingdom_xml = """<?xml version="1.0" encoding="UTF-8"?>
             <pingdom_http_custom_check>
                 <status>OK</status>
