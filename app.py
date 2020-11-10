@@ -195,8 +195,11 @@ def proxy_app(
             (key, response.headers[key])
             for key in proxied_response_headers if key in response.headers
         ))
+        download_headers = (
+            ('content-disposition', f'attachment; filename="{dataset_id}--{version}.json"'),
+        ) if 'download' in request.args else ()
         response_headers = response_headers_no_content_type + \
-            (('content-type', 'application/json'),)
+            (('content-type', 'application/json'),) + download_headers
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
@@ -241,8 +244,12 @@ def proxy_app(
             (key, response.headers[key])
             for key in proxied_response_headers if key in response.headers
         ))
+        download_headers = (
+            ('content-disposition',
+             f'attachment; filename="{dataset_id}--{version}--{table}.csv"'),
+        ) if 'download' in request.args else ()
         response_headers = response_headers_no_content_type + \
-            (('content-type', 'text/csv'),)
+            (('content-type', 'text/csv'),) + download_headers
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
