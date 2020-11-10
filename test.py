@@ -112,6 +112,7 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(response.headers['strict-transport-security'], 'max-age=31536000')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -128,6 +129,7 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['strict-transport-security'], 'max-age=31536000')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -344,6 +346,7 @@ class TestS3Proxy(unittest.TestCase):
         with \
                 requests.Session() as session, \
                 session.get(version_data_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.headers['strict-transport-security'], 'max-age=31536000')
             self.assertEqual(response.status_code, 500)
 
     @with_application(8080)
@@ -354,6 +357,7 @@ class TestS3Proxy(unittest.TestCase):
         with \
                 requests.Session() as session, \
                 session.get(version_data_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.headers['strict-transport-security'], 'max-age=31536000')
             self.assertEqual(response.status_code, 404)
 
     @with_application(8080)

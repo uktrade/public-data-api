@@ -287,8 +287,18 @@ def proxy_app(
 
         return Response(status=503)
 
+    def with_hsts_header(app):
+        def call(environ, start_response):
+            def new_start_response(status, response_headers):
+                return start_response(status, response_headers + [
+                    ('Strict-Transport-Security', 'max-age=31536000')
+                ])
+            return app(environ, new_start_response)
+        return call
+
     app = Flask('app')
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+    app.wsgi_app = with_hsts_header(app.wsgi_app)
 
     apm = ElasticAPM()
     apm.init_app(
