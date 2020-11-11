@@ -35,6 +35,7 @@ GET /v1/datasets/:dataset-id/versions/:version/data
 | Name        | Description | Example
 | ---         | ---         | ---
 | `query-s3-select` | A query using the [S3 Select query language](https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html). If specified, the response is a JSON object with results under the `rows` key, i.e. `{"rows": [...]}` | `SELECT * FROM S3Object[*]`
+| `download` | The presence of this parameter results in a `content-disposition` header so that browsers attempt to download the data rather than display it inline. | _Not applicable_
 
 
 ### Range requests
