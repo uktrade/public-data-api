@@ -112,6 +112,17 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertNotIn('content-disposition', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_data_public_url_download(dataset_id, version)) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/json')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}.json"')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -128,6 +139,18 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertNotIn('content-disposition', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id,
+                                                              version, table)) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--{table}.csv"')
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -941,6 +964,10 @@ def version_data_public_url(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json'
 
 
+def version_data_public_url_download(dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json&download'
+
+
 def version_data_public_url_no_format(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/data'
 
@@ -951,6 +978,10 @@ def version_data_public_url_bad_format(dataset_id, version):
 
 def version_table_public_url(dataset_id, version, table):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=csv'
+
+
+def version_table_public_url_download(dataset_id, version, table):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=csv&download'
 
 
 def version_table_public_url_no_format(dataset_id, version, table):
