@@ -92,7 +92,7 @@ Status: 200 OK
 
 ---
 
-## Endpoint: fetch a specific version of a dataset
+## Endpoint: fetch the latest version of a dataset
 
 ```
 GET /v1/datasets/:dataset-id/versions/latest/data
