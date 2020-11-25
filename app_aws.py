@@ -21,6 +21,9 @@ from xml.sax.saxutils import (
 )
 
 
+MIN_S3_MULTIPART_CHUNK_SIZE = 5_242_880
+
+
 def aws_sigv4_headers(
         aws_access_key_id, aws_secret_access_key, region_name,
         pre_auth_headers, service, host, method, path, params, body_hash):
@@ -337,8 +340,13 @@ def aws_head(signed_s3_request, key):
     return response.status, response.headers
 
 
-def aws_multipart_upload(signed_s3_request, key, chunks,
-                         max_concurrent=3, part_size=5_000_000, max_upload_time=60 * 10):
+def aws_multipart_upload(
+        signed_s3_request,
+        key,
+        chunks,
+        max_concurrent=3,
+        part_size=MIN_S3_MULTIPART_CHUNK_SIZE,
+        max_upload_time=60 * 10):
 
     def parts():
         queue = []
