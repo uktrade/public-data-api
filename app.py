@@ -297,6 +297,11 @@ def proxy_app(
     app = Flask('app')
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 
+    @app.after_request
+    def _add_noindex_header(resp):
+        resp.headers['X-Robots-Tag'] = 'no-index, no-follow'
+        return resp
+
     apm = ElasticAPM()
     apm.init_app(
         app,

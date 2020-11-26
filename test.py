@@ -897,6 +897,19 @@ class TestS3Proxy(unittest.TestCase):
                 session.get('http://127.0.0.1:8080/healthcheck') as response:
             self.assertEqual(response.status_code, 503)
 
+    @with_application(8080)
+    def test_noindex_header(self, _):
+        dataset_id = str(uuid.uuid4())
+        content_str = {'foo': 'bar'}
+        content = json.dumps(content_str).encode()
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+
+        data_url = version_data_public_url(dataset_id, version)
+        with requests.Session() as session, session.get(data_url) as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers['X-Robots-Tag'], 'no-index, no-follow')
+
     @with_application(8080, aws_access_key_id='not-exist')
     def test_sentry_integration(self, _):
         # Passing a bad AWS access key will result in a 403 when calling S3
