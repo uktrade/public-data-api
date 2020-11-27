@@ -17,6 +17,9 @@ import os
 import signal
 import sys
 import urllib.parse
+import uuid
+
+import requests
 
 from elasticapm.contrib.flask import ElasticAPM
 from flask import (
@@ -52,7 +55,11 @@ RE_VERSION_FORMAT = re.compile(
 def proxy_app(
         logger,
         port,
-        aws_access_key_id, aws_secret_access_key, endpoint_url, region_name,
+        aws_access_key_id,
+        aws_secret_access_key,
+        endpoint_url,
+        region_name,
+        ga_tracking_id,
 ):
 
     parsed_endpoint = urllib.parse.urlsplit(endpoint_url)
@@ -75,6 +82,21 @@ def proxy_app(
 
     def stop():
         server.stop()
+
+    def track_analytics(handler):
+        """Decorator to send analytics data to google in the background."""
+        @wraps(handler)
+        def send(*args, **kwargs):
+            if ga_tracking_id:
+                gevent.spawn(
+                    _send_to_google_analytics,
+                    request.remote_addr,
+                    request.host_url,
+                    request.path,
+                    request.headers
+                )
+            return handler(*args, **kwargs)
+        return send
 
     def validate_and_redirect_version(handler):
         """Reads the version from the URL path, validates that it's either `latest` or a
@@ -179,6 +201,7 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
+    @track_analytics
     @validate_and_redirect_version
     @validate_format('json')
     def proxy_data(dataset_id, version):
@@ -229,6 +252,7 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
+    @track_analytics
     @validate_and_redirect_version
     @validate_format('csv')
     def proxy_table(dataset_id, version, table):
@@ -294,6 +318,24 @@ def proxy_app(
 
         return Response(status=503)
 
+    def _send_to_google_analytics(requester_ip, request_host, request_path, request_headers):
+        logger.info('Sending to Google Analytics %s: %s...', request_host, request_path)
+        requests.post(
+            os.environ.get('GA_ENDPOINT', 'https://www.google-analytics.com/collect'),
+            data={
+                'v': '1',
+                'tid': ga_tracking_id,
+                'cid': str(uuid.uuid4()),
+                't': 'pageview',
+                'uip': requester_ip,
+                'dh': request_host,
+                'dp': request_path,
+                'ds': 'public-data-api',
+                'dr': request_headers.get('referer', ''),
+                'ua': request_headers.get('user-agent', ''),
+            }
+        )
+
     app = Flask('app')
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 
@@ -342,6 +384,7 @@ def main():
         os.environ['READONLY_AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
+        os.environ.get('GA_TRACKING_ID')
     )
 
     if os.environ.get('SENTRY_DSN'):

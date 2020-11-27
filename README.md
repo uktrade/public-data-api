@@ -133,6 +133,8 @@ Location: /v1/datasets/capital-cities/versions/v0.0.1/data?format=json
 | `APM_SECRET_TOKEN`      | A secret token to authorize requests to the APM Server. | _not shown_
 | `APM_SERVER_URL`        | The URL of the APM server | https://apm.elk.uktrade.digital
 | `ENVIRONMENT`           | The current environment where the application is running | develop
+| `GA_ENDPOINT`           | The endpoint to send analytics info to | _not set_
+| `GA_TRACKING_ID`        | The unique identifier for the google analytics property | _not set_
 
 The below environment variables are also required, but typically populated by PaaS.
 

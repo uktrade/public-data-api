@@ -25,7 +25,10 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
 
             process_definitions = {
                 name.strip(): shlex.split(args)
-                for line in lines + ['__sentry: python -m mock_sentry_app']
+                for line in lines + [
+                    '__sentry: python -m mock_sentry_app',
+                    '__google_analytics: python -m mock_google_analytics_app',
+                ]
                 for name, args in [line.split(':')]
             }
 
@@ -51,6 +54,8 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                         'APM_SERVER_URL': 'http://localhost:8201',
                         'ENVIRONMENT': 'test',
                         'SENTRY_DSN': 'http://foo@localhost:9001/1',
+                        'GA_ENDPOINT': 'http://localhost:9002/collect',
+                        'GA_TRACKING_ID': 'XX-XXXXX-X',
                     }
                 )
                 for name, args in process_definitions.items()
@@ -831,7 +836,7 @@ class TestS3Proxy(unittest.TestCase):
         output_logs = output.decode().split('\n')
         assert len(output_logs) >= 1
         api_call_log = [json.loads(log) for log in output_logs if url in log]
-        assert len(api_call_log) == 1
+        assert len(api_call_log) == 2
         assert 'ecs' in api_call_log[0]
 
     @with_application(8080)
@@ -919,7 +924,7 @@ class TestS3Proxy(unittest.TestCase):
         version = 'v0.0.1'
         put_version_data(dataset_id, version, content)
 
-        for _ in range(20):
+        for _ in range(10):
             with \
                     requests.Session() as session, \
                     session.get(version_data_public_url(dataset_id, version)) as response:
@@ -928,7 +933,23 @@ class TestS3Proxy(unittest.TestCase):
         with \
                 requests.Session() as session, \
                 session.get('http://127.0.0.1:9001/api/1/errors') as response:
-            self.assertGreaterEqual(int(response.content), 20)
+            self.assertGreaterEqual(int(response.content), 10)
+
+    @with_application(8080)
+    def test_google_analytics_integration(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_data(dataset_id, version, content)
+        with requests.Session() as session:
+            session.get(version_data_public_url(dataset_id, version))
+            session.get(version_data_public_url_download(dataset_id, version))
+            session.get(version_table_public_url(dataset_id, version, 'table'))
+            session.get(version_table_public_url_download(dataset_id, version, 'table'))
+            with \
+                    requests.Session() as session, \
+                    session.post('http://127.0.0.1:9002/calls') as response:
+                self.assertEqual(int(response.content), 4)
 
 
 def put_version_data(dataset_id, version, contents):
