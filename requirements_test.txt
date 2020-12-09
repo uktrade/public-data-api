@@ -21,7 +21,7 @@ greenlet==0.4.16          # via gevent
 identify==1.4.5           # via pre-commit
 idna==2.8                 # via requests
 ijson==3.1.2.post0        # via tidy-json-to-csv
-importlib-metadata==0.19  # via pluggy, pre-commit, pytest
+importlib-metadata==0.19  # via pre-commit
 iniconfig==1.1.1          # via pytest
 isort==4.3.21             # via pylint
 itsdangerous==1.1.0       # via flask
@@ -39,7 +39,7 @@ pylint==2.3.1             # via -r requirements_test.in
 pyparsing==2.4.7          # via packaging
 pytest==6.1.2             # via -r requirements_test.in
 pyyaml==5.1.2             # via aspy.yaml, pre-commit
-requests==2.24.0          # via -r requirements_test.in
+requests==2.24.0          # via -r requirements.in
 sentry-sdk[flask]==0.10.2  # via -r requirements.in, -r requirements_test.in
 six==1.12.0               # via astroid, cfgv, packaging, pip-tools, pre-commit
 tidy-json-to-csv==0.0.13  # via -r requirements.in
