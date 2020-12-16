@@ -175,8 +175,7 @@ def proxy_app(
             return handler_with_validation
         return validate_format_handler
 
-    def _proxy_data(dataset_id, version, query_s3_select, headers):
-        s3_key = f'{dataset_id}/{version}/data.json'
+    def _proxy(s3_key, query_s3_select, headers):
         method, body, params, parse_response = \
             (
                 'POST',
@@ -207,8 +206,9 @@ def proxy_app(
     def proxy_data(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        body_generator, response = _proxy_data(
-            dataset_id, version, request.args.get('query-s3-select'), request.headers)
+        s3_key = f'{dataset_id}/{version}/data.json'
+        body_generator, response = _proxy(
+            s3_key, request.args.get('query-s3-select'), request.headers)
 
         allow_proxy = response.status in proxied_response_codes
 
@@ -294,7 +294,8 @@ def proxy_app(
         Healthcheck checks S3 bucket, `healthcheck` as dataset_id and v0.0.1 as version
         containing json string {'status': 'OK'}
         """
-        body_generator, s3_response = _proxy_data('healthcheck', 'v0.0.1', None, request.headers)
+        s3_key = 'healthcheck/v0.0.1/data.json'
+        body_generator, s3_response = _proxy(s3_key, None, request.headers)
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
