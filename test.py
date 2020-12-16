@@ -131,6 +131,33 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
+    def test_metadata_key_that_exists(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        version = 'v0.0.1'
+        put_version_metadata(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_metadata_public_url(dataset_id, version)) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/csvm+json')
+            self.assertNotIn('content-disposition', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_metadata_public_url_download(dataset_id, version)) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'application/csvm+json')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--'
+                             'metadata--csvw.json"')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
     def test_table_key_that_exists(self, _):
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -952,6 +979,10 @@ class TestS3Proxy(unittest.TestCase):
                 self.assertEqual(int(response.content), 4)
 
 
+def put_version_metadata(dataset_id, version, contents):
+    return put_object(f'{dataset_id}/{version}/metadata--csvw.json', contents)
+
+
 def put_version_data(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/data.json', contents)
 
@@ -992,6 +1023,14 @@ def get_object(key):
 
 
 _url_prefix = 'http://127.0.0.1:8080/v1/datasets'
+
+
+def version_metadata_public_url(dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/metadata?format=csvw'
+
+
+def version_metadata_public_url_download(dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/metadata?format=csvw&download'
 
 
 def version_data_public_url(dataset_id, version):

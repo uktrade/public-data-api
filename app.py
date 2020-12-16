@@ -256,6 +256,19 @@ def proxy_app(
         return _generate_downstream_response(
             body_generator, response, content_type, download_filename)
 
+    @track_analytics
+    @validate_and_redirect_version
+    @validate_format('csvw')
+    def proxy_metadata(dataset_id, version):
+        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
+
+        s3_key = f'{dataset_id}/{version}/metadata--csvw.json'
+        body_generator, response = _proxy(s3_key, None, request.headers)
+        download_filename = f'{dataset_id}--{version}--metadata--csvw.json'
+        content_type = 'application/csvm+json'
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
+
     def healthcheck():
         """
         Healthcheck checks S3 bucket, `healthcheck` as dataset_id and v0.0.1 as version
@@ -328,6 +341,10 @@ def proxy_app(
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/metadata',
+        view_func=proxy_metadata
     )
     app.add_url_rule(
         '/healthcheck', 'healthcheck', view_func=healthcheck
