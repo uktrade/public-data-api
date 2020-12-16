@@ -238,27 +238,14 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    def _proxy_table(dataset_id, version, table, headers):
-        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-        method, body, params, parse_response = ('GET', b'', (), lambda x, _: x)
-
-        pre_auth_headers = tuple((
-            (key, headers[key])
-            for key in proxied_request_headers if key in headers
-        ))
-        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
-
-        logger.debug('Response: %s', response)
-
-        return parse_response(response.stream(65536, decode_content=False), 65536), response
-
     @track_analytics
     @validate_and_redirect_version
     @validate_format('csv')
     def proxy_table(dataset_id, version, table):
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
 
-        body_generator, response = _proxy_table(dataset_id, version, table, request.headers)
+        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+        body_generator, response = _proxy(s3_key, None, request.headers)
 
         allow_proxy = response.status in proxied_response_codes
 
