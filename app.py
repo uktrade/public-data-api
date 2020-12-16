@@ -200,6 +200,35 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
+    def _generate_downstream_response(body_generator, response, content_type, download_filename):
+        allow_proxy = response.status in proxied_response_codes
+
+        logger.debug('Allowing proxy: %s', allow_proxy)
+
+        response_headers_no_content_type = tuple((
+            (key, response.headers[key])
+            for key in proxied_response_headers if key in response.headers
+        ))
+        download_headers = (
+            ('content-disposition', f'attachment; filename="{download_filename}"'),
+        ) if 'download' in request.args else ()
+        response_headers = response_headers_no_content_type + \
+            (('content-type', content_type),) + download_headers
+
+        if not allow_proxy:
+            # Make sure we fetch all response bytes, so the connection can be re-used.
+            # There are not likely to be many, since it would just be an error message
+            # from S3 at most
+            for _ in response.stream(65536, decode_content=False):
+                pass
+            raise Exception(f'Unexpected code from S3: {response.status}')
+
+        downstream_response = Response(
+            body_generator, status=response.status, headers=response_headers,
+        )
+        downstream_response.call_on_close(response.release_conn)
+        return downstream_response
+
     @track_analytics
     @validate_and_redirect_version
     @validate_format('json')
@@ -209,34 +238,10 @@ def proxy_app(
         s3_key = f'{dataset_id}/{version}/data.json'
         body_generator, response = _proxy(
             s3_key, request.args.get('query-s3-select'), request.headers)
-
-        allow_proxy = response.status in proxied_response_codes
-
-        logger.debug('Allowing proxy: %s', allow_proxy)
-
-        response_headers_no_content_type = tuple((
-            (key, response.headers[key])
-            for key in proxied_response_headers if key in response.headers
-        ))
-        download_headers = (
-            ('content-disposition', f'attachment; filename="{dataset_id}--{version}.json"'),
-        ) if 'download' in request.args else ()
-        response_headers = response_headers_no_content_type + \
-            (('content-type', 'application/json'),) + download_headers
-
-        if not allow_proxy:
-            # Make sure we fetch all response bytes, so the connection can be re-used.
-            # There are not likely to be many, since it would just be an error message
-            # from S3 at most
-            for _ in response.stream(65536, decode_content=False):
-                pass
-            raise Exception(f'Unexpected code from S3: {response.status}')
-
-        downstream_response = Response(
-            body_generator, status=response.status, headers=response_headers,
-        )
-        downstream_response.call_on_close(response.release_conn)
-        return downstream_response
+        download_filename = f'{dataset_id}--{version}.json'
+        content_type = 'application/json'
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
 
     @track_analytics
     @validate_and_redirect_version
@@ -246,35 +251,10 @@ def proxy_app(
 
         s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
         body_generator, response = _proxy(s3_key, None, request.headers)
-
-        allow_proxy = response.status in proxied_response_codes
-
-        logger.debug('Allowing proxy: %s', allow_proxy)
-
-        response_headers_no_content_type = tuple((
-            (key, response.headers[key])
-            for key in proxied_response_headers if key in response.headers
-        ))
-        download_headers = (
-            ('content-disposition',
-             f'attachment; filename="{dataset_id}--{version}--{table}.csv"'),
-        ) if 'download' in request.args else ()
-        response_headers = response_headers_no_content_type + \
-            (('content-type', 'text/csv'),) + download_headers
-
-        if not allow_proxy:
-            # Make sure we fetch all response bytes, so the connection can be re-used.
-            # There are not likely to be many, since it would just be an error message
-            # from S3 at most
-            for _ in response.stream(65536, decode_content=False):
-                pass
-            raise Exception(f'Unexpected code from S3: {response.status}')
-
-        downstream_response = Response(
-            body_generator, status=response.status, headers=response_headers,
-        )
-        downstream_response.call_on_close(response.release_conn)
-        return downstream_response
+        download_filename = f'{dataset_id}--{version}--{table}.csv'
+        content_type = 'text/csv'
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
 
     def healthcheck():
         """
