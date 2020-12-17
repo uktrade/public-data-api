@@ -309,6 +309,7 @@ def proxy_app(
                 'cid': str(uuid.uuid4()),
                 't': 'pageview',
                 'uip': requester_ip,
+                'aip': '1',
                 'dh': request_host,
                 'dp': request_path,
                 'ds': 'public-data-api',
@@ -318,7 +319,12 @@ def proxy_app(
         )
 
     app = Flask('app')
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+
+    # If some paths are behing the IP filter, then num_proxies will be higher, because it
+    # means requests go through the routing system twice. However, num_proxies is only
+    # used for the IP sent to Google Analytics, so we can cope with it being wrong for
+    # pre-release datasets
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, num_proxies=3)
 
     @app.after_request
     def _add_noindex_header(resp):
