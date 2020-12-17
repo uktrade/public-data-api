@@ -175,8 +175,7 @@ def proxy_app(
             return handler_with_validation
         return validate_format_handler
 
-    def _proxy_data(dataset_id, version, query_s3_select, headers):
-        s3_key = f'{dataset_id}/{version}/data.json'
+    def _proxy(s3_key, query_s3_select, headers):
         method, body, params, parse_response = \
             (
                 'POST',
@@ -201,15 +200,7 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
-    @track_analytics
-    @validate_and_redirect_version
-    @validate_format('json')
-    def proxy_data(dataset_id, version):
-        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
-
-        body_generator, response = _proxy_data(
-            dataset_id, version, request.args.get('query-s3-select'), request.headers)
-
+    def _generate_downstream_response(body_generator, response, content_type, download_filename):
         allow_proxy = response.status in proxied_response_codes
 
         logger.debug('Allowing proxy: %s', allow_proxy)
@@ -219,10 +210,10 @@ def proxy_app(
             for key in proxied_response_headers if key in response.headers
         ))
         download_headers = (
-            ('content-disposition', f'attachment; filename="{dataset_id}--{version}.json"'),
+            ('content-disposition', f'attachment; filename="{download_filename}"'),
         ) if 'download' in request.args else ()
         response_headers = response_headers_no_content_type + \
-            (('content-type', 'application/json'),) + download_headers
+            (('content-type', content_type),) + download_headers
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
@@ -238,19 +229,19 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    def _proxy_table(dataset_id, version, table, headers):
-        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-        method, body, params, parse_response = ('GET', b'', (), lambda x, _: x)
+    @track_analytics
+    @validate_and_redirect_version
+    @validate_format('json')
+    def proxy_data(dataset_id, version):
+        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        pre_auth_headers = tuple((
-            (key, headers[key])
-            for key in proxied_request_headers if key in headers
-        ))
-        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
-
-        logger.debug('Response: %s', response)
-
-        return parse_response(response.stream(65536, decode_content=False), 65536), response
+        s3_key = f'{dataset_id}/{version}/data.json'
+        body_generator, response = _proxy(
+            s3_key, request.args.get('query-s3-select'), request.headers)
+        download_filename = f'{dataset_id}--{version}.json'
+        content_type = 'application/json'
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
 
     @track_analytics
     @validate_and_redirect_version
@@ -258,43 +249,33 @@ def proxy_app(
     def proxy_table(dataset_id, version, table):
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
 
-        body_generator, response = _proxy_table(dataset_id, version, table, request.headers)
+        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+        body_generator, response = _proxy(s3_key, None, request.headers)
+        download_filename = f'{dataset_id}--{version}--{table}.csv'
+        content_type = 'text/csv'
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
 
-        allow_proxy = response.status in proxied_response_codes
+    @track_analytics
+    @validate_and_redirect_version
+    @validate_format('csvw')
+    def proxy_metadata(dataset_id, version):
+        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        logger.debug('Allowing proxy: %s', allow_proxy)
-
-        response_headers_no_content_type = tuple((
-            (key, response.headers[key])
-            for key in proxied_response_headers if key in response.headers
-        ))
-        download_headers = (
-            ('content-disposition',
-             f'attachment; filename="{dataset_id}--{version}--{table}.csv"'),
-        ) if 'download' in request.args else ()
-        response_headers = response_headers_no_content_type + \
-            (('content-type', 'text/csv'),) + download_headers
-
-        if not allow_proxy:
-            # Make sure we fetch all response bytes, so the connection can be re-used.
-            # There are not likely to be many, since it would just be an error message
-            # from S3 at most
-            for _ in response.stream(65536, decode_content=False):
-                pass
-            raise Exception(f'Unexpected code from S3: {response.status}')
-
-        downstream_response = Response(
-            body_generator, status=response.status, headers=response_headers,
-        )
-        downstream_response.call_on_close(response.release_conn)
-        return downstream_response
+        s3_key = f'{dataset_id}/{version}/metadata--csvw.json'
+        body_generator, response = _proxy(s3_key, None, request.headers)
+        download_filename = f'{dataset_id}--{version}--metadata--csvw.json'
+        content_type = 'application/csvm+json'
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
 
     def healthcheck():
         """
         Healthcheck checks S3 bucket, `healthcheck` as dataset_id and v0.0.1 as version
         containing json string {'status': 'OK'}
         """
-        body_generator, s3_response = _proxy_data('healthcheck', 'v0.0.1', None, request.headers)
+        s3_key = 'healthcheck/v0.0.1/data.json'
+        body_generator, s3_response = _proxy(s3_key, None, request.headers)
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
@@ -360,6 +341,10 @@ def proxy_app(
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/metadata',
+        view_func=proxy_metadata
     )
     app.add_url_rule(
         '/healthcheck', 'healthcheck', view_func=healthcheck
