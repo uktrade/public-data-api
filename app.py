@@ -42,7 +42,10 @@ from werkzeug.middleware.proxy_fix import (
 
 from app_aws import (
     aws_s3_request,
-    aws_select_post_body,
+    aws_select_post_body_csv,
+    aws_select_post_body_json,
+    aws_select_convert_records_to_csv,
+    aws_select_convert_records_to_json,
     aws_select_parse_result,
     aws_list_folders,
 )
@@ -175,13 +178,13 @@ def proxy_app(
             return handler_with_validation
         return validate_format_handler
 
-    def _proxy(s3_key, query_s3_select, headers):
+    def _proxy(s3_key, query_s3_select, aws_select_parse_result_for_query, headers):
         method, body, params, parse_response = \
             (
                 'POST',
-                aws_select_post_body(query_s3_select),
+                query_s3_select,
                 (('select', ''), ('select-type', '2')),
-                aws_select_parse_result,
+                aws_select_parse_result_for_query,
             ) if query_s3_select is not None else \
             (
                 'GET',
@@ -236,8 +239,13 @@ def proxy_app(
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
         s3_key = f'{dataset_id}/{version}/data.json'
+        s3_query = request.args.get('query-s3-select')
         body_generator, response = _proxy(
-            s3_key, request.args.get('query-s3-select'), request.headers)
+            s3_key,
+            aws_select_post_body_json(s3_query) if s3_query is not None else None,
+            partial(aws_select_parse_result,
+                    aws_select_convert_records_to_json) if s3_query is not None else None,
+            request.headers)
         download_filename = f'{dataset_id}--{version}.json'
         content_type = 'application/json'
         return _generate_downstream_response(
@@ -250,7 +258,13 @@ def proxy_app(
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
 
         s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-        body_generator, response = _proxy(s3_key, None, request.headers)
+        s3_query = request.args.get('query-s3-select')
+        body_generator, response = _proxy(
+            s3_key,
+            aws_select_post_body_csv(s3_query) if s3_query is not None else None,
+            partial(aws_select_parse_result,
+                    aws_select_convert_records_to_csv) if s3_query is not None else None,
+            request.headers)
         download_filename = f'{dataset_id}--{version}--{table}.csv'
         content_type = 'text/csv'
         return _generate_downstream_response(
@@ -263,7 +277,7 @@ def proxy_app(
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
         s3_key = f'{dataset_id}/{version}/metadata--csvw.json'
-        body_generator, response = _proxy(s3_key, None, request.headers)
+        body_generator, response = _proxy(s3_key, None, None, request.headers)
         download_filename = f'{dataset_id}--{version}--metadata--csvw.json'
         content_type = 'application/csvm+json'
         return _generate_downstream_response(
@@ -275,7 +289,7 @@ def proxy_app(
         containing json string {'status': 'OK'}
         """
         s3_key = 'healthcheck/v0.0.1/data.json'
-        body_generator, s3_response = _proxy(s3_key, None, request.headers)
+        body_generator, s3_response = _proxy(s3_key, None, None, request.headers)
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
