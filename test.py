@@ -506,7 +506,8 @@ class TestS3Proxy(unittest.TestCase):
                 requests.Session() as session, \
                 session.get(version_data_public_url_bad_format(dataset_id, version)) as response:
             self.assertEqual(response.status_code, 400)
-            self.assertEqual(response.content, b'The query string "format" term must equal "json"')
+            self.assertEqual(response.content,
+                             b'The query string "format" term must be one of "(\'json\',)"')
             self.assertEqual(len(response.history), 0)
 
         with \
@@ -528,7 +529,8 @@ class TestS3Proxy(unittest.TestCase):
         table_url = version_table_public_url_bad_format(dataset_id, version, table)
         with requests.Session() as session, session.get(table_url) as response:
             self.assertEqual(response.status_code, 400)
-            self.assertEqual(response.content, b'The query string "format" term must equal "csv"')
+            self.assertEqual(response.content,
+                             b'The query string "format" term must be one of "(\'csv\',)"')
             self.assertEqual(len(response.history), 0)
 
         table_url = version_table_public_url(dataset_id, version, table)

@@ -162,7 +162,7 @@ def proxy_app(
 
         return handler_with_validation
 
-    def validate_format(ensure_format):
+    def validate_format(ensure_formats):
         def validate_format_handler(handler):
             @wraps(handler)
             def handler_with_validation(*args, **kwargs):
@@ -171,8 +171,8 @@ def proxy_app(
                 except KeyError:
                     return 'The query string must have a "format" term', 400
 
-                if _format != ensure_format:
-                    return f'The query string "format" term must equal "{ensure_format}"', 400
+                if _format not in ensure_formats:
+                    return f'The query string "format" term must be one of "{ensure_formats}"', 400
 
                 return handler(*args, **kwargs)
             return handler_with_validation
@@ -234,7 +234,7 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format('json')
+    @validate_format(('json',))
     def proxy_data(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
@@ -253,7 +253,7 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format('csv')
+    @validate_format(('csv',))
     def proxy_table(dataset_id, version, table):
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
 
@@ -272,7 +272,7 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format('csvw')
+    @validate_format(('csvw',))
     def proxy_metadata(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
