@@ -95,7 +95,7 @@ def aws_s3_request(parsed_endpoint, http, aws_access_key_id, aws_secret_access_k
                         headers=dict(request_headers), body=body, preload_content=False)
 
 
-def aws_select_post_body(sql):
+def aws_select_post_body_json(sql):
     sql_xml_escaped = escape_xml(sql)
     return \
         f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -116,7 +116,110 @@ def aws_select_post_body(sql):
         '''.encode('utf-8')
 
 
-def aws_select_parse_result(input_iterable, min_output_chunk_size):
+def aws_select_post_body_csv(sql):
+    sql_xml_escaped = escape_xml(sql)
+    return \
+        f'''<?xml version="1.0" encoding="UTF-8"?>
+            <SelectObjectContentRequest xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+               <Expression>{sql_xml_escaped}</Expression>
+               <ExpressionType>SQL</ExpressionType>
+               <InputSerialization>
+                  <CSV>
+                     <AllowQuotedRecordDelimiter>True</AllowQuotedRecordDelimiter>
+                     <FieldDelimiter>,</FieldDelimiter>
+                     <FileHeaderInfo>USE</FileHeaderInfo>
+                  </CSV>
+               </InputSerialization>
+               <OutputSerialization>
+                  <CSV>
+                     <FieldDelimiter>,</FieldDelimiter>
+                  </CSV>
+               </OutputSerialization>
+            </SelectObjectContentRequest>
+        '''.encode('utf-8')
+
+
+def aws_select_convert_records_to_json(records):
+
+    def yield_as_json(_records):
+        yield b'{"rows":['
+
+        # Slightly faffy to remove the trailing "," from S3 Select output
+        try:
+            last = next(_records)
+        except StopIteration:
+            pass
+        else:
+            for val in _records:
+                yield last
+                last = val
+
+            yield last[:len(last) - 1]
+
+        yield b']}'
+
+    def yield_as_utf_8(_as_json):
+        # The output from S3 Select [at least from minio] appears to include unicode escape
+        # sequences, even for characters like > and &. A plain .decode('unicode-escape') isn't
+        # enough to convert them, since an excape sequence can be truncated if it crosses into
+        # the next chunk, and in fact even using .decode('unicode-escape') where you're sure
+        # there is no truncated unicode escape sequence breaks non-ASCII UTF-8 data, since it
+        # appears to treat them as Latin-1. So we have to do our own search and and replace.
+
+        def even_slashes_before(_chunk, index):
+            count = 0
+            index -= 1
+            while index >= 0 and _chunk[index:index + 1] == b'\\':
+                count += 1
+                index -= 1
+            return count % 2 == 0
+
+        def split_trailing_escape(_chunk):
+            # \, \u, \uX, \uXX, \uXXX, with an even number of \ before are trailing escapes
+            if _chunk[-1:] == b'\\':
+                if even_slashes_before(_chunk, len(_chunk) - 1):
+                    return _chunk[:-1], _chunk[-1:]
+            elif _chunk[-2:] == b'\\u':
+                if even_slashes_before(_chunk, len(_chunk) - 2):
+                    return _chunk[:-2], _chunk[-2:]
+            elif _chunk[-3:-1] == b'\\u':
+                if even_slashes_before(_chunk, len(_chunk) - 3):
+                    return _chunk[:-3], _chunk[-3:]
+            elif _chunk[-4:-2] == b'\\u':
+                if even_slashes_before(_chunk, len(_chunk) - 4):
+                    return _chunk[:-4], _chunk[-4:]
+            elif _chunk[-5:-3] == b'\\u':
+                if even_slashes_before(_chunk, len(_chunk) - 5):
+                    return _chunk[:-5], _chunk[-5:]
+            return _chunk, b''
+
+        def unicode_escapes_to_utf_8(_chunk):
+            def to_utf_8(match):
+                group = match.group()
+                if even_slashes_before(_chunk, match.span()[0]):
+                    return group.decode('unicode-escape').encode('utf-8')
+                return group
+
+            return re.sub(b'\\\\u[0-9a-fA-F]{4}', to_utf_8, _chunk)
+
+        trailing_escape = b''
+        for chunk in _as_json:
+            chunk, trailing_escape = split_trailing_escape(trailing_escape + chunk)
+
+            if chunk:
+                yield unicode_escapes_to_utf_8(chunk)
+
+    as_json = yield_as_json(records)
+    as_json_utf_8 = yield_as_utf_8(as_json)
+    yield from as_json_utf_8
+
+
+def aws_select_convert_records_to_csv(records):
+    # Nothing to do for CSV
+    yield from records
+
+
+def aws_select_parse_result(convert_records_to_output, input_iterable, min_output_chunk_size):
     # Returns a iterator that yields payload data in fixed size chunks. It does not depend
     # on the input_stream yielding chunks of any particular size, and internal copying or
     # concatanation of chunks is avoided
@@ -206,80 +309,12 @@ def aws_select_parse_result(input_iterable, min_output_chunk_size):
                 for _ in payload:
                     pass
 
-    def yield_as_json(_records):
-        yield b'{"rows":['
-
-        # Slightly faffy to remove the trailing "," from S3 Select output
-        try:
-            last = next(_records)
-        except StopIteration:
-            pass
-        else:
-            for val in _records:
-                yield last
-                last = val
-
-            yield last[:len(last) - 1]
-
-        yield b']}'
-
-    def yield_as_utf_8(_as_json):
-        # The output from S3 Select [at least from minio] appears to include unicode escape
-        # sequences, even for characters like > and &. A plain .decode('unicode-escape') isn't
-        # enough to convert them, since an excape sequence can be truncated if it crosses into
-        # the next chunk, and in fact even using .decode('unicode-escape') where you're sure
-        # there is no truncated unicode escape sequence breaks non-ASCII UTF-8 data, since it
-        # appears to treat them as Latin-1. So we have to do our own search and and replace.
-
-        def even_slashes_before(_chunk, index):
-            count = 0
-            index -= 1
-            while index >= 0 and _chunk[index:index + 1] == b'\\':
-                count += 1
-                index -= 1
-            return count % 2 == 0
-
-        def split_trailing_escape(_chunk):
-            # \, \u, \uX, \uXX, \uXXX, with an even number of \ before are trailing escapes
-            if _chunk[-1:] == b'\\':
-                if even_slashes_before(_chunk, len(_chunk) - 1):
-                    return _chunk[:-1], _chunk[-1:]
-            elif _chunk[-2:] == b'\\u':
-                if even_slashes_before(_chunk, len(_chunk) - 2):
-                    return _chunk[:-2], _chunk[-2:]
-            elif _chunk[-3:-1] == b'\\u':
-                if even_slashes_before(_chunk, len(_chunk) - 3):
-                    return _chunk[:-3], _chunk[-3:]
-            elif _chunk[-4:-2] == b'\\u':
-                if even_slashes_before(_chunk, len(_chunk) - 4):
-                    return _chunk[:-4], _chunk[-4:]
-            elif _chunk[-5:-3] == b'\\u':
-                if even_slashes_before(_chunk, len(_chunk) - 5):
-                    return _chunk[:-5], _chunk[-5:]
-            return _chunk, b''
-
-        def unicode_escapes_to_utf_8(_chunk):
-            def to_utf_8(match):
-                group = match.group()
-                if even_slashes_before(_chunk, match.span()[0]):
-                    return group.decode('unicode-escape').encode('utf-8')
-                return group
-
-            return re.sub(b'\\\\u[0-9a-fA-F]{4}', to_utf_8, _chunk)
-
-        trailing_escape = b''
-        for chunk in as_json:
-            chunk, trailing_escape = split_trailing_escape(trailing_escape + chunk)
-
-            if chunk:
-                yield unicode_escapes_to_utf_8(chunk)
-
-    def yield_output(_as_json_utf_8, _min_output_chunk_size):
+    def yield_output(_as_output_utf_8, _min_output_chunk_size):
         # Typically web servers send an HTTP chunk for every yield of the body generator, which
         # can result in quite small chunks so more packets/bytes over the wire. We avoid this.
         chunks = []
         num_bytes = 0
-        for chunk in _as_json_utf_8:
+        for chunk in _as_output_utf_8:
             chunks.append(chunk)
             num_bytes += len(chunk)
             if num_bytes < _min_output_chunk_size:
@@ -293,9 +328,8 @@ def aws_select_parse_result(input_iterable, min_output_chunk_size):
     read_multiple_chunks, read_single_chunk = get_byte_readers(input_iterable)
     messages = yield_messages(read_multiple_chunks, read_single_chunk)
     records = yield_records(messages)
-    as_json = yield_as_json(records)
-    as_json_utf_8 = yield_as_utf_8(as_json)
-    output = yield_output(as_json_utf_8, min_output_chunk_size)
+    as_output = convert_records_to_output(records)
+    output = yield_output(as_output, min_output_chunk_size)
 
     return output
 
