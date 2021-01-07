@@ -125,13 +125,14 @@ def aws_select_post_body_csv(sql):
                <ExpressionType>SQL</ExpressionType>
                <InputSerialization>
                   <CSV>
-                     <AllowQuotedRecordDelimiter>TRUE</AllowQuotedRecordDelimiter>
+                     <AllowQuotedRecordDelimiter>True</AllowQuotedRecordDelimiter>
                      <FieldDelimiter>,</FieldDelimiter>
                      <FileHeaderInfo>USE</FileHeaderInfo>
                   </CSV>
                </InputSerialization>
                <OutputSerialization>
                   <CSV>
+                     <FieldDelimiter>,</FieldDelimiter>
                   </CSV>
                </OutputSerialization>
             </SelectObjectContentRequest>
