@@ -133,7 +133,7 @@ class TestS3Proxy(unittest.TestCase):
     @with_application(8080)
     def test_metadata_key_that_exists(self, _):
         dataset_id = str(uuid.uuid4())
-        content = str(uuid.uuid4()).encode() * 100000
+        content = b'{"dc:title":"The title of the dataset"}'
         version = 'v0.0.1'
         put_version_metadata(dataset_id, version, content)
 
@@ -149,12 +149,20 @@ class TestS3Proxy(unittest.TestCase):
         with \
                 requests.Session() as session, \
                 session.get(version_metadata_public_url_download(dataset_id, version)) as response:
-            self.assertEqual(response.content, content)
+            self.assertIn(response.content, content)
             self.assertEqual(response.headers['content-length'], str(len(content)))
             self.assertEqual(response.headers['content-type'], 'application/csvm+json')
             self.assertEqual(response.headers['content-disposition'],
                              f'attachment; filename="{dataset_id}--{version}--'
                              'metadata--csvw.json"')
+            self.assertEqual(len(response.history), 0)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_metadata_public_html_url(dataset_id, version)) as response:
+            self.assertIn(b'The title of the dataset - v0.0.1', response.content)
+            self.assertEqual(response.headers['content-type'], 'text/html')
+            self.assertNotIn('content-disposition', response.headers)
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
@@ -1063,6 +1071,10 @@ def version_metadata_public_url(dataset_id, version):
 
 def version_metadata_public_url_download(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/metadata?format=csvw&download'
+
+
+def version_metadata_public_html_url(dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/metadata?format=html'
 
 
 def version_data_public_url(dataset_id, version):
