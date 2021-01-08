@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Generate csv{% endblock %}
+
+{% block body %}
+    <h1 class="govuk-heading-xl">Filter on the following fields</h1>
+    <h2 class="govuk-heading-m">Table: {{ table_name }}</h2>
+
+    <fieldset class="govuk-fieldset">
+        <form method="GET">
+            <input type="hidden" name="submit" value="1" /> 
+            {% for name, description, _ in filterable_columns %}
+                <div class="govuk-form-group">
+                    <h1 class="govuk-label-wrapper">
+                        <label class="govuk-label govuk-label--m" for="{{ name }}">
+                        {{ name }}
+                        </label>
+                    </h1>
+                    <div id="account-number-hint" class="govuk-hint govuk-!-width-three-quarters">
+                        {{ description }}
+                    </div>
+                    <input class="govuk-input govuk-!-width-one-half" id="{{ name }}" name="{{ name }}" value="{% if filters.get(name) %}{{ filters.get(name) }}{%  endif %}" type="text">
+                </div>
+            {% endfor %}
+            <button class="govuk-button" data-module="govuk-button">
+                Continue
+            </button>
+        </form>
+    </fieldset>
+{% endblock %}

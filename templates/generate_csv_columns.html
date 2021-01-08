@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Generate csv{% endblock %}
+
+{% block body %}
+    <a href="{{ back_url }}" class="govuk-back-link">Back</a>
+    <h1 class="govuk-heading-xl">Choose the columns you require</h1>
+    <h2 class="govuk-heading-m">Table: {{ table_name }}</h2>
+
+    <fieldset class="govuk-fieldset">
+        <form method="GET">
+            <input type="hidden" name="submit" value="1" /> 
+            {% for column_name, value in filters.items() %}
+                <input type="hidden" name="{{ column_name }}" value="{{ value }}" /> 
+            {% endfor %}
+            <input class="govuk-checkboxes__input" />
+            <div class="govuk-form-group">
+                <div class="govuk-checkboxes govuk-checkboxes--small">
+                    {% for column, description, _ in columns %}
+                    <div class="govuk-checkboxes__item">
+                        <input class="govuk-checkboxes__input" id="{{ column }}" name="select_columns" type="checkbox" checked value="{{ column }}">
+                        <label class="govuk-label govuk-checkboxes__label" for="{{ column }}">
+                            {{ column }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <button class="govuk-button" data-module="govuk-button">
+                Generate CSV
+            </button>
+        </form>
+    </fieldset>
+{% endblock %}
