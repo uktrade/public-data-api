@@ -7,7 +7,7 @@
 
     <p class="govuk-body">The dataset of {{ csvw['dc:title'] }} consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}
 
-    <ul class="govuk-list">
+    <ul class="govuk-list govuk-list--bullet">
     {% for table in csvw['tables'] %}
         <li>Table {{ loop.index + 1 }}: {{ table['dc:title'] }}</li>
     {% endfor %}
