@@ -133,8 +133,24 @@ class TestS3Proxy(unittest.TestCase):
     @with_application(8080)
     def test_metadata_key_that_exists(self, _):
         dataset_id = str(uuid.uuid4())
-        content = b'{"dc:title":"The title of the dataset"}'
+        content = json.dumps({
+            'dc:title': 'The title of the dataset',
+            'tables': [
+                {
+                    'id': 'the-first-table',
+                    'tableSchema': {'columns': []}
+                },
+                {
+                    'id': 'the-second-table',
+                    'tableSchema': {'columns': []}
+                },
+            ]
+
+        }).encode('utf-8')
         version = 'v0.0.1'
+        put_version_table(dataset_id, version, 'the-first-table', b'header\n' + b'value\n' * 10000)
+        put_version_table(dataset_id, version, 'the-second-table',
+                          b'header\n' + b'value\n' * 1000000)
         put_version_metadata(dataset_id, version, content)
 
         with \
@@ -161,6 +177,8 @@ class TestS3Proxy(unittest.TestCase):
                 requests.Session() as session, \
                 session.get(version_metadata_public_html_url(dataset_id, version)) as response:
             self.assertIn(b'The title of the dataset - v0.0.1', response.content)
+            self.assertIn(b'60.0 kB', response.content)
+            self.assertIn(b'6.0 MB', response.content)
             self.assertEqual(response.headers['content-type'], 'text/html')
             self.assertNotIn('content-disposition', response.headers)
             self.assertEqual(len(response.history), 0)
