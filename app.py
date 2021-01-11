@@ -45,6 +45,7 @@ from werkzeug.middleware.proxy_fix import (
 )
 
 from app_aws import (
+    aws_head,
     aws_s3_request,
     aws_select_post_body_csv,
     aws_select_post_body_json,
@@ -238,10 +239,17 @@ def proxy_app(
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
 
-    def _convert_csvw_to_html(version, body_generator):
+    def _convert_csvw_to_html(dataset_id, version, body_generator):
+        csvw = json.loads(b''.join(body_generator))
+        table_sizes = {
+            table['id']: aws_head(signed_s3_request, key)[1]['content-length']
+            for table in csvw['tables']
+            for key in [f'{dataset_id}/{version}/tables/{table["id"]}/data.csv']
+        }
         return html_template_environment.get_template('metadata.html').render(
             version=version,
-            csvw=json.loads(b''.join(body_generator)))
+            csvw=csvw,
+            table_sizes=table_sizes)
 
     @track_analytics
     @validate_and_redirect_version
@@ -300,7 +308,7 @@ def proxy_app(
             download_filename = f'{dataset_id}--{version}--metadata.html'
             content_type = 'text/html'
             return _generate_downstream_response(
-                _convert_csvw_to_html(version, body_generator), response,
+                _convert_csvw_to_html(dataset_id, version, body_generator), response,
                 content_type, download_filename)
 
         return _csvw() if request.args['format'] == 'csvw' else _html()
