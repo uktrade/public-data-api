@@ -5,10 +5,16 @@
 {% block body %}
     <h1 class="govuk-heading-l">{{ csvw['dc:title'] }} - {{ version }}</h1>
 
-    <p class="govuk-body">This dataset is made of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}
+    <p class="govuk-body">The dataset of {{ csvw['dc:title'] }} consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}
+
+    <ul class="govuk-list">
+    {% for table in csvw['tables'] %}
+        <li>Table {{ loop.index + 1 }}: {{ table['dc:title'] }}</li>
+    {% endfor %}
+    </ul>
 
     {% for table in csvw['tables'] %}
-    <h2 class="govuk-heading-m">Table: {{ table['dc:title'] }}</h2>
+    <h2 class="govuk-heading-m">Table {{ loop.index + 1 }}: {{ table['dc:title'] }}</h2>
 
     <p class="govuk-body">{{ table['dc:description'] }}</p>
 
