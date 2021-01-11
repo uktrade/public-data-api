@@ -320,6 +320,7 @@ def proxy_app(
             return redirect(url_for('generate_csv_columns', dataset_id=dataset_id, version=version, table=table, **filters))
         else:
             return html_template_environment.get_template('generate_csv_filters.html').render(
+                reset_url=url_for('generate_csv_filters', dataset_id=dataset_id, version=version, table=table),
                 filterable_columns=filterable_columns,
                 filters=filters,
                 table_name=metadata_table['dc:title'],
@@ -330,12 +331,17 @@ def proxy_app(
     @validate_and_redirect_version
     def generate_csv_columns(dataset_id, version, table):
         metadata_table, columns, filterable_columns = _get_table_metadata(dataset_id, version, table)
+        filters = (
+            {c.name: request.args.get(c.name) for c in filterable_columns if request.args.get(c.name)}
+        )
 
         if request.args.get('submit'):
             select_columns = request.args.getlist('select_columns') or [c.name for c in columns]
             select_clause = ','.join([f's.{c}' for c in select_columns])
+
+            join_term = "','"
             where_clause = ' and '.join(
-                [f"s.{c.name}='{request.args.get(c.name)}'" for c in filterable_columns if request.args.get(c.name)]
+                [f"s.{name} in ('{join_term.join(value.split(','))}')" for name, value in filters.items()]
             ) or None
             s3_query = f'SELECT {select_clause} FROM s3object s'
             if where_clause:
@@ -343,7 +349,6 @@ def proxy_app(
             s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
             return _generate_csv_response(dataset_id, version, table, s3_key, s3_query, select_columns)
         else:
-            filters = {c.name: request.args[c.name] for c in filterable_columns if request.args.get(c.name)}
             return html_template_environment.get_template('generate_csv_columns.html').render(
                 back_url=url_for('generate_csv_filters', dataset_id=dataset_id, version=version, table=table, **filters),
                 filters=filters,

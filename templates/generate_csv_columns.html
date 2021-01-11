@@ -10,12 +10,18 @@
     <fieldset class="govuk-fieldset">
         <form method="GET">
             <input type="hidden" name="submit" value="1" /> 
+            <input type="hidden" name="download" value="1" /> 
             {% for column_name, value in filters.items() %}
                 <input type="hidden" name="{{ column_name }}" value="{{ value }}" /> 
             {% endfor %}
-            <input class="govuk-checkboxes__input" />
             <div class="govuk-form-group">
-                <div class="govuk-checkboxes govuk-checkboxes--small">
+                <div class="govuk-checkboxes govuk-checkboxes">
+                    <div class="govuk-checkboxes__item govuk-body govuk-!-margin-bottom-8">
+                        <input class="govuk-checkboxes__input" id="select_all" type="checkbox" checked onClick="toggle(this)"/>
+                        <label class="govuk-label govuk-checkboxes__label" id="select_all_label" for="select_all">
+                            Deselect all
+                        </label>
+                    </div>
                     {% for column, description, _ in columns %}
                     <div class="govuk-checkboxes__item">
                         <input class="govuk-checkboxes__input" id="{{ column }}" name="select_columns" type="checkbox" checked value="{{ column }}">
@@ -31,4 +37,19 @@
             </button>
         </form>
     </fieldset>
+{% endblock %}
+
+
+{% block script %}
+    function toggle(source) {
+        checkboxes = document.getElementsByName('select_columns');
+        for(var i=0, n=checkboxes.length;i<n;i++) {
+            checkboxes[i].checked = source.checked;
+        }
+        if(document.getElementById('select_all_label').innerHTML == 'Select all') {
+            document.getElementById('select_all_label').innerHTML = 'Deselect all'
+        } else {
+            document.getElementById('select_all_label').innerHTML = 'Select all'
+        }
+    }
 {% endblock %}

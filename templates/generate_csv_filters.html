@@ -22,9 +22,12 @@
                     <input class="govuk-input govuk-!-width-one-half" id="{{ name }}" name="{{ name }}" value="{% if filters.get(name) %}{{ filters.get(name) }}{%  endif %}" type="text">
                 </div>
             {% endfor %}
-            <button class="govuk-button" data-module="govuk-button">
+            <button class="govuk-button govuk-!-margin-right-1" data-module="govuk-button">
                 Continue
             </button>
+            <button class="govuk-button govuk-button--secondary" type="button" onClick="location.href = '{{ reset_url }}';" data-module="govuk-button">
+                Reset filters
+              </button>
         </form>
     </fieldset>
 {% endblock %}
