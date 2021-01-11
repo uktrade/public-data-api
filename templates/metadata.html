@@ -9,12 +9,12 @@
 
     <ul class="govuk-list govuk-list--bullet">
     {% for table in csvw['tables'] %}
-        <li>Table {{ loop.index + 1 }}: {{ table['dc:title'] }}</li>
+        <li>Table {{ loop.index }}: {{ table['dc:title'] }}</li>
     {% endfor %}
     </ul>
 
     {% for table in csvw['tables'] %}
-    <h2 class="govuk-heading-m">Table {{ loop.index + 1 }}: {{ table['dc:title'] }}</h2>
+    <h2 class="govuk-heading-m">Table {{ loop.index }}: {{ table['dc:title'] }}</h2>
 
     <p class="govuk-body">{{ table['dc:description'] }}</p>
 
