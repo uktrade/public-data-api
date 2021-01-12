@@ -260,6 +260,8 @@ def proxy_app(
                 datetime.datetime(*parsedate(headers['last-modified'])[:6])
                 for _, (_, headers) in table_head_status_headers)),
             csvw=csvw,
+            metadata_download_url=url_for('proxy_metadata', dataset_id=dataset_id, version=version)
+            + '?format=csvw&download',
             table_sizes=table_sizes)
 
     @track_analytics

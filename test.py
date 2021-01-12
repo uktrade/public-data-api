@@ -180,6 +180,7 @@ class TestS3Proxy(unittest.TestCase):
             self.assertIn(b'60.0 kB', response.content)
             self.assertIn(b'6.0 MB', response.content)
             self.assertIn(datetime.now().strftime('%d %B %Y').encode(), response.content)
+            self.assertIn(b'?format=csvw&amp;download"', response.content)
             self.assertEqual(response.headers['content-type'], 'text/html')
             self.assertNotIn('content-disposition', response.headers)
             self.assertEqual(len(response.history), 0)
