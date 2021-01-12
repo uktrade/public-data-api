@@ -28,12 +28,12 @@
 
     <ul class="govuk-list govuk-list--bullet">
     {% for table in csvw['tables'] %}
-        <li>Table {{ loop.index }}: {{ table['dc:title'] }}</li>
+        <li><a class="govuk-link govuk-link--no-visited-state" href="#{{ table['id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</a></li>
     {% endfor %}
     </ul>
 
     {% for table in csvw['tables'] %}
-    <h2 class="govuk-heading-m">Table {{ loop.index }}: {{ table['dc:title'] }}</h2>
+    <h2 class="govuk-heading-m" id="{{ table['id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</h2>
 
     <p class="govuk-body">{{ table['dc:description'] }}</p>
 
