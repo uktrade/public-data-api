@@ -3,7 +3,26 @@
 {% block title %}{{ csvw['dc:title'] }} - {{ version }}{% endblock %}
 
 {% block body %}
-    <h1 class="govuk-heading-l">{{ csvw['dc:title'] }} - {{ version }}</h1>
+    <h1 class="govuk-heading-l">{{ csvw['dc:title'] }}</h1>
+
+    <dl class="govuk-summary-list">
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Version</dt>
+            <dd class="govuk-summary-list__value">{{ version }}</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Published at</dt>
+            <dd class="govuk-summary-list__value">{{ version_published_at.strftime('%d %B %Y') }}</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Published by</dt>
+            <dd class="govuk-summary-list__value">{{ csvw['dc:creator'] }}</dd>
+        </div>
+         <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Licence</dt>
+            <dd class="govuk-summary-list__value"><a class="govuk-link" href="http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence</a></dd>
+        </div>
+    </dl>
 
     <p class="govuk-body">The dataset of {{ csvw['dc:title'] }} consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}
 
