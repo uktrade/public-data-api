@@ -272,29 +272,52 @@ def proxy_app(
         return _generate_downstream_response(
             body_generator, response, content_type, download_filename)
 
-    def _generate_csv_response(dataset_id, version, table, s3_key, s3_query, header_row=None):
-        body_generator, response = _proxy(
-            s3_key,
-            aws_select_post_body_csv(s3_query) if s3_query is not None else None,
-            partial(aws_select_parse_result,
-                    aws_select_convert_records_to_csv) if s3_query is not None else None,
-            request.headers)
-        download_filename = f'{dataset_id}--{version}--{table}.csv'
-        content_type = 'text/csv'
-
-        if header_row:
-            body_generator = chain(f'{",".join(header_row)}\n', body_generator)
-        return _generate_downstream_response(
-            body_generator, response, content_type, download_filename)
-
     @track_analytics
     @validate_and_redirect_version
     @validate_format(('csv',))
     def proxy_table(dataset_id, version, table):
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
+        header_row = None
         s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-        s3_query = request.args.get('query-s3-select')
-        return _generate_csv_response(dataset_id, version, table, s3_key, s3_query)
+
+        if not request.args.get('generate'):
+            s3_query = request.args.get('query-s3-select')
+        else:
+            _, columns, filterable_columns = _get_table_metadata(
+                dataset_id, version, table)
+            filters = (
+                {c.name: request.args.get(c.name)
+                 for c in filterable_columns if request.args.get(c.name)}
+            )
+
+            select_columns = request.args.getlist('_columns') or [c.name for c in columns]
+            select_clause = ','.join([f's.{c}' for c in select_columns])
+
+            join_term = "','"
+            where_clause = ' and '.join(
+                [f"s.{name} in ('{join_term.join(value.split(','))}')" for name,
+                 value in filters.items()]
+            ) or None
+            s3_query = f'SELECT {select_clause} FROM s3object s'
+            if where_clause:
+                s3_query += f' WHERE {where_clause}'
+            header_row = [f"{','.join(select_columns)}\n".encode('utf-8')]
+
+        body_generator, response = _proxy(
+            s3_key,
+            aws_select_post_body_csv(s3_query) if s3_query is not None else None,
+            partial(aws_select_parse_result,
+                    aws_select_convert_records_to_csv) if s3_query is not None else None,
+            request.headers
+        )
+        if header_row:
+            body_generator = chain(header_row, body_generator)
+
+        download_filename = f'{dataset_id}--{version}--{table}.csv'
+        content_type = 'text/csv'
+
+        return _generate_downstream_response(
+            body_generator, response, content_type, download_filename)
 
     Column = namedtuple('Column', ['name', 'description', 'filterable'])
 
@@ -303,57 +326,58 @@ def proxy_app(
         body_generator, _ = _proxy(s3_key, None, None, request.headers)
 
         metadata_tables = json.loads(b''.join(body_generator))['tables']
-        metadata_table = next(filter(lambda x: x['url'].split('/')[1] == table, metadata_tables), None)
-        columns = [Column(x['name'], x['dc:description'], x['dit:filterable']) \
+        metadata_table = next(filter(lambda x: x['url'].split(
+            '/')[1] == table, metadata_tables), None)
+        columns = [Column(x['name'], x['dc:description'], x['dit:filterable'])
                    for x in metadata_table['tableSchema']['columns']]
         filterable_columns = [c for c in columns if c.filterable]
         return metadata_table, columns, filterable_columns
 
     @track_analytics
     @validate_and_redirect_version
-    def generate_csv_filters(dataset_id, version, table):
+    def filter_rows(dataset_id, version, table):
         metadata_table, _, filterable_columns = _get_table_metadata(dataset_id, version, table)
         filters = (
-            {c.name: request.args.get(c.name) for c in filterable_columns if request.args.get(c.name)}
+            {c.name: request.args.get(c.name)
+             for c in filterable_columns if request.args.get(c.name)}
         )
         if request.args.get('submit'):
-            return redirect(url_for('generate_csv_columns', dataset_id=dataset_id, version=version, table=table, **filters))
-        else:
-            return html_template_environment.get_template('generate_csv_filters.html').render(
-                reset_url=url_for('generate_csv_filters', dataset_id=dataset_id, version=version, table=table),
-                filterable_columns=filterable_columns,
-                filters=filters,
-                table_name=metadata_table['dc:title'],
+            return redirect(
+                url_for(
+                    'filter_columns',
+                    dataset_id=dataset_id,
+                    version=version,
+                    table=table,
+                    **filters
+                )
             )
+
+        return html_template_environment.get_template('filter_rows.html').render(
+            reset_url=url_for('filter_rows', dataset_id=dataset_id, version=version, table=table),
+            filterable_columns=filterable_columns,
+            filters=filters,
+            table_name=metadata_table['dc:title'],
+        )
 
     @track_analytics
     @validate_and_redirect_version
-    def generate_csv_columns(dataset_id, version, table):
-        metadata_table, columns, filterable_columns = _get_table_metadata(dataset_id, version, table)
+    def filter_columns(dataset_id, version, table):
+        metadata_table, columns, filterable_columns = _get_table_metadata(
+            dataset_id, version, table)
         filters = (
-            {c.name: request.args.get(c.name) for c in filterable_columns if request.args.get(c.name)}
+            {c.name: request.args.get(c.name)
+             for c in filterable_columns if request.args.get(c.name)}
         )
 
-        if request.args.get('submit'):
-            select_columns = request.args.getlist('select_columns') or [c.name for c in columns]
-            select_clause = ','.join([f's.{c}' for c in select_columns])
-
-            join_term = "','"
-            where_clause = ' and '.join(
-                [f"s.{name} in ('{join_term.join(value.split(','))}')" for name, value in filters.items()]
-            ) or None
-            s3_query = f'SELECT {select_clause} FROM s3object s'
-            if where_clause:
-                s3_query += f' WHERE {where_clause}'
-            s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-            return _generate_csv_response(dataset_id, version, table, s3_key, s3_query, select_columns)
-        else:
-            return html_template_environment.get_template('generate_csv_columns.html').render(
-                back_url=url_for('generate_csv_filters', dataset_id=dataset_id, version=version, table=table, **filters),
-                filters=filters,
-                columns=columns,
-                table_name=metadata_table['dc:title'],
-            )
+        return html_template_environment.get_template('filter_columns.html').render(
+            back_url=url_for('filter_rows', dataset_id=dataset_id,
+                             version=version, table=table, **filters),
+            submit_url=url_for('proxy_table', dataset_id=dataset_id,
+                               version=version, table=table),
+            filters=filters,
+            columns=columns,
+            table_name=metadata_table['dc:title'],
+        )
 
     @track_analytics
     @validate_and_redirect_version
@@ -456,12 +480,14 @@ def proxy_app(
         view_func=proxy_table
     )
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/generate-csv/filters',
-        view_func=generate_csv_filters
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
+        '/filter/rows',
+        view_func=filter_rows
     )
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/generate-csv/columns',
-        view_func=generate_csv_columns
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
+        '/filter/columns',
+        view_func=filter_columns
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data

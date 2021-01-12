@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Generate csv{% endblock %}
+{% block title %}Filter columns - {{ table_name }}{% endblock %}
 
 {% block body %}
     <a href="{{ back_url }}" class="govuk-back-link">Back</a>
+    <span class="govuk-caption-xl">Table: {{ table_name }}</span>
     <h1 class="govuk-heading-xl">Choose the columns you require</h1>
-    <h2 class="govuk-heading-m">Table: {{ table_name }}</h2>
-
+    
     <fieldset class="govuk-fieldset">
-        <form method="GET">
-            <input type="hidden" name="submit" value="1" /> 
+        <form method="GET" action="{{ submit_url }}">
+            <input type="hidden" name="generate" value="1" /> 
             <input type="hidden" name="download" value="1" /> 
+            <input type="hidden" name="format" value="csv" /> 
             {% for column_name, value in filters.items() %}
                 <input type="hidden" name="{{ column_name }}" value="{{ value }}" /> 
             {% endfor %}
@@ -24,7 +25,7 @@
                     </div>
                     {% for column, description, _ in columns %}
                     <div class="govuk-checkboxes__item">
-                        <input class="govuk-checkboxes__input" id="{{ column }}" name="select_columns" type="checkbox" checked value="{{ column }}">
+                        <input class="govuk-checkboxes__input" id="{{ column }}" name="_columns" type="checkbox" checked value="{{ column }}">
                         <label class="govuk-label govuk-checkboxes__label" for="{{ column }}">
                             {{ column }}
                         </label>
@@ -42,7 +43,7 @@
 
 {% block script %}
     function toggle(source) {
-        checkboxes = document.getElementsByName('select_columns');
+        checkboxes = document.getElementsByName('_columns');
         for(var i=0, n=checkboxes.length;i<n;i++) {
             checkboxes[i].checked = source.checked;
         }
