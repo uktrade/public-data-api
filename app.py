@@ -8,6 +8,10 @@ from gevent import (
 monkey.patch_all()
 import gevent
 
+import datetime
+from email.utils import (
+    parsedate,
+)
 from functools import (
     partial,
     wraps,
@@ -241,13 +245,20 @@ def proxy_app(
 
     def _convert_csvw_to_html(dataset_id, version, body_generator):
         csvw = json.loads(b''.join(body_generator))
-        table_sizes = {
-            table['id']: aws_head(signed_s3_request, key)[1]['content-length']
+        table_head_status_headers = [
+            (table['id'], aws_head(signed_s3_request, key))
             for table in csvw['tables']
             for key in [f'{dataset_id}/{version}/tables/{table["id"]}/data.csv']
+        ]
+        table_sizes = {
+            table_id: headers['content-length']
+            for table_id, (_, headers) in table_head_status_headers
         }
         return html_template_environment.get_template('metadata.html').render(
             version=version,
+            version_published_at=max((
+                datetime.datetime(*parsedate(headers['last-modified'])[:6])
+                for _, (_, headers) in table_head_status_headers)),
             csvw=csvw,
             table_sizes=table_sizes)
 
