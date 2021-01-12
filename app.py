@@ -324,7 +324,6 @@ def proxy_app(
                 filterable_columns=filterable_columns,
                 filters=filters,
                 table_name=metadata_table['dc:title'],
-                table_description=metadata_table['dc:description']
             )
 
     @track_analytics
@@ -354,7 +353,6 @@ def proxy_app(
                 filters=filters,
                 columns=columns,
                 table_name=metadata_table['dc:title'],
-                table_description=metadata_table['dc:description']
             )
 
     @track_analytics
