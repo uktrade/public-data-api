@@ -256,12 +256,14 @@ def proxy_app(
             table_id: headers['content-length']
             for table_id, (_, headers) in table_head_status_headers
         }
+        filter_urls = {table['id']: url_for('filter_rows', dataset_id=dataset_id, version=version, table=table['id']) for table in csvw['tables']}
         return html_template_environment.get_template('metadata.html').render(
             version=version,
             version_published_at=max((
                 datetime.datetime(*parsedate(headers['last-modified'])[:6])
                 for _, (_, headers) in table_head_status_headers)),
             csvw=csvw,
+            filter_urls=filter_urls,
             metadata_download_url=url_for('proxy_metadata', dataset_id=dataset_id, version=version)
             + '?format=csvw&download',
             table_sizes=table_sizes)

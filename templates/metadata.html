@@ -41,7 +41,9 @@
 
     <p class="govuk-body">{{ table['dc:description'] }}</p>
 
-    <p class="govuk-body">Download the <a href="{{ table['url'] }}" class="govuk-link">{{ table['dc:title'] }} table</a> (CSV, {{ table_sizes[table['id']] | filesizeformat }}).</p>
+    <p class="govuk-body">
+        Download the <a href="{{ table['url'] }}" class="govuk-link">{{ table['dc:title'] }} table</a> (CSV, {{ table_sizes[table['id']] | filesizeformat }}). To download less data you can <a href="{{ filter_urls[table['id']] }}" >filter on columns and rows in the {{ table['dc:title'] }} table.</a>
+    </p>
 
     <h3 class="govuk-heading-s">Columns</h3>
 
