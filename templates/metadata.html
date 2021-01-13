@@ -59,16 +59,23 @@
 
     <p class="govuk-body">Download the <a href="{{ table['url'] }}" class="govuk-link">{{ table['dc:title'] }} table</a> (CSV, {{ table_sizes[table['id']] | filesizeformat }}).</p>
 
-    <h3 class="govuk-heading-s">Columns</h3>
-
-    <dl class="govuk-summary-list">
-        {% for column in table['tableSchema']['columns']  %}
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">{{ column['name'] }}</dt>
-            <dd class="govuk-summary-list__value">{{ column['dc:description'] }}</dd>
-        </div>
-        {% endfor %}
-    </dl>
+    <table class="govuk-table">
+        <caption class="govuk-table__caption">Column descriptions</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Column name</th>
+                <th scope="col" class="govuk-table__header">Column description</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for column in table['tableSchema']['columns']  %}
+            <tr class="govuk-table__row">
+                <th scope="row" class="govuk-table__header">{{ column['name'] }}</th>
+                <td class="govuk-table__cell">{{ column['dc:description'] }}</td>
+            </tr>
+            {% endfor %}
+      </tbody>
+    </table>
     {% endfor %}
 
 {% endblock %}
