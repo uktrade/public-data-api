@@ -244,6 +244,162 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
+    def test_filter_rows(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = json.dumps({
+            'dc:title': 'The title of the dataset',
+            'tables': [
+                {
+                    'url': 'tables/the-first-table/data?format=csv&download',
+                    'dc:title': 'First table title',
+                    'id': 'the-first-table',
+                    'tableSchema': {'columns': [
+                        {
+                            'name': 'id_field',
+                            'dc:description': 'An ID field',
+                            'dit:filterable': True
+                        },
+                        {
+                            'name': 'name_field',
+                            'dc:description': 'A name field',
+                            'dit:filterable': False
+                        },
+                    ]}
+                },
+            ]
+
+        }).encode('utf-8')
+        version = 'v0.0.1'
+        contents = b'id_field,name_field\n' + b'1,test\n'
+        put_version_table(dataset_id, version, 'the-first-table', contents)
+        put_version_metadata(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_filter_rows(dataset_id,
+                                                      version,
+                                                      'the-first-table')
+                            ) as response:
+            self.assertIn(b'Table: First table title', response.content)
+            self.assertIn(b'id_field', response.content)
+            self.assertIn(b'An ID field', response.content)
+            # name_field has dit:filterable set to False so should not be available to filter on
+            self.assertNotIn(b'name_field', response.content)
+            self.assertNotIn(b'A name field', response.content)
+
+    @with_application(8080)
+    def test_filter_columns(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = json.dumps({
+            'dc:title': 'The title of the dataset',
+            'tables': [
+                {
+                    'url': 'tables/the-first-table/data?format=csv&download',
+                    'dc:title': 'First table title',
+                    'id': 'the-first-table',
+                    'tableSchema': {'columns': [
+                        {
+                            'name': 'id_field',
+                            'dc:description': 'An ID field',
+                            'dit:filterable': True
+                        },
+                        {
+                            'name': 'name_field',
+                            'dc:description': 'A name field',
+                            'dit:filterable': False
+                        },
+                    ]}
+                },
+            ]
+
+        }).encode('utf-8')
+        version = 'v0.0.1'
+        contents = b'id_field,name_field\n' + b'1,foo\n' + b'2,bar\n'
+        put_version_table(dataset_id, version, 'the-first-table', contents)
+        put_version_metadata(dataset_id, version, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_filter_columns(dataset_id,
+                                                         version,
+                                                         'the-first-table')
+                            ) as response:
+            self.assertIn(b'Table: First table title', response.content)
+            # all metadata fields should be available when selecting the required columns
+            self.assertIn(b'id_field', response.content)
+            self.assertIn(b'name_field', response.content)
+
+        # should return all rows and all columns
+        base_query_args = '&query-simple'
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id,
+                                                              version,
+                                                              'the-first-table')
+                            + base_query_args) as response:
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}'
+                             '--the-first-table.csv"')
+
+            self.assertIn(b'1,foo', response.content)
+            self.assertIn(b'2,bar', response.content)
+
+        # should return all rows but only the name_field column
+        query_args = base_query_args + '&_columns=name_field'
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id,
+                                                              version,
+                                                              'the-first-table')
+                            + query_args) as response:
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}'
+                             '--the-first-table.csv"')
+
+            self.assertNotIn(b'1', response.content)
+            self.assertIn(b'foo', response.content)
+            self.assertNotIn(b'2', response.content)
+            self.assertIn(b'bar', response.content)
+
+        # should return only rows with id_field=1 and only the name_field column
+        query_args = base_query_args + '&id_field=1&_columns=name_field'
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id,
+                                                              version,
+                                                              'the-first-table')
+                            + query_args) as response:
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}'
+                             '--the-first-table.csv"')
+
+            self.assertNotIn(b'1', response.content)
+            self.assertIn(b'foo', response.content)
+            self.assertNotIn(b'2', response.content)
+            self.assertNotIn(b'bar', response.content)
+
+        # should return rows with both id_field=1 and id_field=2 and only the name_field column
+        query_args = base_query_args + '&id_field=1,2&_columns=name_field'
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id,
+                                                              version,
+                                                              'the-first-table')
+                            + query_args) as response:
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             (f'attachment; filename="{dataset_id}--{version}'
+                              '--the-first-table.csv"'))
+
+            self.assertNotIn(b'1', response.content)
+            self.assertIn(b'foo', response.content)
+            self.assertNotIn(b'2', response.content)
+            self.assertIn(b'bar', response.content)
+
+    @with_application(8080)
     def test_multiple_concurrent_requests(self, _):
         dataset_id_1 = str(uuid.uuid4())
         dataset_id_2 = str(uuid.uuid4())
@@ -1127,6 +1283,20 @@ def version_table_public_url_no_format(dataset_id, version, table):
 
 def version_table_public_url_bad_format(dataset_id, version, table):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=txt'
+
+
+def version_table_filter_rows(dataset_id, version, table):
+    return (
+        f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/'
+        'filter/rows'
+    )
+
+
+def version_table_filter_columns(dataset_id, version, table):
+    return (
+        f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/'
+        'filter/columns'
+    )
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,

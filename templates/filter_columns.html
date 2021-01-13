@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Filter columns - {{ table_name }}{% endblock %}
+
+{% block body %}
+    <a href="{{ back_url }}" class="govuk-back-link">Back</a>
+    <span class="govuk-caption-xl">Table: {{ table_name }}</span>
+    <h1 class="govuk-heading-xl">Choose the columns you require</h1>
+    
+    <fieldset class="govuk-fieldset">
+        <form method="GET" action="{{ submit_url }}">
+            <input type="hidden" name="query-simple" /> 
+            <input type="hidden" name="download" /> 
+            <input type="hidden" name="format" value="csv" /> 
+            {% for column_name, value in filters.items() %}
+                <input type="hidden" name="{{ column_name }}" value="{{ value }}" /> 
+            {% endfor %}
+            <div class="govuk-form-group">
+                <div class="govuk-checkboxes govuk-checkboxes">
+                    <div class="govuk-checkboxes__item govuk-body govuk-!-margin-bottom-8">
+                        <input class="govuk-checkboxes__input" id="select_all" type="checkbox" checked onClick="toggle(this)"/>
+                        <label class="govuk-label govuk-checkboxes__label" id="select_all_label" for="select_all">
+                            Deselect all
+                        </label>
+                    </div>
+                    {% for column, description, _ in columns %}
+                    <div class="govuk-checkboxes__item">
+                        <input class="govuk-checkboxes__input" id="{{ column }}" name="_columns" type="checkbox" checked value="{{ column }}">
+                        <label class="govuk-label govuk-checkboxes__label" for="{{ column }}">
+                            {{ column }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <button class="govuk-button" data-module="govuk-button">
+                Generate CSV
+            </button>
+        </form>
+    </fieldset>
+{% endblock %}
+
+
+{% block script %}
+    function toggle(source) {
+        checkboxes = document.getElementsByName('_columns');
+        for(var i=0, n=checkboxes.length;i<n;i++) {
+            checkboxes[i].checked = source.checked;
+        }
+        if(document.getElementById('select_all_label').innerHTML == 'Select all') {
+            document.getElementById('select_all_label').innerHTML = 'Deselect all'
+        } else {
+            document.getElementById('select_all_label').innerHTML = 'Select all'
+        }
+    }
+{% endblock %}

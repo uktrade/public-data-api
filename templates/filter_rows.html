@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Filter rows - {{ table_name }}{% endblock %}
+
+{% block body %}
+    <span class="govuk-caption-xl">Table: {{ table_name }}</span>
+    <h1 class="govuk-heading-xl">Filter on the following fields</h1>
+
+    <fieldset class="govuk-fieldset">
+        <form method="GET" action="{{ submit_url }}">
+            {% for name, description, _ in filterable_columns %}
+                <div class="govuk-form-group">
+                    <h1 class="govuk-label-wrapper">
+                        <label class="govuk-label govuk-label--m" for="{{ name }}">
+                        {{ name }}
+                        </label>
+                    </h1>
+                    <div id="account-number-hint" class="govuk-hint govuk-!-width-three-quarters">
+                        {{ description }}
+                    </div>
+                    <input class="govuk-input govuk-!-width-one-half" id="{{ name }}" name="{{ name }}" value="{% if filters.get(name) %}{{ filters.get(name) }}{%  endif %}" type="text">
+                </div>
+            {% endfor %}
+            <button class="govuk-button govuk-!-margin-right-1" data-module="govuk-button">
+                Continue
+            </button>
+            <button class="govuk-button govuk-button--secondary" type="button" onClick="location.href = '{{ reset_url }}';" data-module="govuk-button">
+                Reset filters
+              </button>
+        </form>
+    </fieldset>
+{% endblock %}
