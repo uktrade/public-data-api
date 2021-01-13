@@ -7,8 +7,7 @@
     <h1 class="govuk-heading-xl">Filter on the following fields</h1>
 
     <fieldset class="govuk-fieldset">
-        <form method="GET">
-            <input type="hidden" name="submit" value="1" /> 
+        <form method="GET" action="{{ submit_url }}">
             {% for name, description, _ in filterable_columns %}
                 <div class="govuk-form-group">
                     <h1 class="govuk-label-wrapper">

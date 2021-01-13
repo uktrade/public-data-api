@@ -280,9 +280,7 @@ def proxy_app(
         header_row = None
         s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
 
-        if not request.args.get('generate'):
-            s3_query = request.args.get('query-s3-select')
-        else:
+        if 'query-simple' in request.args:
             _, columns, filterable_columns = _get_table_metadata(
                 dataset_id, version, table)
             filters = (
@@ -302,6 +300,8 @@ def proxy_app(
             if where_clause:
                 s3_query += f' WHERE {where_clause}'
             header_row = [f"{','.join(select_columns)}\n".encode('utf-8')]
+        else:
+            s3_query = request.args.get('query-s3-select')
 
         body_generator, response = _proxy(
             s3_key,
@@ -341,19 +341,12 @@ def proxy_app(
             {c.name: request.args.get(c.name)
              for c in filterable_columns if request.args.get(c.name)}
         )
-        if request.args.get('submit'):
-            return redirect(
-                url_for(
-                    'filter_columns',
-                    dataset_id=dataset_id,
-                    version=version,
-                    table=table,
-                    **filters
-                )
-            )
 
         return html_template_environment.get_template('filter_rows.html').render(
-            reset_url=url_for('filter_rows', dataset_id=dataset_id, version=version, table=table),
+            reset_url=url_for('filter_rows', dataset_id=dataset_id,
+                              version=version, table=table),
+            submit_url=url_for('filter_columns', dataset_id=dataset_id,
+                               version=version, table=table),
             filterable_columns=filterable_columns,
             filters=filters,
             table_name=metadata_table['dc:title'],

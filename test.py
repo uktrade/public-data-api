@@ -328,7 +328,7 @@ class TestS3Proxy(unittest.TestCase):
             self.assertIn(b'name_field', response.content)
 
         # should return all rows and all columns
-        base_query_args = '&generate=1'
+        base_query_args = '&query-simple'
         with \
                 requests.Session() as session, \
                 session.get(version_table_public_url_download(dataset_id,
