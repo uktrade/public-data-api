@@ -9,7 +9,7 @@ from gevent import (
 )
 monkey.patch_all()
 import gevent
-
+import gzip
 import datetime
 from email.utils import (
     parsedate,
@@ -216,7 +216,9 @@ def proxy_app(
 
         return parse_response(response.stream(65536, decode_content=False), 65536), response
 
-    def _generate_downstream_response(body_generator, response, content_type, download_filename):
+    def _generate_downstream_response(
+            body_generator, response, content_type, download_filename, content_encoding=None
+    ):
         allow_proxy = response.status in proxied_response_codes
 
         logger.debug('Allowing proxy: %s', allow_proxy)
@@ -228,8 +230,12 @@ def proxy_app(
         download_headers = (
             ('content-disposition', f'attachment; filename="{download_filename}"'),
         ) if 'download' in request.args else ()
+        encoding_headers = (
+            ('content-encoding', content_encoding),
+        ) if content_encoding else ()
+
         response_headers = response_headers_no_content_type + \
-            (('content-type', content_type),) + download_headers
+            (('content-type', content_type),) + download_headers + encoding_headers
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
@@ -296,6 +302,9 @@ def proxy_app(
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
         header_row = None
         s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+        gzip_encode = 'accept-encoding' in request.headers and 'gzip' in request.headers.get(
+            'accept-encoding', '')
+        content_encoding = 'gzip' if gzip_encode else None
 
         if 'query-simple' in request.args:
             _, columns, filterable_columns = _get_table_metadata(
@@ -316,17 +325,30 @@ def proxy_app(
             s3_query = f'SELECT {select_clause} FROM s3object s'
             if where_clause:
                 s3_query += f' WHERE {where_clause}'
-            header_row = [f"{','.join(select_columns)}\n".encode('utf-8')]
+
+            header_row_str = f"{','.join(select_columns)}\n".encode('utf-8')
+            header_row = [gzip.compress(header_row_str) if gzip_encode else header_row_str]
         else:
             s3_query = request.args.get('query-s3-select')
 
         body_generator, response = _proxy(
-            s3_key,
+            s3_key + ('.gz' if gzip_encode else ''),
             aws_select_post_body_csv(s3_query) if s3_query is not None else None,
             partial(aws_select_parse_result,
                     aws_select_convert_records_to_csv) if s3_query is not None else None,
             request.headers
         )
+
+        if response.status == 404 and gzip_encode:
+            body_generator, response = _proxy(
+                s3_key,
+                aws_select_post_body_csv(s3_query) if s3_query is not None else None,
+                partial(aws_select_parse_result,
+                        aws_select_convert_records_to_csv) if s3_query is not None else None,
+                request.headers
+            )
+            content_encoding = None
+
         if header_row:
             body_generator = chain(header_row, body_generator)
 
@@ -334,7 +356,9 @@ def proxy_app(
         content_type = 'text/csv'
 
         return _generate_downstream_response(
-            body_generator, response, content_type, download_filename)
+            body_generator, response, content_type, download_filename,
+            content_encoding=content_encoding
+        )
 
     Column = namedtuple('Column', ['name', 'description', 'filterable'])
 
