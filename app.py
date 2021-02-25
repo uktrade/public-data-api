@@ -338,6 +338,8 @@ def proxy_app(
         )
 
         if response.status == 404 and gzip_encode:
+            for _ in response.stream(65536, decode_content=False):
+                pass
             body_generator, response = _proxy(
                 s3_key,
                 aws_select_post_body_csv(s3_query) if s3_query is not None else None,
