@@ -9,7 +9,6 @@ from gevent import (
 )
 monkey.patch_all()
 import gevent
-import gzip
 import datetime
 from email.utils import (
     parsedate,
@@ -302,9 +301,6 @@ def proxy_app(
         logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
         header_row = None
         s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-        gzip_encode = 'accept-encoding' in request.headers and 'gzip' in request.headers.get(
-            'accept-encoding', '')
-        content_encoding = 'gzip' if gzip_encode else None
 
         if 'query-simple' in request.args:
             _, columns, filterable_columns = _get_table_metadata(
@@ -325,11 +321,13 @@ def proxy_app(
             s3_query = f'SELECT {select_clause} FROM s3object s'
             if where_clause:
                 s3_query += f' WHERE {where_clause}'
-
-            header_row_str = f"{','.join(select_columns)}\n".encode('utf-8')
-            header_row = [gzip.compress(header_row_str) if gzip_encode else header_row_str]
+            header_row = [f"{','.join(select_columns)}\n".encode('utf-8')]
         else:
             s3_query = request.args.get('query-s3-select')
+
+        gzip_encode = 'accept-encoding' in request.headers and 'gzip' in request.headers.get(
+            'accept-encoding', '').replace(' ', '').split(',') and s3_query is None
+        content_encoding = 'gzip' if gzip_encode else None
 
         body_generator, response = _proxy(
             s3_key + ('.gz' if gzip_encode else ''),

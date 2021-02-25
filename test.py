@@ -271,6 +271,34 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
+    def test_table_serves_uncompressed_if_s3_select_query_provided(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = \
+            'col_a,col_b\na,b\nc🍰é,d\ne,d\n&>,d\n' \
+            '"Ah, a comma",d\n"A quote "" ",d\n\\u00f8C,d'.encode(
+                'utf-8')
+        table = 'table'
+        version = 'v0.0.1'
+        put_version_table(dataset_id, version, table, content)
+        put_version_table_gzipped(dataset_id, version, table, content)
+        params = {
+            'query-s3-select': 'SELECT col_a FROM S3Object[*] WHERE col_b = \'d\''
+        }
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id, version, table),
+                            params=params, headers={'accept-encoding': 'gzip'}
+                            ) as response:
+            self.assertEqual(
+                response.content, 'c🍰é\ne\n&>'
+                '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8'))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--{table}.csv"')
+            self.assertNotIn('content-encoding', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
     def test_table_s3_select(self, _):
         dataset_id = str(uuid.uuid4())
         # Note that unlike JSON, a unicode escape sequence like \u00f8C is not an encoded
@@ -291,7 +319,6 @@ class TestS3Proxy(unittest.TestCase):
                 requests.Session() as session, \
                 session.get(version_table_public_url_download(dataset_id, version, table),
                             params=params) as response:
-            print(response)
             self.assertEqual(
                 response.content, 'c🍰é\ne\n&>'
                 '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8'))
