@@ -3,6 +3,7 @@ from datetime import (
 )
 import hashlib
 import hmac
+import gzip
 import itertools
 import json
 import os
@@ -214,6 +215,90 @@ class TestS3Proxy(unittest.TestCase):
             self.assertEqual(len(response.history), 0)
 
     @with_application(8080)
+    def test_table_gzipped(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        table = 'table'
+        version = 'v0.0.1'
+        put_version_table(dataset_id, version, table, content)
+        put_version_table_gzipped(dataset_id, version, table, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id, version, table),
+                            headers={'accept-encoding': None}
+                            ) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--{table}.csv"')
+            self.assertNotIn('content-encoding', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id, version, table),
+                            headers={'accept-encoding': 'gzip'}
+                            ) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(gzip.compress(content))))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-encoding'], 'gzip')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--{table}.csv"')
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_table_serves_uncompressed_if_gzip_file_does_not_exist(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = str(uuid.uuid4()).encode() * 100000
+        table = 'table'
+        version = 'v0.0.1'
+        put_version_table(dataset_id, version, table, content)
+
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id, version, table),
+                            headers={'accept-encoding': 'gzip'}
+                            ) as response:
+            self.assertEqual(response.content, content)
+            self.assertEqual(response.headers['content-length'], str(len(content)))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--{table}.csv"')
+            self.assertNotIn('content-encoding', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
+    def test_table_serves_uncompressed_if_s3_select_query_provided(self, _):
+        dataset_id = str(uuid.uuid4())
+        content = \
+            'col_a,col_b\na,b\nc🍰é,d\ne,d\n&>,d\n' \
+            '"Ah, a comma",d\n"A quote "" ",d\n\\u00f8C,d'.encode(
+                'utf-8')
+        table = 'table'
+        version = 'v0.0.1'
+        put_version_table(dataset_id, version, table, content)
+        put_version_table_gzipped(dataset_id, version, table, content)
+        params = {
+            'query-s3-select': 'SELECT col_a FROM S3Object[*] WHERE col_b = \'d\''
+        }
+        with \
+                requests.Session() as session, \
+                session.get(version_table_public_url_download(dataset_id, version, table),
+                            params=params, headers={'accept-encoding': 'gzip'}
+                            ) as response:
+            self.assertEqual(
+                response.content, 'c🍰é\ne\n&>'
+                '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8'))
+            self.assertEqual(response.headers['content-type'], 'text/csv')
+            self.assertEqual(response.headers['content-disposition'],
+                             f'attachment; filename="{dataset_id}--{version}--{table}.csv"')
+            self.assertNotIn('content-encoding', response.headers)
+            self.assertEqual(len(response.history), 0)
+
+    @with_application(8080)
     def test_table_s3_select(self, _):
         dataset_id = str(uuid.uuid4())
         # Note that unlike JSON, a unicode escape sequence like \u00f8C is not an encoded
@@ -234,7 +319,6 @@ class TestS3Proxy(unittest.TestCase):
                 requests.Session() as session, \
                 session.get(version_table_public_url_download(dataset_id, version, table),
                             params=params) as response:
-            print(response)
             self.assertEqual(
                 response.content, 'c🍰é\ne\n&>'
                 '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8'))
@@ -1052,6 +1136,9 @@ class TestS3Proxy(unittest.TestCase):
         nested_bytes, _ = get_csv_data(dataset_id, version, 'top--nested')
         self.assertEqual(nested_bytes, b'"top__id","key_2"\r\n1,"value_2"\r\n')
 
+        top_bytes, top_headers = get_csv_data_gzipped(dataset_id, version, 'top')
+        self.assertEqual(gzip.decompress(top_bytes), b'"id","key"\r\n1,"value"\r\n')
+
         time.sleep(12)
 
         # Ensure that we haven't unnecessarily recreated the CSVs
@@ -1207,8 +1294,18 @@ def put_version_table(dataset_id, version, table, contents):
     return put_object(f'{dataset_id}/{version}/tables/{table}/data.csv', contents)
 
 
+def put_version_table_gzipped(dataset_id, version, table, contents):
+    return put_object(
+        f'{dataset_id}/{version}/tables/{table}/data.csv.gz', gzip.compress(contents)
+    )
+
+
 def get_csv_data(dataset_id, version, table):
     return get_object(f'{dataset_id}/{version}/tables/{table}/data.csv')
+
+
+def get_csv_data_gzipped(dataset_id, version, table):
+    return get_object(f'{dataset_id}/{version}/tables/{table}/data.csv.gz')
 
 
 def put_object(key, contents):
