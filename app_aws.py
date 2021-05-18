@@ -242,6 +242,7 @@ def aws_select_parse_result(convert_records_to_output, input_iterable, min_outpu
                 yield chunk[offset:offset + to_yield]
                 amt -= to_yield
                 offset += to_yield % len(chunk)
+                chunk = chunk if offset else b''
 
             # Yield the rest as it comes in
             while amt:
