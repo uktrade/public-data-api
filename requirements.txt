@@ -15,7 +15,7 @@ certifi==2021.5.30
     #   sentry-sdk
 chardet==4.0.0
     # via requests
-click==8.0.1
+click==7.0
     # via flask
 ecs-logging==0.5.0
     # via -r requirements.in
@@ -27,17 +27,17 @@ flask==1.1.2
     #   sentry-sdk
 gevent==20.6.2
     # via -r requirements.in
-greenlet==1.1.0
+greenlet==0.4.16
     # via gevent
 idna==2.10
     # via requests
-ijson==3.1.4
+ijson==3.1.2.post0
     # via tidy-json-to-csv
 itsdangerous==2.0.1
     # via flask
 jinja2==3.0.1
     # via flask
-markupsafe==2.0.1
+markupsafe==1.1.1
     # via jinja2
 requests==2.25.1
     # via -r requirements.in
@@ -51,11 +51,11 @@ urllib3==1.26.5
     #   elastic-apm
     #   requests
     #   sentry-sdk
-werkzeug==2.0.1
+werkzeug==0.15.5
     # via flask
-zope.event==4.5.0
+zope.event==4.4
     # via gevent
-zope.interface==5.4.0
+zope.interface==5.1.0
     # via gevent
 
 # The following packages are considered to be unsafe in a requirements file:
