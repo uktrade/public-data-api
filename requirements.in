@@ -1,8 +1,8 @@
-ecs-logging==0.5.0
-Flask==1.1.2
-gevent==20.6.2
-urllib3==1.26.5
-sentry-sdk[flask]==0.10.2
-elastic-apm[flask]==5.9.0
-tidy-json-to-csv==0.0.13
+ecs-logging
+Flask
+gevent
+urllib3
+sentry-sdk[flask]
+elastic-apm[flask]
+tidy-json-to-csv
 requests
