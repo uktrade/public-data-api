@@ -1,9 +1,9 @@
 -r requirements.in
 
-coverage==5.2.1
-pre-commit==1.18.0
-pylint==2.3.1
-sentry-sdk[flask]==0.10.2
-elastic-apm[flask]==5.9.0
-pytest==6.1.2
-pip-tools==5.3.1
+coverage
+pre-commit
+pylint
+sentry-sdk[flask]
+elastic-apm[flask]
+pytest
+pip-tools
