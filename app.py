@@ -32,6 +32,7 @@ from flask import (
     Response,
     abort,
     redirect,
+    render_template,
     request,
     url_for,
 )
@@ -486,6 +487,17 @@ def proxy_app(
             }
         )
 
+    def docs():
+        """
+        Documentation homepage
+        """
+        context = {
+            'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
+            'service_name': os.environ.get('DOCS_SERVICE_NAME'),
+            'github_repo_url': os.environ.get('DOCS_GITHUB_REPO_URL'),
+        }
+        return render_template('docs/index.html', **context)
+
     app = Flask('app')
 
     # If some paths are behing the IP filter, then num_proxies will be higher, because it
@@ -532,6 +544,9 @@ def proxy_app(
     )
     app.add_url_rule(
         '/healthcheck', 'healthcheck', view_func=healthcheck
+    )
+    app.add_url_rule(
+        '/', 'docs', view_func=docs
     )
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
