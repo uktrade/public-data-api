@@ -136,12 +136,19 @@ Location: /v1/datasets/capital-cities/versions/v0.0.1/data?format=json
 | `GA_ENDPOINT`           | The endpoint to send analytics info to | _not set_
 | `GA_TRACKING_ID`        | The unique identifier for the google analytics property | _not set_
 
+Environment variables used for serving API documentation.
+
+| Variable                  | Description | Example |
+| ---                       | ---         | ---     |
+| `DOCS_DEPARTMENT_NAME`    | The name of the department the data is hosted by | `A Government Department`
+| `DOCS_SERVICE_NAME`       | The name of this service | `Data API`
+| `DOCS_GITHUB_REPO_URL`    | The URL for this github repository | `https://github.com/uktrade/public-data-api`
+
 The below environment variables are also required, but typically populated by PaaS.
 
 | Variable        | Description | Example |
 | ---             | ---         | ---     |
 | `PORT`          | The port for the application to listen on | `8080`
-
 
 ### Permissions and 404s
 

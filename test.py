@@ -1281,6 +1281,11 @@ class TestS3Proxy(unittest.TestCase):
                     session.post('http://127.0.0.1:9002/calls') as response:
                 self.assertEqual(int(response.content), 4)
 
+    @with_application(8080)
+    def test_docs(self, _):
+        with requests.Session() as session, session.get('http://127.0.0.1:8080') as response:
+            self.assertEqual(response.status_code, 200)
+
 
 def put_version_metadata(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/metadata--csvw.json', contents)
