@@ -142,7 +142,7 @@ Environment variables used for serving API documentation.
 | ---                       | ---         | ---     |
 | `DOCS_DEPARTMENT_NAME`    | The name of the department the data is hosted by | `A Government Department`
 | `DOCS_SERVICE_NAME`       | The name of this service | `Data API`
-| `DOCS_GITHUB_REPO_URL`    | The port for the application to listen on | `https://github.com/uktrade/public-data-api`
+| `DOCS_GITHUB_REPO_URL`    | The URL for this github repository | `https://github.com/uktrade/public-data-api`
 
 The below environment variables are also required, but typically populated by PaaS.
 
