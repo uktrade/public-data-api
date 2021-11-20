@@ -1260,6 +1260,8 @@ class TestS3Proxy(unittest.TestCase):
                     session.get(version_data_public_url(dataset_id, version)) as response:
                 self.assertEqual(response.status_code, 500)
 
+        time.sleep(1)
+
         with \
                 requests.Session() as session, \
                 session.get('http://127.0.0.1:9001/api/1/errors') as response:
