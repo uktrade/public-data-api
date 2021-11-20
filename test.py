@@ -14,6 +14,9 @@ import subprocess
 import unittest
 import urllib.parse
 import uuid
+from xml.etree import (
+    ElementTree as ET,
+)
 
 import requests
 
@@ -21,6 +24,8 @@ import requests
 def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     def decorator(original_test):
         def test_with_application(self):
+            delete_all_objects()
+
             with open('Procfile', 'r') as file:
                 lines = file.read().splitlines()
 
@@ -89,6 +94,7 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 original_test(self, processes)
             finally:
                 output_errors = stop()
+                delete_all_objects()
 
             return output_errors
         return test_with_application
@@ -1340,6 +1346,58 @@ def get_object(key):
     with requests.get(url, headers=dict(headers)) as response:
         response.raise_for_status()
         return response.content, response.headers
+
+
+def delete_all_objects():
+    def list_keys():
+        url = 'http://127.0.0.1:9000/my-bucket/'
+        parsed_url = urllib.parse.urlsplit(url)
+        namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
+        token = ''
+
+        def _list(extra_query_items=()):
+            nonlocal token
+
+            token = ''
+            query = (
+                ('max-keys', '1000'),
+                ('list-type', '2'),
+            ) + extra_query_items
+
+            body = b''
+            body_hash = hashlib.sha256(body).hexdigest()
+            headers = aws_sigv4_headers(
+                'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                (), 's3', 'us-east-1', parsed_url.netloc, 'GET', parsed_url.path, query, body_hash,
+            )
+            with requests.get(url, data=body, params=query, headers=dict(headers)) as response:
+                response.raise_for_status()
+                body_bytes = response.content
+
+            for element in ET.fromstring(body_bytes):
+                if element.tag == f'{namespace}Contents':
+                    for child in element:
+                        if child.tag == f'{namespace}Key':
+                            yield child.text
+                if element.tag == f'{namespace}NextContinuationToken':
+                    token = element.text
+
+        yield from _list()
+
+        while token:
+            yield from _list((('continuation-token', token),))
+
+    for key in list_keys():
+        url = f'http://127.0.0.1:9000/my-bucket/{key}'
+        parsed_url = urllib.parse.urlsplit(url)
+        body = b''
+        body_hash = hashlib.sha256(body).hexdigest()
+        headers = aws_sigv4_headers(
+            'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            (), 's3', 'us-east-1', parsed_url.netloc, 'DELETE', parsed_url.path, (), body_hash,
+        )
+        with requests.delete(url, data=body, headers=dict(headers)) as response:
+            response.raise_for_status()
 
 
 _url_prefix = 'http://127.0.0.1:8080/v1/datasets'
