@@ -48,9 +48,9 @@ flask==1.1.2
     # via
     #   -r requirements.txt
     #   sentry-sdk
-gevent==20.6.2
+gevent==21.8.0
     # via -r requirements.txt
-greenlet==0.4.16
+greenlet==1.1.2
     # via
     #   -r requirements.txt
     #   gevent
