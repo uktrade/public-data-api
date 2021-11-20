@@ -97,6 +97,7 @@ def proxy_app(
         server.serve_forever()
 
     def stop():
+        apm.client.close()
         server.stop()
 
     def track_analytics(handler):
@@ -511,8 +512,7 @@ def proxy_app(
         resp.headers['X-Robots-Tag'] = 'no-index, no-follow'
         return resp
 
-    apm = ElasticAPM()
-    apm.init_app(
+    apm = ElasticAPM(
         app,
         service_name='public-data-api',
         secret_token=os.environ['APM_SECRET_TOKEN'],
