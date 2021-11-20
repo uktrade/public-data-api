@@ -41,7 +41,7 @@ markupsafe==2.0.1
     # via jinja2
 requests==2.25.1
     # via -r requirements.in
-sentry-sdk[flask]==0.10.2
+sentry-sdk[flask]==1.5.0
     # via -r requirements.in
 tidy-json-to-csv==0.0.13
     # via -r requirements.in
