@@ -572,7 +572,7 @@ def main():
     )
 
     if os.environ.get('SENTRY_DSN'):
-        sentry_sdk.init(
+        sentry_sdk.init(  # pylint: disable=abstract-class-instantiated
             dsn=os.environ['SENTRY_DSN'],
             integrations=[FlaskIntegration()],
         )
