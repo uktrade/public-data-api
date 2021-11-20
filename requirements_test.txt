@@ -124,8 +124,6 @@ toml==0.10.0
     # via
     #   pre-commit
     #   pytest
-typed-ast==1.4.0
-    # via astroid
 typing-extensions==4.0.0
     # via astroid
 urllib3==1.26.5
