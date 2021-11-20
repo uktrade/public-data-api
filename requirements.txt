@@ -25,9 +25,9 @@ flask==1.1.2
     # via
     #   -r requirements.in
     #   sentry-sdk
-gevent==20.6.2
+gevent==21.8.0
     # via -r requirements.in
-greenlet==0.4.16
+greenlet==1.1.2
     # via gevent
 idna==2.10
     # via requests
