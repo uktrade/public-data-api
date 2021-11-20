@@ -171,5 +171,5 @@ python3 -m app
 
 ```bash
 ./start-services.sh  # Only required once
-./test.sh
+./test_app.sh
 ```
