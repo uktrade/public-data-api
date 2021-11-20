@@ -4,7 +4,7 @@
 #
 #    pip-compile requirements_test.in
 #
-astroid==2.2.5
+astroid==2.8.5
     # via pylint
 attrs==20.2.0
     # via pytest
@@ -120,7 +120,6 @@ sentry-sdk[flask]==0.10.2
     #   -r requirements_test.in
 six==1.12.0
     # via
-    #   astroid
     #   cfgv
     #   packaging
     #   pip-tools
@@ -132,6 +131,8 @@ toml==0.10.0
     #   pre-commit
     #   pytest
 typed-ast==1.4.0
+    # via astroid
+typing-extensions==4.0.0
     # via astroid
 urllib3==1.26.5
     # via

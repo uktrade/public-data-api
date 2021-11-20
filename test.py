@@ -1161,7 +1161,7 @@ class TestS3Proxy(unittest.TestCase):
                     session.get(version_data_public_url(dataset_id, version)) as response:
                 self.assertEqual(200, response.status_code)
 
-        output, error = make_api_call(self)['web']
+        output, error = make_api_call(self)['web']  # pylint: disable=unsubscriptable-object
         self.assertEqual(error, b'')
         output_logs = output.decode().split('\n')
         assert len(output_logs) >= 1
