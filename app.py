@@ -9,6 +9,7 @@ from gevent import (
 )
 monkey.patch_all()
 import gevent
+import gevent.pool
 import datetime
 from email.utils import (
     parsedate,
@@ -97,7 +98,7 @@ def proxy_app(
         server.serve_forever()
 
     def stop():
-        server.stop()
+        server.stop(timeout=600)
 
     def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
@@ -548,7 +549,7 @@ def proxy_app(
     app.add_url_rule(
         '/', 'docs', view_func=docs
     )
-    server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
+    server = WSGIServer(('0.0.0.0', port), app, spawn=gevent.pool.Pool(), log=app.logger)
 
     return start, stop
 
@@ -577,9 +578,12 @@ def main():
             integrations=[FlaskIntegration()],
         )
 
-    gevent.signal_handler(signal.SIGTERM, stop)
+    def on_sigterm():
+        stop()
+        sys.exit(0)
+
+    gevent.signal_handler(signal.SIGTERM, on_sigterm)
     start()
-    gevent.get_hub().join()
 
 
 if __name__ == '__main__':
