@@ -7,7 +7,10 @@ import ecs_logging
 from gevent import (
     monkey,
 )
-monkey.patch_all()
+
+# APM and Sentry SDKs don't seem to allow graceful shutdown with monkey-patched threading
+monkey.patch_all(thread=False)
+
 import gevent
 import datetime
 from email.utils import (
