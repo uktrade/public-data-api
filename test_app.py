@@ -7,6 +7,7 @@ import gzip
 import itertools
 import json
 import os
+import tempfile
 import time
 import shlex
 import socket
@@ -37,11 +38,16 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 for name, args in [line.split(':')]
             }
 
+            process_outs = {
+                name: (tempfile.NamedTemporaryFile(), tempfile.NamedTemporaryFile())
+                for name, _ in process_definitions.items()
+            }
+
             processes = {
                 name: subprocess.Popen(
                     args,
-                    stderr=subprocess.PIPE,  # Silence logs
-                    stdout=subprocess.PIPE,
+                    stdout=process_outs[name][0],
+                    stderr=process_outs[name][1],
                     env={
                         **os.environ,
                         'PORT': str(port),
@@ -66,6 +72,12 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 for name, args in process_definitions.items()
             }
 
+            def read_and_close(f):
+                f.seek(0)
+                contents = f.read()
+                f.close()
+                return contents
+
             def stop():
                 time.sleep(0.10)  # Sentry needs some extra time to log any errors
                 for _, process in processes.items():
@@ -73,12 +85,9 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 for _, process in processes.items():
                     process.wait(timeout=5)
                 output_errors = {
-                    name: process.communicate()
-                    for name, process in processes.items()
+                    name: (read_and_close(stdout), read_and_close(stderr))
+                    for name, (stdout, stderr) in process_outs.items()
                 }
-                for _, process in processes.items():
-                    process.stderr.close()
-                    process.stdout.close()
                 return output_errors
 
             try:
