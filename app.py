@@ -102,11 +102,31 @@ def proxy_app(
 
     def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
+
+        def _send(requester_ip, request_host, request_path, request_headers):
+            logger.info('Sending to Google Analytics %s: %s...', request_host, request_path)
+            requests.post(
+                os.environ.get('GA_ENDPOINT', 'https://www.google-analytics.com/collect'),
+                data={
+                    'v': '1',
+                    'tid': ga_tracking_id,
+                    'cid': str(uuid.uuid4()),
+                    't': 'pageview',
+                    'uip': requester_ip,
+                    'aip': '1',
+                    'dh': request_host,
+                    'dp': request_path,
+                    'ds': 'public-data-api',
+                    'dr': request_headers.get('referer', ''),
+                    'ua': request_headers.get('user-agent', ''),
+                }
+            )
+
         @wraps(handler)
         def send(*args, **kwargs):
             if ga_tracking_id:
                 gevent.spawn(
-                    _send_to_google_analytics,
+                    _send,
                     request.remote_addr,
                     request.host_url,
                     request.path,
@@ -468,25 +488,6 @@ def proxy_app(
             return response
 
         return Response(status=503)
-
-    def _send_to_google_analytics(requester_ip, request_host, request_path, request_headers):
-        logger.info('Sending to Google Analytics %s: %s...', request_host, request_path)
-        requests.post(
-            os.environ.get('GA_ENDPOINT', 'https://www.google-analytics.com/collect'),
-            data={
-                'v': '1',
-                'tid': ga_tracking_id,
-                'cid': str(uuid.uuid4()),
-                't': 'pageview',
-                'uip': requester_ip,
-                'aip': '1',
-                'dh': request_host,
-                'dp': request_path,
-                'ds': 'public-data-api',
-                'dr': request_headers.get('referer', ''),
-                'ua': request_headers.get('user-agent', ''),
-            }
-        )
 
     def docs():
         """
