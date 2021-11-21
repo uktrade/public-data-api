@@ -1,3 +1,10 @@
+# Don't absolutely need gevent here, but the web application uses gevent, and
+# the Python coverage package doesn't support both threads and gevent
+from gevent import (
+    monkey,
+)
+monkey.patch_all()
+
 import ecs_logging
 
 from functools import (
