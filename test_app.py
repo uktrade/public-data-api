@@ -101,12 +101,15 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
 
 
 def test_meta_with_application_fails():
-    @with_application(8080, max_attempts=1)
     def test(*_):
         pass
 
+    test_1 = with_application(8080, max_attempts=1)(test)
     with pytest.raises(ConnectionError):
-        test()
+        test_1()
+
+    # To ensure code coverage on above test function
+    with_application(8080)(test)()
 
 
 @with_application(8080)
