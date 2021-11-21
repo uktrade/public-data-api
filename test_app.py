@@ -595,6 +595,7 @@ def test_key_that_exists_after_multiple_sigterm_completes(processes):
         processes['web'].terminate()
         time.sleep(0.1)
         processes['web'].terminate()
+        time.sleep(1.0)
 
         for chunk in response.iter_content(chunk_size=16384):
             chunks.append(chunk)
@@ -619,6 +620,7 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
         assert response.headers['content-type'] == 'application/json'
 
         processes['web'].terminate()
+        time.sleep(1.0)
 
         with pytest.raises(requests.exceptions.ConnectionError):
             session.get(version_data_public_url(dataset_id, version), stream=True)
@@ -657,6 +659,7 @@ def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(proce
 
         with session.get(data_url, stream=True) as resp_4:
             processes['web'].terminate()
+            time.sleep(1.0)
 
             # No exception raised since the connection is already open
             with session.get(data_url):
