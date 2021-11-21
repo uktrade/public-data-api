@@ -1208,14 +1208,16 @@ def test_logs_ecs_format():
                 session.get(version_data_public_url(dataset_id, version)) as response:
             assert response.status_code == 200
 
-    output, error = make_api_call()['web']  # pylint: disable=unsubscriptable-object
-    assert error == b''
-    output_logs = output.decode().split('\n')
-    assert len(output_logs) >= 1
-    api_call_log = [json.loads(log) for log in output_logs if url in log]
-    assert len(api_call_log) == 2
-    assert 'ecs' in api_call_log[0]
-    assert b'Shut down gracefully' in output
+    processes = make_api_call()
+
+    web_output, web_error = processes['web']  # pylint: disable=unsubscriptable-object
+    assert web_error == b''
+    web_output_logs = web_output.decode().split('\n')
+    assert len(web_output_logs) >= 1
+    web_api_call_log = [json.loads(log) for log in web_output_logs if url in log]
+    assert len(web_api_call_log) == 2
+    assert 'ecs' in web_api_call_log[0]
+    assert b'Shut down gracefully' in web_output
 
 
 @with_application(8080)
