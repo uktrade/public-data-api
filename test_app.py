@@ -1009,6 +1009,7 @@ def test_no_latest_version(_):
 def test_redirect_to_latest_version(_):
     dataset_id = str(uuid.uuid4())
     table = 'table'
+
     # Ranges chosen to make sure we have at least 3 pages from S3 list objects, and to make
     # sure we hit as many cases as possible where if we were taking the latest version
     # alphabetically, we would choose the wrong version
@@ -1218,6 +1219,10 @@ def test_logs_ecs_format():
     assert len(web_api_call_log) == 2
     assert 'ecs' in web_api_call_log[0]
     assert b'Shut down gracefully' in web_output
+
+    worker_output, worker_error = processes['worker']  # pylint: disable=unsubscriptable-object
+    assert worker_error == b''
+    assert b'Shut down gracefully' in worker_output
 
 
 @with_application(8080)

@@ -5,8 +5,9 @@ from functools import (
 )
 import logging
 import os
+import signal
 import sys
-import time
+import threading
 import urllib.parse
 
 import sentry_sdk
@@ -25,7 +26,7 @@ from app_aws import (
 
 
 def ensure_csvs(
-        logger,
+        logger, shut_down,
         http, parsed_endpoint,
         aws_access_key_id, aws_secret_access_key, region_name,
 ):
@@ -105,6 +106,9 @@ def ensure_csvs(
     dataset_ids_versions = get_dataset_ids_versions(dataset_ids)
     dataset_ids_versions_needing_csvs = get_dataset_ids_versions_needing_csvs(dataset_ids_versions)
     for dataset_id, version in dataset_ids_versions_needing_csvs:
+        if shut_down.is_set():
+            break
+
         try:
             write_csvs(dataset_id, version)
         except Exception:
@@ -128,19 +132,37 @@ def main():
         urllib3.HTTPConnectionPool if parsed_endpoint.scheme == 'http' else \
         urllib3.HTTPSConnectionPool
 
-    with PoolClass(parsed_endpoint.hostname, port=parsed_endpoint.port, maxsize=1000) as http:
-        while True:
-            try:
-                ensure_csvs(
-                    logger,
-                    http, parsed_endpoint,
-                    os.environ['READ_AND_WRITE_AWS_ACCESS_KEY_ID'],
-                    os.environ['READ_AND_WRITE_AWS_SECRET_ACCESS_KEY'],
-                    os.environ['AWS_S3_REGION'],
-                )
-            except Exception:
-                logger.exception('Failed ensure_csvs')
-            time.sleep(5)
+    read_and_write_aws_access_key_id = os.environ['READ_AND_WRITE_AWS_ACCESS_KEY_ID']
+    read_and_write_aws_secret_access_key = os.environ['READ_AND_WRITE_AWS_SECRET_ACCESS_KEY']
+    aws_s3_region = os.environ['AWS_S3_REGION']
+
+    shut_down = threading.Event()
+
+    def run():
+        with PoolClass(parsed_endpoint.hostname, port=parsed_endpoint.port, maxsize=1000) as http:
+            while True:
+                try:
+                    ensure_csvs(
+                        logger, shut_down,
+                        http, parsed_endpoint,
+                        read_and_write_aws_access_key_id,
+                        read_and_write_aws_secret_access_key,
+                        aws_s3_region,
+                    )
+                except Exception:
+                    logger.exception('Failed ensure_csvs')
+
+                if shut_down.wait(timeout=5.0):
+                    break
+
+    def stop(_, __):
+        shut_down.set()
+
+    signal.signal(signal.SIGTERM, stop)
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join()
+    logger.info('Shut down gracefully')
 
 
 if __name__ == '__main__':
