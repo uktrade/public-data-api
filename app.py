@@ -98,6 +98,7 @@ def proxy_app(
 
     def stop():
         server.stop()
+        apm.client.close()
 
     def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
@@ -511,7 +512,7 @@ def proxy_app(
         resp.headers['X-Robots-Tag'] = 'no-index, no-follow'
         return resp
 
-    ElasticAPM(
+    apm = ElasticAPM(
         app,
         service_name='public-data-api',
         secret_token=os.environ['APM_SECRET_TOKEN'],
@@ -574,11 +575,15 @@ def main():
         sentry_sdk.init(  # pylint: disable=abstract-class-instantiated
             dsn=os.environ['SENTRY_DSN'],
             integrations=[FlaskIntegration()],
+            # Session tracking makes graceful shutdown difficult since it starts a thread but there
+            # is no quick way to kill it
+            auto_session_tracking=False,
         )
 
     gevent.signal_handler(signal.SIGTERM, stop)
     start()
     gevent.get_hub().join()
+    logger.info('Shut down gracefully')
 
 
 if __name__ == '__main__':
