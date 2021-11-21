@@ -69,7 +69,7 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
             def stop():
                 time.sleep(0.10)  # Sentry needs some extra time to log any errors
                 for _, process in processes.items():
-                    process.kill()
+                    process.terminate()
                 for _, process in processes.items():
                     process.wait(timeout=5)
                 output_errors = {
@@ -595,6 +595,7 @@ def test_key_that_exists_after_multiple_sigterm_completes(processes):
         processes['web'].terminate()
         time.sleep(0.1)
         processes['web'].terminate()
+        time.sleep(1.0)
 
         for chunk in response.iter_content(chunk_size=16384):
             chunks.append(chunk)
@@ -619,6 +620,7 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
         assert response.headers['content-type'] == 'application/json'
 
         processes['web'].terminate()
+        time.sleep(1.0)
 
         with pytest.raises(requests.exceptions.ConnectionError):
             session.get(version_data_public_url(dataset_id, version), stream=True)
@@ -657,6 +659,7 @@ def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(proce
 
         with session.get(data_url, stream=True) as resp_4:
             processes['web'].terminate()
+            time.sleep(1.0)
 
             # No exception raised since the connection is already open
             with session.get(data_url):
@@ -1200,6 +1203,7 @@ def test_logs_ecs_format():
     api_call_log = [json.loads(log) for log in output_logs if url in log]
     assert len(api_call_log) == 2
     assert 'ecs' in api_call_log[0]
+    assert b'Shut down gracefully' in output
 
 
 @with_application(8080)
