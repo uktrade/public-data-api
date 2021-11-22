@@ -83,7 +83,7 @@ def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 for _, process in processes.items():
                     process.terminate()
                 for _, process in processes.items():
-                    process.wait(timeout=5)
+                    process.wait(timeout=10)
                 output_errors = {
                     name: (read_and_close(stdout), read_and_close(stderr))
                     for name, (stdout, stderr) in process_outs.items()
