@@ -2,6 +2,19 @@
 
 Exposes datasets stored in S3-compatible object storage with a light-touch API.
 
+- Is easily hosted on [GOV.UK PaaS](https://www.cloud.service.gov.uk/)
+- Does not use a database
+- Data can be published via [data.gov.uk](https://data.gov.uk/)
+- Data can be accessed by an API, or downloaded
+- Promotes immutable and versioned datasets
+- Includes [GOV.UK Design System](https://design-system.service.gov.uk/)-styled documentation, exposed on the same domain as the API itself
+- Department-specific content in the documentation is populated from environment variables
+- Low memory usage even for large datasets - responses are streamed to the client
+- Data is gzipped and transparently uncompressed by clients when possible
+- [HTTP Range requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests) are supported when possible to allow clients to resume interrupted downloads
+- The [HTTP Content-Length header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length) is returned when possible to allow clients to estimate download time remaining
+- [HTTP Cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies) are not used
+
 
 ---
 
