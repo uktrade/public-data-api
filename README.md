@@ -19,14 +19,16 @@ Exposes datasets stored in S3-compatible object storage with a light-touch API.
 ## Running tests
 
 ```bash
-./start-services.sh  # Only required once
+pip install -r requirements_test.txt  # Only required once
+./start-services.sh                   # Only required once
 ./test_app.sh
 ```
 
 
 ## Running locally
 
-```
+```bash
+pip install -r requirements.txt  # Only required once
 python3 -m app
 ```
 
