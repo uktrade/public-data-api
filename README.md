@@ -27,9 +27,22 @@ pip install -r requirements_test.txt  # Only required once
 
 ## Running locally
 
+Most development can be done from tests. However, it can be useful to run the front end of the application locally to work on the documentation. The below results in the documentation being visible at http://localhost:8888/
+
 ```bash
 pip install -r requirements.txt  # Only required once
-python3 -m app
+PORT=8888 \
+READONLY_AWS_ACCESS_KEY_ID=any \
+READONLY_AWS_SECRET_ACCESS_KEY=any \
+AWS_S3_ENDPOINT=http://any/ \
+AWS_S3_REGION=any \
+APM_SECRET_TOKEN=any \
+APM_SERVER_URL=any \
+ENVIRONMENT=any \
+DOCS_DEPARTMENT_NAME='Department for International Trade' \
+DOCS_SERVICE_NAME='Data API' \
+DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
+    python3 -m app
 ```
 
 
