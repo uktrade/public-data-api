@@ -18,18 +18,6 @@ Exposes datasets stored in S3-compatible object storage with a light-touch API.
 
 ---
 
-## Concepts and common parameters
-
-A dataset has one or more immutable versions.
-
-| Name         | Description | Example
-| ---          | ---         | --- 
-| `dataset-id` | A human-readable identifier of the dataset | `capital-cities`
-| `version`    | A version in the format `vX.Y.Z`, where `X.Y.Z` is the [Semver 2.0](https://semver.org/) version of the dataset. | `v1.2.3`
-
-
----
-
 ## Technical requirements
 
 ### Environment variables
