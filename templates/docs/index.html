@@ -81,7 +81,7 @@
             <!-- Main title -->
             <h1 id="top">{{ service_name }}</h1>
 
-            <p>The {{ department_name }} {{ service_name }} supplies datasets to the public. The source code for the {{ service_name }} is available in its <a href="{{ github_repo_url }}">GitHub repository</a>.</p>
+            <p>The {{ department_name }} {{ service_name }} supplies datasets to the public.</p>
             <ul>
               <li>Datasets are versioned</li>
               <li>Each dataset version is immutable</li>
@@ -89,6 +89,8 @@
               <li>Columns and rows can be filtered using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a></li>
               <li>Data is supplied as <a href="https://en.wikipedia.org/wiki/JSON">JSON</a> or <a href="https://www.gov.uk/government/publications/recommended-open-standards-for-government/tabular-data-standard">CSV</a></li>
             </ul>
+
+            <p>The source code for the {{ service_name }} is available in its <a href="{{ github_repo_url }}">GitHub repository</a>.</p>
 
             <!-- API -->
             <h2 id="api">API Endpoints</h2>
