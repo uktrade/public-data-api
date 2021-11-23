@@ -16,11 +16,22 @@ Exposes datasets stored in S3-compatible object storage with a light-touch API.
 - [HTTP Cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies) are not used
 
 
----
+## Running tests
 
-## Technical requirements
+```bash
+./start-services.sh  # Only required once
+./test_app.sh
+```
 
-### Environment variables
+
+## Running locally
+
+```
+python3 -m app
+```
+
+
+## Environment variables
 
 | Variable                | Description | Example |
 | ---                     | ---         | ---     |
@@ -50,26 +61,12 @@ The below environment variables are also required, but typically populated by Pa
 | ---             | ---         | ---     |
 | `PORT`          | The port for the application to listen on | `8080`
 
-### Permissions and 404s
+
+## Permissions and 404s
 
 If the AWS user has the ListBucket permission, 404s are proxied through to the user to aid debugging.
 
 
-### Shutdown
+## Shutdown
 
 On SIGTERM any in-progress requests will complete before the process exits. At the time of writing PaaS will then forcibly kill the process with SIGKILL if it has not exited within 10 seconds.
-
-
-### Running locally
-
-```
-python3 -m app
-```
-
-
-### Running tests
-
-```bash
-./start-services.sh  # Only required once
-./test_app.sh
-```
