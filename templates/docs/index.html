@@ -60,6 +60,9 @@
                   <a href="#top"><span>{{ service_name }}</span></a>
                   <ul>
                     <li>
+                      <a href="#concepts"><span>Concepts and common parameters</span></a>
+                    </li>
+                    <li>
                       <a href="#api"><span>API Endpoints</span></a>
                       <ul>
                         <li>
@@ -93,6 +96,30 @@
             <p>The source code for the {{ service_name }} is available in its <a href="{{ github_repo_url }}">GitHub repository</a>.</p>
 
             <!-- API -->
+            <h2 id="concepts">Concepts and common parameters</h2>
+            <p>A dataset has one or more immutable versions./<p>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                  <th scope="col" class="govuk-table__header">Example</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">dataset-id</code></td>
+                  <td class="govuk-table__cell">A human-readable identifier of the dataset</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">capital-cities</code></td>
+                </tr>
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">version</code></td>
+                  <td class="govuk-table__cell">A version in the format <code class="hljs html">vX.Y.Z</code>, where <code class="hljs html">X.Y.Z</code> is the <a href="https://semver.org/">Semver 2.0</a> version of the dataset.</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">v1.2.3</code></td>
+                </tr>
+              </tbody>
+            </table>
+
             <h2 id="api">API Endpoints</h2>
 
             <h3 id="get-specific-version">GET specific version of a dataset</h3>
