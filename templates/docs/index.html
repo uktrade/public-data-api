@@ -69,10 +69,19 @@
                       <a href="#api"><span>API Endpoints</span></a>
                       <ul>
                         <li>
-                          <a href="#get-specific-version"><span>GET specific version of a dataset</span></a>
+                          <a href="#list-datasets"><span>GET list of datasets</span></a>
                         </li>
                         <li>
-                          <a href="#get-latest-version"><span>GET latest version of a dataset</span></a>
+                          <a href="#list-versions"><span>GET list of versions of a dataset</span></a>
+                        </li>
+                        <li>
+                          <a href="#list-tables"><span>GET list of tables in a version</span></a>
+                        </li>
+                        <li>
+                          <a href="#get-specific-version"><span>GET data in a version</span></a>
+                        </li>
+                        <li>
+                          <a href="#get-latest-version"><span>GET data in latest version</span></a>
                         </li>
                       </ul>
                     </li>
@@ -129,7 +138,117 @@
 
             <h2 id="api">API Endpoints</h2>
 
-            <h3 id="get-specific-version">GET specific version of a dataset</h3>
+            <h3 id="list-datasets">GET list of datasets</h3>
+            <pre><code class="hljs html">GET /v1/datasets</code></pre>
+            <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                  <th scope="col" class="govuk-table__header">Example</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">format</code> (required)</td>
+                  <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">json</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 id="get-latest-version-example">Example</h4>
+            <h5 id="get-latest-version-example-request">Request</h5>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets?format=json</code></pre>
+
+            <h5 id="get-latest-version-example-response">Response</h5>
+            <pre><code class="hljs html">Status: 200 OK
+{
+    "datasets": [
+        {"id": "market-barriers"}, {"id": "uk-tariff-2021-01-01"}
+    ]
+}
+</code></pre>
+
+            <h3 id="list-versions">GET list of versions of a dataset</h3>
+            <pre><code class="hljs html">GET /v1/datasets/:dataset-id/versions</code></pre>
+            <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                  <th scope="col" class="govuk-table__header">Example</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">format</code> (required)</td>
+                  <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">json</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 id="get-latest-version-example">Example</h4>
+            <h5 id="get-latest-version-example-request">Request</h5>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions?format=json</code></pre>
+
+            <h5 id="get-latest-version-example-response">Response</h5>
+            <pre><code class="hljs html">Status: 200 OK
+{
+    "versions": [
+        {"id": "v2.1.0"}, {"id": "v1.0.1"}
+    ]
+}
+</code></pre>
+
+            <h3 id="list-tables">GET list of tables in a version</h3>
+            <pre><code class="hljs html">GET /v1/datasets/:dataset-id/versions/v1.0.1/tables</code></pre>
+            <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                  <th scope="col" class="govuk-table__header">Example</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">format</code> (required)</td>
+                  <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">json</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 id="get-latest-version-example">Example for specific version</h4>
+            <h5 id="get-latest-version-example-request">Request</h5>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/v1.0.1/tables?format=json</code></pre>
+
+            <h5 id="get-latest-version-example-response">Response</h5>
+            <pre><code class="hljs html">Status: 200 OK
+{
+    "tables": [
+        {"id": "commodities"},
+        {"id": "measures-as-defined"},
+        {"id": "measures-on-declarable-commodities"}
+    ]
+}
+</code></pre>
+
+            <h4 id="get-latest-version-example">Example for latest version</h4>
+            <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
+            <h5 id="get-latest-version-example-request">Request</h5>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/latest/tables?format=json</code></pre>
+
+            <h5 id="get-latest-version-example-response">Response</h5>
+            <pre><code class="hljs html">Status: 302 Found
+Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/tables?format=json</code></pre>
+
+            <h3 id="get-specific-version">GET data in a version</h3>
             <pre><code class="hljs html">GET /v1/datasets/:dataset-id/versions/:version/data</code></pre>
             <h4 id="get-specific-version-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
@@ -163,7 +282,7 @@
 
             <h4 id="get-specific-version-example-without-query">Example without a query</h4>
             <h5 id="get-specific-version-example-without-query-request">Request</h5>
-            <pre><code class="hljs html">GET /v1/datasets/capital-cities/versions/v0.0.1/data?format=json</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/capital-cities/versions/v0.0.1/data?format=json</code></pre>
 
             <h5 id="get-specific-version-example-without-a-query-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
@@ -177,7 +296,7 @@
 
             <h4 id="get-specific-version-example-with-query">Example with a query</h4>
             <h5 id="get-specific-version-example-with-request">Request</h5>
-            <pre><code class="hljs html">GET /v1/datasets/capital-cities/versions/v0.0.1/data?format=json&query-s3-select=...</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/capital-cities/versions/v0.0.1/data?format=json&query-s3-select=...</code></pre>
             where <code class="hljs html">...</code> is the below, but URL-encoded
 
             <pre><code class="hljs psql">SELECT * FROM S3Object[*].capital_cities[*] AS city WHERE city.iso_2_country_code = 'Paris'</code></pre>
@@ -190,7 +309,15 @@
     ]
 }</code></pre>
 
-            <h3 id="get-latest-version">GET latest version of a dataset</h3>
+            <h4 id="get-latest-version-example">Example</h4>
+            <h5 id="get-latest-version-example-request">Request</h5>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/capital-cities/versions/latest/data?format=json</code></pre>
+
+            <h5 id="get-latest-version-example-response">Response</h5>
+            <pre><code class="hljs html">Status: 302 Found
+Location: /v1/datasets/capital-cities/versions/v0.0.1/data?format=json</code></pre>
+
+            <h3 id="get-latest-version">GET data in latest version</h3>
             <pre><code class="hljs html">GET /v1/datasets/:dataset-id/versions/latest/data</code></pre>
             <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
@@ -219,14 +346,6 @@
                 </tr>
               </tbody>
             </table>
-
-            <h4 id="get-latest-version-example">Example</h4>
-            <h5 id="get-latest-version-example-request">Request</h5>
-            <pre><code class="hljs html">GET /v1/datasets/capital-cities/versions/latest/data?format=json</code></pre>
-
-            <h5 id="get-latest-version-example-response">Response</h5>
-            <pre><code class="hljs html">Status: 302 Found
-Location: /v1/datasets/capital-cities/versions/v0.0.1/data?format=json</code></pre>
 
           </main>
           <footer class="govuk-footer app-footer" role="contentinfo">
