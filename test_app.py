@@ -588,6 +588,144 @@ def test_key_that_exists_during_shutdown_completes(processes):
 
 
 @with_application(8080)
+def test_list_datasets_no_datasets(_):
+    with \
+            requests.Session() as session, \
+            session.get(list_datasets_public_url()) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"datasets": []}'
+
+
+@with_application(8080)
+def test_list_datasets(_):
+    dataset_id = 'my-dataset'
+    content = str(uuid.uuid4()).encode() * 100
+    put_version_data(dataset_id, 'v0.0.1', content)
+    with \
+            requests.Session() as session, \
+            session.get(list_datasets_public_url()) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"datasets": [{"id": "my-dataset"}]}'
+
+    # new version to the same dataset
+    put_version_data(dataset_id, 'v0.0.2', content)
+    with \
+            requests.Session() as session, \
+            session.get(list_datasets_public_url()) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"datasets": [{"id": "my-dataset"}]}'
+
+    put_version_data('your-dataset', 'v0.0.1', content)
+    with \
+            requests.Session() as session, \
+            session.get(list_datasets_public_url()) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"datasets": [{"id": "my-dataset"}, {"id": "your-dataset"}]}'
+
+
+@with_application(8080)
+def test_list_datasets_no_healthcheck(_):
+    dataset_id = 'my-dataset'
+    content = str(uuid.uuid4()).encode() * 100
+    put_version_data(dataset_id, 'v0.0.1', content)
+    put_version_data('healthcheck', 'v0.0.1', b'header\n' + b'value\n' * 10)
+    with \
+            requests.Session() as session, \
+            session.get(list_datasets_public_url()) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"datasets": [{"id": "my-dataset"}]}'
+
+
+@with_application(8080)
+def test_list_dataset_versions_no_datasets(_):
+    dataset_id = str(uuid.uuid4())
+
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_versions_public_url(dataset_id)) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"versions": []}'
+
+
+@with_application(8080)
+def test_list_dataset_versions(_):
+    dataset_id = str(uuid.uuid4())
+    content = str(uuid.uuid4()).encode() * 100
+    put_version_data(dataset_id, 'v0.0.1', content)
+
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_versions_public_url(dataset_id)) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"versions": [{"id": "v0.0.1"}]}'
+
+    put_version_data(dataset_id, 'v0.0.2', content)
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_versions_public_url(dataset_id)) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"versions": [{"id": "v0.0.2"}, {"id": "v0.0.1"}]}'
+
+
+@with_application(8080)
+def test_list_tables_for_dataset_version_no_tables(_):
+    dataset_id = str(uuid.uuid4())
+    content = str(uuid.uuid4()).encode() * 100
+    version = 'v0.0.1'
+    put_version_data(dataset_id, version, content)
+
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_tables_public_url(dataset_id, version)) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"tables": []}'
+
+
+@with_application(8080)
+def test_list_tables_for_dataset_version(_):
+    dataset_id = str(uuid.uuid4())
+    put_version_table(dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"tables": [{"id": "foo"}]}'
+
+    put_version_table(dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
+
+    put_version_table(dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
+
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.2')) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"tables": [{"id": "baz"}]}'
+
+
+@with_application(8080)
+def test_list_tables_for_dataset__latest_version(_):
+    dataset_id = str(uuid.uuid4())
+    put_version_table(dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    put_version_table(dataset_id, 'v0.0.2', 'bar', b'header\n' + b'value\n' * 10000)
+    put_version_table(dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    with \
+            requests.Session() as session, \
+            session.get(list_dataset_tables_public_url(dataset_id, 'latest')) as response:
+        assert response.headers['content-type'] == 'text/json'
+        assert response.content == b'{"tables": [{"id": "bar"}, {"id": "baz"}]}'
+
+
+@with_application(8080)
 def test_key_that_exists_after_multiple_sigterm_completes(processes):
     # PaaS can apparently send multiple sigterms
 
@@ -1456,6 +1594,18 @@ def delete_all_objects():
 
 
 _url_prefix = 'http://127.0.0.1:8080/v1/datasets'
+
+
+def list_datasets_public_url():
+    return f'{_url_prefix}?format=json'
+
+
+def list_dataset_versions_public_url(dataset_id):
+    return f'{_url_prefix}/{dataset_id}/versions?format=json'
+
+
+def list_dataset_tables_public_url(dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables?format=json'
 
 
 def version_metadata_public_url(dataset_id, version):

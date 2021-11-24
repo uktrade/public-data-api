@@ -298,6 +298,49 @@ def proxy_app(
             table_sizes=table_sizes)
 
     @track_analytics
+    @validate_format(('json',))
+    def list_all_datasets():
+        folders = aws_list_folders(signed_s3_request, '')
+        versions = {
+            'datasets': [
+                {'id': dataset} for dataset in folders if dataset != 'healthcheck'
+            ]
+        }
+
+        response = Response(json.dumps(versions), status=200)
+        response.headers['Content-Type'] = 'text/json'
+        return response
+
+    @track_analytics
+    @validate_format(('json',))
+    def list_versions_for_dataset(dataset_id):
+        def semver_key(path):
+            v_major_str, minor_str, patch_str = path.split('.')
+            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+        folders = aws_list_folders(signed_s3_request, dataset_id + '/')
+        sorted_versions = sorted(folders, key=semver_key, reverse=True)
+        versions = {'versions': [{'id': version} for version in sorted_versions]}
+
+        response = Response(json.dumps(versions), status=200)
+        response.headers['Content-Type'] = 'text/json'
+        return response
+
+    @track_analytics
+    @validate_and_redirect_version
+    @validate_format(('json',))
+    def list_tables_for_dataset_version(dataset_id, version):
+        folders = aws_list_folders(
+            signed_s3_request,
+            f'{dataset_id}/{version}/tables/',
+        )
+        tables = {'tables': [{'id': table} for table in folders]}
+
+        response = Response(json.dumps(tables), status=200)
+        response.headers['Content-Type'] = 'text/json'
+        return response
+
+    @track_analytics
     @validate_and_redirect_version
     @validate_format(('json',))
     def proxy_data(dataset_id, version):
@@ -522,6 +565,18 @@ def proxy_app(
         server_timeout=os.environ.get('APM_SERVER_TIMEOUT', None),
     )
 
+    app.add_url_rule(
+        '/v1/datasets',
+        view_func=list_all_datasets
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions',
+        view_func=list_versions_for_dataset
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables',
+        view_func=list_tables_for_dataset_version
+    )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/data',
         view_func=proxy_table
