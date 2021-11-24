@@ -60,6 +60,9 @@
                   <a href="#top"><span>{{ service_name }}</span></a>
                   <ul>
                     <li>
+                      <a href="#base-url"><span>Base URL</span></a>
+                    </li>
+                    <li>
                       <a href="#concepts"><span>Concepts and common parameters</span></a>
                     </li>
                     <li>
@@ -94,6 +97,10 @@
             </ul>
 
             <p>The source code for the {{ service_name }} is available in its <a href="{{ github_repo_url }}">GitHub repository</a>.</p>
+
+            <h2 id="base-url">Base URL</h2>
+            <p>All requests to this API should be prefixed with the following URL:</p>
+            <p><strong>{{ base_url }}</strong></p>
 
             <!-- API -->
             <h2 id="concepts">Concepts and common parameters</h2>

@@ -540,6 +540,7 @@ def proxy_app(
             'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
             'service_name': os.environ.get('DOCS_SERVICE_NAME'),
             'github_repo_url': os.environ.get('DOCS_GITHUB_REPO_URL'),
+            'base_url': request.base_url.rstrip('/'),
         }
         return render_template('docs/index.html', **context)
 
