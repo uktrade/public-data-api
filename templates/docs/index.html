@@ -140,7 +140,7 @@
 
             <h3 id="list-datasets">GET list of datasets</h3>
             <pre><code class="hljs html">GET /v1/datasets</code></pre>
-            <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
+            <h4 id="list-datasets-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
@@ -158,11 +158,11 @@
               </tbody>
             </table>
 
-            <h4 id="get-latest-version-example">Example</h4>
-            <h5 id="get-latest-version-example-request">Request</h5>
+            <h4 id="list-datasets-example">Example</h4>
+            <h5 id="list-datasets-example-request">Request</h5>
             <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets?format=json</code></pre>
 
-            <h5 id="get-latest-version-example-response">Response</h5>
+            <h5 id="list-datasets-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
     "datasets": [
@@ -173,7 +173,7 @@
 
             <h3 id="list-versions">GET list of versions of a dataset</h3>
             <pre><code class="hljs html">GET /v1/datasets/:dataset-id/versions</code></pre>
-            <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
+            <h4 id="list-versions-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
@@ -191,11 +191,11 @@
               </tbody>
             </table>
 
-            <h4 id="get-latest-version-example">Example</h4>
-            <h5 id="get-latest-version-example-request">Request</h5>
+            <h4 id="list-versions-example">Example</h4>
+            <h5 id="list-versions-example-request">Request</h5>
             <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions?format=json</code></pre>
 
-            <h5 id="get-latest-version-example-response">Response</h5>
+            <h5 id="list-versions-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
     "versions": [
@@ -206,7 +206,7 @@
 
             <h3 id="list-tables">GET list of tables in a version</h3>
             <pre><code class="hljs html">GET /v1/datasets/:dataset-id/versions/v1.0.1/tables</code></pre>
-            <h4 id="get-latest-version-query-string-parameters">Query string parameters</h4>
+            <h4 id="list-tables-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
@@ -224,11 +224,11 @@
               </tbody>
             </table>
 
-            <h4 id="get-latest-version-example">Example for specific version</h4>
-            <h5 id="get-latest-version-example-request">Request</h5>
+            <h4 id="list-tables-version-example">Example for specific version</h4>
+            <h5 id="list-tables-example-request">Request</h5>
             <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/v1.0.1/tables?format=json</code></pre>
 
-            <h5 id="get-latest-version-example-response">Response</h5>
+            <h5 id="list-tables-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
     "tables": [
@@ -239,12 +239,12 @@
 }
 </code></pre>
 
-            <h4 id="get-latest-version-example">Example for latest version</h4>
+            <h4 id="list-tables-latest-version-example">Example for latest version</h4>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
-            <h5 id="get-latest-version-example-request">Request</h5>
+            <h5 id="list-tables-latest-version-example-request">Request</h5>
             <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/latest/tables?format=json</code></pre>
 
-            <h5 id="get-latest-version-example-response">Response</h5>
+            <h5 id="list-tables-latest-version-example-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
 Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/tables?format=json</code></pre>
 
