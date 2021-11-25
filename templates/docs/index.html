@@ -81,9 +81,6 @@
                           <a href="#get-data"><span>GET data in a version</span></a>
                         </li>
                         <li>
-                          <a href="#get-data"><span>GET data in a version</span></a>
-                        </li>
-                        <li>
                           <a href="#get-data-table"><span>GET data in a table</span></a>
                         </li>
                       </ul>
@@ -189,7 +186,7 @@
             </table>
             <h4 id="list-versions-example">Example</h4>
             <h5 id="list-versions-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions?format=json</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions?format=json</code></pre>
             <h5 id="list-versions-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -217,7 +214,7 @@
             </table>
             <h4 id="list-tables-version-example">Example for specific version</h4>
             <h5 id="list-tables-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/v1.0.1/tables?format=json</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables?format=json</code></pre>
             <h5 id="list-tables-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -230,10 +227,10 @@
             <h4 id="list-tables-latest-version-example">Example for latest version</h4>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
             <h5 id="list-tables-latest-version-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/latest/tables?format=json</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables?format=json</code></pre>
             <h5 id="list-tables-latest-version-example-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
-Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/tables?format=json</code></pre>
+Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format=json</code></pre>
 
             <h3 id="get-data">GET data in a version</h3>
             <p>Entire data of a version of the dataset can be accessed/downloaded using this endpoint</p>
@@ -266,35 +263,35 @@ Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/tables?format=json</
             <p>If a <code class="hljs html">query-s3-select</code> is <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the dataset. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
             <h4 id="get-specific-version-example-without-query">Example without a query</h4>
             <h5 id="get-specific-version-example-without-query-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/v1.0.1/data?format=json</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data?format=json</code></pre>
             <h5 id="get-specific-version-example-without-a-query-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
     "capital_cities": [
-        {"name": "London", "iso_2_country_code": "GB"},
-        {"name": "Paris", "iso_2_country_code": "FR"},
-        {"name": "Belgium", "iso_2_country_code": "BE"}
+        {"commodity__code": "0100000000", "commodity__description": "LIVE ANIMALS"},
+        {"commodity__code": "0101000000", "commodity__description": "Live horses, asses, mules and hinnies"},
+        {"commodity__code": "0101210000", "commodity__description": "Horses"},
     ]
 }</code></pre>
             <h4 id="get-specific-version-example-with-query">Example with a query</h4>
             <h5 id="get-specific-version-example-with-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/v1.0.1/data?format=json&query-s3-select=...</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data?format=json&query-s3-select=...</code></pre>
             where <code class="hljs html">...</code> is the below, but URL-encoded
-            <pre><code class="hljs psql">SELECT * FROM S3Object[*].capital_cities[*] AS city WHERE city.iso_2_country_code = 'Paris'</code></pre>
+            <pre><code class="hljs psql">SELECT * FROM S3Object[*].{{ dataset }}[{{ table_name }}] AS commodities WHERE commodities.commodity__code = '0101210000'</code></pre>
             <h5 id="get-specific-version-example-with-query-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
     "rows": [
-        {"name": "Paris", "iso_2_country_code": "FR"}
+        {"commodity__code": "0101210000", "commodity__description": "Horses"}
     ]
 }</code></pre>
             <h4 id="get-latest-version-example">Example for latest data</h4>
             <h5 id="get-latest-version-example-request">Request</h5>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/latest/data?format=json</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/data?format=json</code></pre>
             <h5 id="get-latest-version-example-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
-Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/data?format=json</code></pre>
+Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/data?format=json</code></pre>
 
             <h3 id="get-data-table">GET data in a table</h3>
             <p>A version of the dataset can have one or more tables. Each table can be accessed/downloaded using this endpoint</p>
@@ -320,7 +317,7 @@ Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/data?format=json</co
             </table>
             <h4 id="get-data-table-example-version">Example</h4>
             <h5 id="get-data-table-example-version-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/v1.0.1/tables/commodities/data?format=csv</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data?format=csv</code></pre>
             <h5 id="get-data-table-example-version-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 "id","commodity__sid","commodity__code","commodity__suffix","commodity__description","commodity__validity_start","commodity__validity_end","parent__sid","parent__code","parent__suffix"
@@ -331,10 +328,10 @@ Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/data?format=json</co
             <h4 id="get-data-table-example-latest">Example with latest</h4>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
             <h5 id="get-data-table-example-latest-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/uk-tariff-2021-01-01/versions/latest/tables/commodities/data?format=csv</code></pre>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables/{{ table_name }}/data?format=csv</code></pre>
             <h5 id="get-data-table-example-latest-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
-Location: /v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/tables/commodities/data?format=csv</code></pre>
+Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables/{{ table_name }}/data?format=csv</code></pre>
 
           </main>
           <footer class="govuk-footer app-footer" role="contentinfo">
