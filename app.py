@@ -541,6 +541,10 @@ def proxy_app(
             'service_name': os.environ.get('DOCS_SERVICE_NAME'),
             'github_repo_url': os.environ.get('DOCS_GITHUB_REPO_URL'),
             'base_url': request.base_url.rstrip('/'),
+            'dataset': os.environ.get('DOCS_SAMPLE_DATASET', 'uk-tariff-2021-01-01'),
+            'version': os.environ.get('DOCS_SAMPLE_VERSION', 'v1.0.1'),
+            'latest_version': os.environ.get('DOCS_SAMPLE_LATEST_VERSION', 'v2.1.0'),
+            'table_name': os.environ.get('DOCS_SAMPLE_TABLE_NAME', 'commodities'),
         }
         return render_template('docs/index.html', **context)
 
