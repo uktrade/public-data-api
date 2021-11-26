@@ -63,7 +63,10 @@
                       <a href="#base-url"><span>Base URL</span></a>
                     </li>
                     <li>
-                      <a href="#concepts"><span>Concepts and common parameters</span></a>
+                      <a href="#concepts"><span>Concepts</span></a>
+                    </li>
+                    <li>
+                      <a href="#common-parameters"><span>Common Parameters</span></a>
                     </li>
                     <li>
                       <a href="#api"><span>API Endpoints</span></a>
@@ -112,8 +115,15 @@
             <p><strong>{{ base_url }}</strong></p>
 
             <!-- API -->
-            <h2 id="concepts">Concepts and common parameters</h2>
-            <p>A dataset has one or more immutable versions. Each version may contain one or more tables.</p>
+            <h2 id="concepts">Concepts</h2>
+            <p>The function of the {{ service_name }} is to supply datasets. A dataset has one or more immutable versions, and each version has one or more tables.<p>
+
+            <p>All the data in a version can be accessed by the <a href="#get-data">GET data in a version</a> endpoint, or the data in a single table of a version can be access by the <a href="#get-data-table">GET data in a table</a> endpoint.</p>
+
+            <h2 id="common-parameters">Common parameters</h2>
+
+            <p>Several parameters are applicable to multiple API endpoints.</p>
+
             <table class="govuk-table">
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
