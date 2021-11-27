@@ -131,11 +131,11 @@ def test_key_that_exists(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version)) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json')) as response:
         assert response.content == content
         assert response.headers['content-length'], str(len(content))
         assert response.headers['content-type'], 'application/json'
@@ -144,7 +144,7 @@ def test_key_that_exists(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url_download(dataset_id, version)) as response:
+            session.get(version_data_public_url_download(dataset_id, version, 'json')) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
@@ -508,15 +508,15 @@ def test_multiple_concurrent_requests(processes):
     content_1 = str(uuid.uuid4()).encode() * 1000000
     content_2 = str(uuid.uuid4()).encode() * 1000000
 
-    put_version_data(dataset_id_1, version_1, content_1)
-    put_version_data(dataset_id_2, version_2, content_2)
+    put_version_data(dataset_id_1, version_1, content_1, 'json')
+    put_version_data(dataset_id_2, version_2, content_2, 'json')
 
     with \
             requests.Session() as session, \
             session.get(version_data_public_url(dataset_id_1,
-                                                version_1), stream=True) as response_1, \
+                                                version_1, 'json'), stream=True) as response_1, \
             session.get(version_data_public_url(dataset_id_2,
-                                                version_2), stream=True) as response_2:
+                                                version_2, 'json'), stream=True) as response_2:
 
         iter_1 = response_1.iter_content(chunk_size=16384)
         iter_2 = response_2.iter_content(chunk_size=16384)
@@ -563,13 +563,14 @@ def test_key_that_exists_during_shutdown_completes(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     chunks = []
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version), stream=True) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json'),
+                        stream=True) as response:
 
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
@@ -593,7 +594,7 @@ def test_list_datasets_no_datasets(processes):
 def test_list_datasets(processes):
     dataset_id = 'my-dataset'
     content = str(uuid.uuid4()).encode() * 100
-    put_version_data(dataset_id, 'v0.0.1', content)
+    put_version_data(dataset_id, 'v0.0.1', content, 'json')
     with \
             requests.Session() as session, \
             session.get(list_datasets_public_url()) as response:
@@ -601,14 +602,14 @@ def test_list_datasets(processes):
         assert response.content == b'{"datasets": [{"id": "my-dataset"}]}'
 
     # new version to the same dataset
-    put_version_data(dataset_id, 'v0.0.2', content)
+    put_version_data(dataset_id, 'v0.0.2', content, 'json')
     with \
             requests.Session() as session, \
             session.get(list_datasets_public_url()) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"datasets": [{"id": "my-dataset"}]}'
 
-    put_version_data('your-dataset', 'v0.0.1', content)
+    put_version_data('your-dataset', 'v0.0.1', content, 'json')
     with \
             requests.Session() as session, \
             session.get(list_datasets_public_url()) as response:
@@ -619,8 +620,8 @@ def test_list_datasets(processes):
 def test_list_datasets_no_healthcheck(processes):
     dataset_id = 'my-dataset'
     content = str(uuid.uuid4()).encode() * 100
-    put_version_data(dataset_id, 'v0.0.1', content)
-    put_version_data('healthcheck', 'v0.0.1', b'header\n' + b'value\n' * 10)
+    put_version_data(dataset_id, 'v0.0.1', content, 'json')
+    put_version_data('healthcheck', 'v0.0.1', b'header\n' + b'value\n' * 10, 'json')
     with \
             requests.Session() as session, \
             session.get(list_datasets_public_url()) as response:
@@ -641,7 +642,7 @@ def test_list_dataset_versions_no_datasets(processes):
 def test_list_dataset_versions(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100
-    put_version_data(dataset_id, 'v0.0.1', content)
+    put_version_data(dataset_id, 'v0.0.1', content, 'json')
 
     with \
             requests.Session() as session, \
@@ -649,7 +650,7 @@ def test_list_dataset_versions(processes):
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"versions": [{"id": "v0.0.1"}]}'
 
-    put_version_data(dataset_id, 'v0.0.2', content)
+    put_version_data(dataset_id, 'v0.0.2', content, 'json')
     with \
             requests.Session() as session, \
             session.get(list_dataset_versions_public_url(dataset_id)) as response:
@@ -661,7 +662,7 @@ def test_list_tables_for_dataset_version_no_tables(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     with \
             requests.Session() as session, \
@@ -718,13 +719,14 @@ def test_key_that_exists_after_multiple_sigterm_completes(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     chunks = []
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version), stream=True) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json'),
+                        stream=True) as response:
 
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
@@ -744,13 +746,14 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     chunks = []
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version), stream=True) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json'),
+                        stream=True) as response:
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
 
@@ -758,7 +761,7 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
         time.sleep(1.0)
 
         with pytest.raises(requests.exceptions.ConnectionError):
-            session.get(version_data_public_url(dataset_id, version), stream=True)
+            session.get(version_data_public_url(dataset_id, version, 'json'), stream=True)
 
         for chunk in response.iter_content(chunk_size=16384):
             chunks.append(chunk)
@@ -775,13 +778,13 @@ def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(proce
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     chunks = []
 
     with requests.Session() as session:
         # Ensure we have two connections
-        data_url = version_data_public_url(dataset_id, version)
+        data_url = version_data_public_url(dataset_id, version, 'json')
         with session.get(data_url, stream=True) as resp_2, \
                 session.get(data_url, stream=True) as resp_3:
 
@@ -810,10 +813,10 @@ def test_range_request_from_start(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     headers = {'range': 'bytes=0-'}
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with \
             requests.Session() as session, \
             session.get(data_url, headers=headers) as response:
@@ -826,9 +829,9 @@ def test_range_request_after_start(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     headers = {'range': 'bytes=1-'}
     with \
             requests.Session() as session, \
@@ -844,7 +847,7 @@ def test_bad_aws_credentials(processes_bad_key):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version)) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json')) as response:
         assert response.status_code == 500
 
 
@@ -854,7 +857,7 @@ def test_key_that_does_not_exist(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version)) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json')) as response:
         assert response.status_code == 404
 
 
@@ -873,7 +876,7 @@ def test_key_that_exists_without_format(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     with \
             requests.Session() as session, \
@@ -884,7 +887,7 @@ def test_key_that_exists_without_format(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version)) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json')) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
@@ -916,7 +919,7 @@ def test_key_that_exists_with_bad_format(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     with \
             requests.Session() as session, \
@@ -927,7 +930,7 @@ def test_key_that_exists_with_bad_format(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version)) as response:
+            session.get(version_data_public_url(dataset_id, version, 'json')) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
@@ -965,7 +968,7 @@ def test_select_all(processes):
         )
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     params = {
         'query-s3-select': 'SELECT * FROM S3Object[*].topLevel[*]'
@@ -978,7 +981,7 @@ def test_select_all(processes):
         ),
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
         assert response.status_code == 200
         assert response.content == expected_content
@@ -994,7 +997,7 @@ def test_select_newlines(processes):
         )
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     params = {
         'query-s3-select': 'SELECT * FROM S3Object[*].topLevel[*]'
@@ -1005,7 +1008,7 @@ def test_select_newlines(processes):
         ),
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
         assert response.status_code == 200
         assert response.content == expected_content
@@ -1020,7 +1023,7 @@ def test_select_strings_that_are_almost_unicode_escapes(processes):
         )
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     params = {
         'query-s3-select': 'SELECT * FROM S3Object[*].topLevel[*]'
@@ -1031,7 +1034,7 @@ def test_select_strings_that_are_almost_unicode_escapes(processes):
         ),
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
         assert response.status_code == 200
         assert response.content == expected_content
@@ -1049,7 +1052,7 @@ def test_select_subset(processes):
         )
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     params = {
         'query-s3-select':
@@ -1060,7 +1063,7 @@ def test_select_subset(processes):
         'rows': [{'a': '>&', 'd': 'e'}] * 100000 + [{'a': '🍰', 'd': 'f'}] * 100000,
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
         assert response.status_code == 200
         assert response.content == expected_content
@@ -1078,7 +1081,7 @@ def test_select_no_results(processes):
         )
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     params = {
         'query-s3-select': "SELECT * FROM S3Object[*].topLevel[*] AS t WHERE t.a = 'notexists'"
@@ -1087,7 +1090,7 @@ def test_select_no_results(processes):
         'rows': []
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
         assert response.status_code == 200
         assert response.content == expected_content
@@ -1100,7 +1103,7 @@ def test_no_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, 'latest')) as response:
+            session.get(version_data_public_url(dataset_id, 'latest', 'json')) as response:
         assert response.status_code == 404
         assert response.content == b'Dataset not found'
         assert not response.history
@@ -1122,12 +1125,12 @@ def test_redirect_to_latest_version(processes):
     for major, minor, patch in itertools.product(range(0, 11), range(0, 11), range(0, 33)):
         content = str(uuid.uuid4()).encode() * 10
         version = f'v{major}.{minor}.{patch}'
-        put_version_data(dataset_id, version, content)
+        put_version_data(dataset_id, version, content, 'json')
         put_version_table(dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, 'latest'),
+            session.get(version_data_public_url(dataset_id, 'latest', 'json'),
                         headers={'x-forwarded-proto': 'https'},
                         allow_redirects=False
                         ) as response:
@@ -1135,7 +1138,7 @@ def test_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, 'latest')) as response:
+            session.get(version_data_public_url(dataset_id, 'latest', 'json')) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
@@ -1145,7 +1148,7 @@ def test_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, 'v2')) as response:
+            session.get(version_data_public_url(dataset_id, 'v2', 'json')) as response:
         assert response.headers['content-type'] == 'application/json'
         assert len(response.history) == 1
         assert response.history[0].status_code == 302
@@ -1153,7 +1156,7 @@ def test_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, 'v3.4')) as response:
+            session.get(version_data_public_url(dataset_id, 'v3.4', 'json')) as response:
         assert response.headers['content-type'] == 'application/json'
         assert len(response.history) == 1
         assert response.history[0].status_code == 302
@@ -1173,7 +1176,7 @@ def test_table_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, 'latest'),
+            session.get(version_data_public_url(dataset_id, 'latest', 'json'),
                         headers={'x-forwarded-proto': 'https'},
                         allow_redirects=False
                         ) as response:
@@ -1213,13 +1216,13 @@ def test_redirect_to_latest_version_query(processes):
         'top_level': [{'a': 'y'}, {'a': 'y'}, {'common': 'b'}]
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version_1 = 'v9.9.9'
-    put_version_data(dataset_id, version_1, content_1)
+    put_version_data(dataset_id, version_1, content_1, 'json')
 
     content_2 = json.dumps({
         'top_level': [{'a': 'y'}, {'common': 'b'}]
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
     version_2 = 'v10.0.0'
-    put_version_data(dataset_id, version_2, content_2)
+    put_version_data(dataset_id, version_2, content_2, 'json')
 
     params = {
         'query-s3-select': "SELECT * FROM S3Object[*].top_level[*] row WHERE row.a = 'y'"
@@ -1228,7 +1231,7 @@ def test_redirect_to_latest_version_query(processes):
         'rows': [{'a': 'y'}],
     }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
 
-    data_url = version_data_public_url(dataset_id, 'latest')
+    data_url = version_data_public_url(dataset_id, 'latest', 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
         assert response.content in expected_content
         assert response.headers['content-type'] in 'application/json'
@@ -1243,8 +1246,8 @@ def test_redirect_with_utf_8_in_query_string(processes):
     dataset_id = str(uuid.uuid4())
     content = b'{"some":"content"}'
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
-    url = version_data_public_url(dataset_id, 'latest')
+    put_version_data(dataset_id, version, content, 'json')
+    url = version_data_public_url(dataset_id, 'latest', 'json')
     url_parsed = urllib.parse.urlsplit(url)
 
     url_full_path = url_parsed.path.encode(
@@ -1275,7 +1278,7 @@ def test_csv_created(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
     content = b'{"top":[{"id":1,"key":"value","nested":[{"key_2":"value_2"}]}]}'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     time.sleep(12)
 
@@ -1300,10 +1303,10 @@ def test_logs_ecs_format():
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         version = 'v0.0.1'
-        put_version_data(dataset_id, version, content)
+        put_version_data(dataset_id, version, content, 'json')
         url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
         with requests.Session() as session, \
-                session.get(version_data_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version, 'json')) as response:
             assert response.status_code == 200
 
     web_output, web_error = outputs['web']
@@ -1324,7 +1327,7 @@ def test_elastic_apm(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
     url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
     query = json.dumps({
         'query': {
@@ -1336,7 +1339,7 @@ def test_elastic_apm(processes):
     with requests.Session() as session:
         retry = 0
         while retry < 20:
-            session.get(version_data_public_url(dataset_id, version))
+            session.get(version_data_public_url(dataset_id, version, 'json'))
             time.sleep(1)
             response = requests.get(
                 url='http://localhost:9201/apm-7.8.0-transaction/_search',
@@ -1358,7 +1361,7 @@ def test_healthcheck_ok(processes):
     content_str = {'status': 'OK'}
     content = json.dumps(content_str).encode()
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     with \
             requests.Session() as session, \
@@ -1374,7 +1377,7 @@ def test_healthcheck_fail(processes):
     content_str = {'foo': 'bar'}
     content = json.dumps(content_str).encode()
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     with \
             requests.Session() as session, \
@@ -1387,9 +1390,9 @@ def test_noindex_header(processes):
     content_str = {'foo': 'bar'}
     content = json.dumps(content_str).encode()
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
-    data_url = version_data_public_url(dataset_id, version)
+    data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url) as response:
         assert response.status_code == 200
         assert response.headers['X-Robots-Tag'] == 'no-index, no-follow'
@@ -1401,12 +1404,12 @@ def test_sentry_integration(processes_bad_key):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
 
     for _ in range(10):
         with \
                 requests.Session() as session, \
-                session.get(version_data_public_url(dataset_id, version)) as response:
+                session.get(version_data_public_url(dataset_id, version, 'json')) as response:
             assert response.status_code == 500
 
     time.sleep(1)
@@ -1421,10 +1424,10 @@ def test_google_analytics_integration(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content)
+    put_version_data(dataset_id, version, content, 'json')
     with requests.Session() as session:
-        session.get(version_data_public_url(dataset_id, version))
-        session.get(version_data_public_url_download(dataset_id, version))
+        session.get(version_data_public_url(dataset_id, version, 'json'))
+        session.get(version_data_public_url_download(dataset_id, version, 'json'))
         session.get(version_table_public_url(dataset_id, version, 'table'))
         session.get(version_table_public_url_download(dataset_id, version, 'table'))
         with \
@@ -1442,8 +1445,8 @@ def put_version_metadata(dataset_id, version, contents):
     return put_object(f'{dataset_id}/{version}/metadata--csvw.json', contents)
 
 
-def put_version_data(dataset_id, version, contents):
-    return put_object(f'{dataset_id}/{version}/data.json', contents)
+def put_version_data(dataset_id, version, contents, extension):
+    return put_object(f'{dataset_id}/{version}/data.{extension}', contents)
 
 
 def put_version_table(dataset_id, version, table, contents):
@@ -1570,12 +1573,12 @@ def version_metadata_public_html_url(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/metadata?format=html'
 
 
-def version_data_public_url(dataset_id, version):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json'
+def version_data_public_url(dataset_id, version, requested_format):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format={requested_format}'
 
 
-def version_data_public_url_download(dataset_id, version):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=json&download'
+def version_data_public_url_download(dataset_id, version, requested_format):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format={requested_format}&download'
 
 
 def version_data_public_url_no_format(dataset_id, version):
