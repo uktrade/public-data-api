@@ -127,29 +127,35 @@ def test_meta_application_fails():
         application(max_attempts=1).__enter__()  # pylint: disable=no-member
 
 
-def test_key_that_exists(processes):
+@pytest.mark.parametrize('requested_format,expected_content_type', (
+    ('json', 'application/json'),
+    ('sqlite', 'application/vnd.sqlite3', ),
+))
+def test_key_that_exists(processes, requested_format, expected_content_type):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
-    put_version_data(dataset_id, version, content, 'json')
+    put_version_data(dataset_id, version, content, requested_format)
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version, 'json')) as response:
+            session.get(version_data_public_url(dataset_id, version,
+                                                requested_format)) as response:
         assert response.content == content
         assert response.headers['content-length'], str(len(content))
-        assert response.headers['content-type'], 'application/json'
+        assert response.headers['content-type'], expected_content_type
         assert'content-disposition' not in response.headers
         assert not response.history
 
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url_download(dataset_id, version, 'json')) as response:
+            session.get(version_data_public_url_download(dataset_id, version,
+                                                         requested_format)) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
-        assert response.headers['content-type'] == 'application/json'
+        assert response.headers['content-type'] == expected_content_type
         assert response.headers['content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}.json"'
+            f'attachment; filename="{dataset_id}--{version}.{requested_format}"'
         assert not response.history
 
 
@@ -925,7 +931,9 @@ def test_key_that_exists_with_bad_format(processes):
             requests.Session() as session, \
             session.get(version_data_public_url_bad_format(dataset_id, version)) as response:
         assert response.status_code == 400
-        assert response.content == b'The query string "format" term must be one of "(\'json\',)"'
+        assert response.content == \
+            b'The query string "format" term must be one of ' + \
+            b'"(\'json\', \'sqlite\')"'
         assert not response.history
 
     with \
