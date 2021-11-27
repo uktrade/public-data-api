@@ -342,11 +342,12 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('json',))
+    @validate_format(('json', 'sqlite',))
     def proxy_data(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        s3_key = f'{dataset_id}/{version}/data.json'
+        s3_key = f'{dataset_id}/{version}/data.{request.args["format"]}'
+
         s3_query = request.args.get('query-s3-select')
         body_generator, response = _proxy(
             s3_key,
@@ -354,8 +355,11 @@ def proxy_app(
             partial(aws_select_parse_result,
                     aws_select_convert_records_to_json) if s3_query is not None else None,
             request.headers)
-        download_filename = f'{dataset_id}--{version}.json'
-        content_type = 'application/json'
+
+        download_filename = f'{dataset_id}--{version}.{request.args["format"]}'
+        content_type = \
+            'application/vnd.sqlite3' if request.args['format'] == 'sqlite' else \
+            'application/json'
         return _generate_downstream_response(
             body_generator, response, content_type, download_filename)
 
