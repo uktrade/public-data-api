@@ -1,3 +1,6 @@
+# pylint: disable=unused-argument
+
+from contextlib import contextmanager
 from datetime import (
     datetime,
 )
@@ -22,107 +25,109 @@ import pytest
 import requests
 
 
-def with_application(port, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
-    def decorator(original_test):
-        def test_with_application():
-            delete_all_objects()
-            with open('Procfile', 'r') as file:
-                lines = file.read().splitlines()
+@contextmanager
+def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
+    outputs = {}
 
-            process_definitions = {
-                name.strip(): shlex.split(args)
-                for line in lines + [
-                    '__sentry: python -m mock_sentry_app',
-                    '__google_analytics: python -m mock_google_analytics_app',
-                ]
-                for name, args in [line.split(':')]
+    delete_all_objects()
+    with open('Procfile', 'r') as file:
+        lines = file.read().splitlines()
+
+    process_definitions = {
+        name.strip(): shlex.split(args)
+        for line in lines + [
+            '__sentry: python -m mock_sentry_app',
+            '__google_analytics: python -m mock_google_analytics_app',
+        ]
+        for name, args in [line.split(':')]
+    }
+
+    process_outs = {
+        name: (tempfile.NamedTemporaryFile(), tempfile.NamedTemporaryFile())
+        for name, _ in process_definitions.items()
+    }
+
+    processes = {
+        name: subprocess.Popen(
+            args,
+            stdout=process_outs[name][0],
+            stderr=process_outs[name][1],
+            env={
+                **os.environ,
+                'PORT': str(port),
+                'AWS_S3_REGION': 'us-east-1',
+                'READONLY_AWS_ACCESS_KEY_ID': aws_access_key_id,
+                'READONLY_AWS_SECRET_ACCESS_KEY': (
+                    'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+                ),
+                'READ_AND_WRITE_AWS_ACCESS_KEY_ID': aws_access_key_id,
+                'READ_AND_WRITE_AWS_SECRET_ACCESS_KEY': (
+                    'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+                ),
+                'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
+                'APM_SECRET_TOKEN': 'secret_token',
+                'APM_SERVER_URL': 'http://localhost:8201',
+                'ENVIRONMENT': 'test',
+                'SENTRY_DSN': 'http://foo@localhost:9001/1',
+                'GA_ENDPOINT': 'http://localhost:9002/collect',
+                'GA_TRACKING_ID': 'XX-XXXXX-X',
             }
+        )
+        for name, args in process_definitions.items()
+    }
 
-            process_outs = {
-                name: (tempfile.NamedTemporaryFile(), tempfile.NamedTemporaryFile())
-                for name, _ in process_definitions.items()
-            }
+    def read_and_close(f):
+        f.seek(0)
+        contents = f.read()
+        f.close()
+        return contents
 
-            processes = {
-                name: subprocess.Popen(
-                    args,
-                    stdout=process_outs[name][0],
-                    stderr=process_outs[name][1],
-                    env={
-                        **os.environ,
-                        'PORT': str(port),
-                        'AWS_S3_REGION': 'us-east-1',
-                        'READONLY_AWS_ACCESS_KEY_ID': aws_access_key_id,
-                        'READONLY_AWS_SECRET_ACCESS_KEY': (
-                            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-                        ),
-                        'READ_AND_WRITE_AWS_ACCESS_KEY_ID': aws_access_key_id,
-                        'READ_AND_WRITE_AWS_SECRET_ACCESS_KEY': (
-                            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-                        ),
-                        'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
-                        'APM_SECRET_TOKEN': 'secret_token',
-                        'APM_SERVER_URL': 'http://localhost:8201',
-                        'ENVIRONMENT': 'test',
-                        'SENTRY_DSN': 'http://foo@localhost:9001/1',
-                        'GA_ENDPOINT': 'http://localhost:9002/collect',
-                        'GA_TRACKING_ID': 'XX-XXXXX-X',
-                    }
-                )
-                for name, args in process_definitions.items()
-            }
+    def stop():
+        time.sleep(0.10)  # Sentry needs some extra time to log any errors
+        for _, process in processes.items():
+            process.terminate()
+        for _, process in processes.items():
+            process.wait(timeout=10)
+        output_errors = {
+            name: (read_and_close(stdout), read_and_close(stderr))
+            for name, (stdout, stderr) in process_outs.items()
+        }
+        return output_errors
 
-            def read_and_close(f):
-                f.seek(0)
-                contents = f.read()
-                f.close()
-                return contents
-
-            def stop():
-                time.sleep(0.10)  # Sentry needs some extra time to log any errors
-                for _, process in processes.items():
-                    process.terminate()
-                for _, process in processes.items():
-                    process.wait(timeout=10)
-                output_errors = {
-                    name: (read_and_close(stdout), read_and_close(stderr))
-                    for name, (stdout, stderr) in process_outs.items()
-                }
-                return output_errors
-
+    try:
+        for i in range(0, max_attempts):
             try:
-                for i in range(0, max_attempts):
-                    try:
-                        with socket.create_connection(('127.0.0.1', port), timeout=0.1):
-                            break
-                    except (OSError, ConnectionRefusedError):
-                        if i == max_attempts - 1:
-                            raise
-                        time.sleep(0.02)
-                original_test(processes)
-            finally:
-                output_errors = stop()
-                delete_all_objects()
+                with socket.create_connection(('127.0.0.1', port), timeout=0.1):
+                    break
+            except (OSError, ConnectionRefusedError):
+                if i == max_attempts - 1:
+                    raise
+                time.sleep(0.02)
 
-            return output_errors
-        return test_with_application
-    return decorator
+        yield (processes, outputs)
+    finally:
+        outputs.update(stop())
+        delete_all_objects()
 
 
-def test_meta_with_application_fails():
-    def test(*_):
-        pass
+@pytest.fixture(name='processes')
+def fixture_processes():
+    with application() as (processes, outputs):
+        yield (processes, outputs)
 
-    test_1 = with_application(8080, max_attempts=1)(test)
+
+@pytest.fixture(name='processes_bad_key')
+def fixture_processes_bad_key():
+    with application(aws_access_key_id='not-exist') as (processes, outputs):
+        yield (processes, outputs)
+
+
+def test_meta_application_fails():
     with pytest.raises(ConnectionError):
-        test_1()
-
-    # To ensure code coverage on above test function
-    with_application(8080)(test)()
+        application(max_attempts=1).__enter__()  # pylint: disable=no-member
 
 
-@with_application(8080)
-def test_key_that_exists(_):
+def test_key_that_exists(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -148,8 +153,7 @@ def test_key_that_exists(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_metadata_key_that_exists(_):
+def test_metadata_key_that_exists(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'dc:title': 'The title of the dataset',
@@ -204,8 +208,7 @@ def test_metadata_key_that_exists(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_key_that_exists(_):
+def test_table_key_that_exists(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
@@ -233,8 +236,7 @@ def test_table_key_that_exists(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_gzipped(_):
+def test_table_gzipped(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
@@ -270,8 +272,7 @@ def test_table_gzipped(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_serves_uncompressed_if_gzip_file_does_not_exist(_):
+def test_table_serves_uncompressed_if_gzip_file_does_not_exist(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
@@ -292,8 +293,7 @@ def test_table_serves_uncompressed_if_gzip_file_does_not_exist(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_serves_uncompressed_if_s3_select_query_provided(_):
+def test_table_serves_uncompressed_if_s3_select_query_provided(processes):
     dataset_id = str(uuid.uuid4())
     content = \
         'col_a,col_b\na,b\nc🍰é,d\ne,d\n&>,d\n' \
@@ -320,8 +320,7 @@ def test_table_serves_uncompressed_if_s3_select_query_provided(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_s3_select(_):
+def test_table_s3_select(processes):
     dataset_id = str(uuid.uuid4())
     # Note that unlike JSON, a unicode escape sequence like \u00f8C is not an encoded
     # character, it is just a sequences of characters that looks like a unicode escape
@@ -349,8 +348,7 @@ def test_table_s3_select(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_filter_rows(_):
+def test_filter_rows(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'dc:title': 'The title of the dataset',
@@ -394,8 +392,7 @@ def test_filter_rows(_):
         assert b'A name field' not in response.content
 
 
-@with_application(8080)
-def test_filter_columns(_):
+def test_filter_columns(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'dc:title': 'The title of the dataset',
@@ -503,8 +500,7 @@ def test_filter_columns(_):
         assert b'bar' in response.content
 
 
-@with_application(8080)
-def test_multiple_concurrent_requests(_):
+def test_multiple_concurrent_requests(processes):
     dataset_id_1 = str(uuid.uuid4())
     dataset_id_2 = str(uuid.uuid4())
     version_1 = 'v0.0.1'
@@ -563,7 +559,6 @@ def test_multiple_concurrent_requests(_):
     assert num_single < 100
 
 
-@with_application(8080)
 def test_key_that_exists_during_shutdown_completes(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
@@ -578,7 +573,7 @@ def test_key_that_exists_during_shutdown_completes(processes):
 
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
-        processes['web'].terminate()
+        processes[0]['web'].terminate()
 
         for chunk in response.iter_content(chunk_size=16384):
             chunks.append(chunk)
@@ -587,8 +582,7 @@ def test_key_that_exists_during_shutdown_completes(processes):
     assert b''.join(chunks) == content
 
 
-@with_application(8080)
-def test_list_datasets_no_datasets(_):
+def test_list_datasets_no_datasets(processes):
     with \
             requests.Session() as session, \
             session.get(list_datasets_public_url()) as response:
@@ -596,8 +590,7 @@ def test_list_datasets_no_datasets(_):
         assert response.content == b'{"datasets": []}'
 
 
-@with_application(8080)
-def test_list_datasets(_):
+def test_list_datasets(processes):
     dataset_id = 'my-dataset'
     content = str(uuid.uuid4()).encode() * 100
     put_version_data(dataset_id, 'v0.0.1', content)
@@ -623,8 +616,7 @@ def test_list_datasets(_):
         assert response.content == b'{"datasets": [{"id": "my-dataset"}, {"id": "your-dataset"}]}'
 
 
-@with_application(8080)
-def test_list_datasets_no_healthcheck(_):
+def test_list_datasets_no_healthcheck(processes):
     dataset_id = 'my-dataset'
     content = str(uuid.uuid4()).encode() * 100
     put_version_data(dataset_id, 'v0.0.1', content)
@@ -636,8 +628,7 @@ def test_list_datasets_no_healthcheck(_):
         assert response.content == b'{"datasets": [{"id": "my-dataset"}]}'
 
 
-@with_application(8080)
-def test_list_dataset_versions_no_datasets(_):
+def test_list_dataset_versions_no_datasets(processes):
     dataset_id = str(uuid.uuid4())
 
     with \
@@ -647,8 +638,7 @@ def test_list_dataset_versions_no_datasets(_):
         assert response.content == b'{"versions": []}'
 
 
-@with_application(8080)
-def test_list_dataset_versions(_):
+def test_list_dataset_versions(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100
     put_version_data(dataset_id, 'v0.0.1', content)
@@ -667,8 +657,7 @@ def test_list_dataset_versions(_):
         assert response.content == b'{"versions": [{"id": "v0.0.2"}, {"id": "v0.0.1"}]}'
 
 
-@with_application(8080)
-def test_list_tables_for_dataset_version_no_tables(_):
+def test_list_tables_for_dataset_version_no_tables(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100
     version = 'v0.0.1'
@@ -681,8 +670,7 @@ def test_list_tables_for_dataset_version_no_tables(_):
         assert response.content == b'{"tables": []}'
 
 
-@with_application(8080)
-def test_list_tables_for_dataset_version(_):
+def test_list_tables_for_dataset_version(processes):
     dataset_id = str(uuid.uuid4())
     put_version_table(dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
     with \
@@ -712,8 +700,7 @@ def test_list_tables_for_dataset_version(_):
         assert response.content == b'{"tables": [{"id": "baz"}]}'
 
 
-@with_application(8080)
-def test_list_tables_for_dataset__latest_version(_):
+def test_list_tables_for_dataset__latest_version(processes):
     dataset_id = str(uuid.uuid4())
     put_version_table(dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
     put_version_table(dataset_id, 'v0.0.2', 'bar', b'header\n' + b'value\n' * 10000)
@@ -725,7 +712,6 @@ def test_list_tables_for_dataset__latest_version(_):
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "baz"}]}'
 
 
-@with_application(8080)
 def test_key_that_exists_after_multiple_sigterm_completes(processes):
     # PaaS can apparently send multiple sigterms
 
@@ -742,9 +728,9 @@ def test_key_that_exists_after_multiple_sigterm_completes(processes):
 
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
-        processes['web'].terminate()
+        processes[0]['web'].terminate()
         time.sleep(0.1)
-        processes['web'].terminate()
+        processes[0]['web'].terminate()
         time.sleep(1.0)
 
         for chunk in response.iter_content(chunk_size=16384):
@@ -754,7 +740,6 @@ def test_key_that_exists_after_multiple_sigterm_completes(processes):
     assert b''.join(chunks) == content
 
 
-@with_application(8080)
 def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
@@ -769,7 +754,7 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
 
-        processes['web'].terminate()
+        processes[0]['web'].terminate()
         time.sleep(1.0)
 
         with pytest.raises(requests.exceptions.ConnectionError):
@@ -782,7 +767,6 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
     assert b''.join(chunks) == content
 
 
-@with_application(8080)
 def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(processes):
     # Check that connections that were open before the SIGTERM still work
     # after. Unsure if this is desired on PaaS, so this is more of
@@ -808,7 +792,7 @@ def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(proce
                 pass
 
         with session.get(data_url, stream=True) as resp_4:
-            processes['web'].terminate()
+            processes[0]['web'].terminate()
             time.sleep(1.0)
 
             # No exception raised since the connection is already open
@@ -822,8 +806,7 @@ def test_key_that_exists_during_shutdown_completes_but_request_on_old_conn(proce
     assert b''.join(chunks) == content
 
 
-@with_application(8080)
-def test_range_request_from_start(_):
+def test_range_request_from_start(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -839,8 +822,7 @@ def test_range_request_from_start(_):
         assert response.headers['content-type'] == 'application/json'
 
 
-@with_application(8080)
-def test_range_request_after_start(_):
+def test_range_request_after_start(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -856,8 +838,7 @@ def test_range_request_after_start(_):
         assert response.headers['content-type'] == 'application/json'
 
 
-@with_application(8080, aws_access_key_id='not-exist')
-def test_bad_aws_credentials(_):
+def test_bad_aws_credentials(processes_bad_key):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
 
@@ -867,8 +848,7 @@ def test_bad_aws_credentials(_):
         assert response.status_code == 500
 
 
-@with_application(8080)
-def test_key_that_does_not_exist(_):
+def test_key_that_does_not_exist(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
 
@@ -878,8 +858,7 @@ def test_key_that_does_not_exist(_):
         assert response.status_code == 404
 
 
-@with_application(8080)
-def test_table_key_that_does_not_exist(_):
+def test_table_key_that_does_not_exist(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
     table = 'table'
@@ -890,8 +869,7 @@ def test_table_key_that_does_not_exist(_):
         assert response.status_code == 404
 
 
-@with_application(8080)
-def test_key_that_exists_without_format(_):
+def test_key_that_exists_without_format(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -913,8 +891,7 @@ def test_key_that_exists_without_format(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_key_that_exists_without_format(_):
+def test_table_key_that_exists_without_format(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -935,8 +912,7 @@ def test_table_key_that_exists_without_format(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_key_that_exists_with_bad_format(_):
+def test_key_that_exists_with_bad_format(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -958,8 +934,7 @@ def test_key_that_exists_with_bad_format(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_table_key_that_exists_with_bad_format(_):
+def test_table_key_that_exists_with_bad_format(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -980,8 +955,7 @@ def test_table_key_that_exists_with_bad_format(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_select_all(_):
+def test_select_all(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'topLevel': (
@@ -1012,8 +986,7 @@ def test_select_all(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_select_newlines(_):
+def test_select_newlines(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'topLevel': (
@@ -1039,8 +1012,7 @@ def test_select_newlines(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_select_strings_that_are_almost_unicode_escapes(_):
+def test_select_strings_that_are_almost_unicode_escapes(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'topLevel': (
@@ -1067,8 +1039,7 @@ def test_select_strings_that_are_almost_unicode_escapes(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_select_subset(_):
+def test_select_subset(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'topLevel': (
@@ -1097,8 +1068,7 @@ def test_select_subset(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_select_no_results(_):
+def test_select_no_results(processes):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'topLevel': (
@@ -1125,8 +1095,7 @@ def test_select_no_results(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_no_latest_version(_):
+def test_no_latest_version(processes):
     dataset_id = 'does-not-exist'
 
     with \
@@ -1143,8 +1112,7 @@ def test_no_latest_version(_):
         assert not response.history
 
 
-@with_application(8080)
-def test_redirect_to_latest_version(_):
+def test_redirect_to_latest_version(processes):
     dataset_id = str(uuid.uuid4())
     table = 'table'
 
@@ -1192,8 +1160,7 @@ def test_redirect_to_latest_version(_):
         assert 'v3.4.32' in response.request.url
 
 
-@with_application(8080)
-def test_table_redirect_to_latest_version(_):
+def test_table_redirect_to_latest_version(processes):
     dataset_id = str(uuid.uuid4())
     table = 'table'
     # Ranges chosen to make sure we have at least 3 pages from S3 list objects, and to make
@@ -1239,8 +1206,7 @@ def test_table_redirect_to_latest_version(_):
         assert 'v3.4.32' in response.request.url
 
 
-@with_application(8080)
-def test_redirect_to_latest_version_query(_):
+def test_redirect_to_latest_version_query(processes):
     dataset_id = str(uuid.uuid4())
 
     content_1 = json.dumps({
@@ -1271,8 +1237,7 @@ def test_redirect_to_latest_version_query(_):
         assert 'v10.0.0' in response.request.url
 
 
-@with_application(8080)
-def test_redirect_with_utf_8_in_query_string(_):
+def test_redirect_with_utf_8_in_query_string(processes):
     # Test that documents that non-URL encoded values in query strings are redirected to their
     # URL-encoded equivalent. Not sure if this behaviour is desirable or not.
     dataset_id = str(uuid.uuid4())
@@ -1304,8 +1269,7 @@ def test_redirect_with_utf_8_in_query_string(_):
     assert b'&something=' + cake_url_encoded in full_response
 
 
-@with_application(8080)
-def test_csv_created(_):
+def test_csv_created(processes):
     delete_all_objects()
 
     dataset_id = str(uuid.uuid4())
@@ -1332,12 +1296,7 @@ def test_csv_created(_):
 
 
 def test_logs_ecs_format():
-
-    url = None
-
-    @with_application(8080)
-    def make_api_call(*_):
-        nonlocal url
+    with application() as (_, outputs):
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         version = 'v0.0.1'
@@ -1347,9 +1306,7 @@ def test_logs_ecs_format():
                 session.get(version_data_public_url(dataset_id, version)) as response:
             assert response.status_code == 200
 
-    processes = make_api_call()
-
-    web_output, web_error = processes['web']  # pylint: disable=unsubscriptable-object
+    web_output, web_error = outputs['web']
     assert web_error == b''
     web_output_logs = web_output.decode().split('\n')
     assert len(web_output_logs) >= 1
@@ -1358,13 +1315,12 @@ def test_logs_ecs_format():
     assert 'ecs' in web_api_call_log[0]
     assert b'Shut down gracefully' in web_output
 
-    worker_output, worker_error = processes['worker']  # pylint: disable=unsubscriptable-object
+    worker_output, worker_error = outputs['worker']
     assert worker_error == b''
     assert b'Shut down gracefully' in worker_output
 
 
-@with_application(8080)
-def test_elastic_apm(_):
+def test_elastic_apm(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -1397,8 +1353,7 @@ def test_elastic_apm(_):
     assert res['hits']['total']['value'] >= 1, 'No hits found'
 
 
-@with_application(8080)
-def test_healthcheck_ok(_):
+def test_healthcheck_ok(processes):
     dataset_id = 'healthcheck'
     content_str = {'status': 'OK'}
     content = json.dumps(content_str).encode()
@@ -1414,8 +1369,7 @@ def test_healthcheck_ok(_):
         assert response.headers['Cache-Control'] == 'no-cache, no-store, must-revalidate'
 
 
-@with_application(8080)
-def test_healthcheck_fail(_):
+def test_healthcheck_fail(processes):
     dataset_id = 'healthcheck'
     content_str = {'foo': 'bar'}
     content = json.dumps(content_str).encode()
@@ -1428,8 +1382,7 @@ def test_healthcheck_fail(_):
         assert response.status_code == 503
 
 
-@with_application(8080)
-def test_noindex_header(_):
+def test_noindex_header(processes):
     dataset_id = str(uuid.uuid4())
     content_str = {'foo': 'bar'}
     content = json.dumps(content_str).encode()
@@ -1442,8 +1395,7 @@ def test_noindex_header(_):
         assert response.headers['X-Robots-Tag'] == 'no-index, no-follow'
 
 
-@with_application(8080, aws_access_key_id='not-exist')
-def test_sentry_integration(_):
+def test_sentry_integration(processes_bad_key):
     # Passing a bad AWS access key will result in a 403 when calling S3
     # and this will raise an Exception that should be reported to sentry.
     dataset_id = str(uuid.uuid4())
@@ -1465,8 +1417,7 @@ def test_sentry_integration(_):
         assert int(response.content) >= 10
 
 
-@with_application(8080)
-def test_google_analytics_integration(_):
+def test_google_analytics_integration(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
@@ -1482,8 +1433,7 @@ def test_google_analytics_integration(_):
             assert int(response.content) == 4
 
 
-@with_application(8080)
-def test_docs(_):
+def test_docs(processes):
     with requests.Session() as session, session.get('http://127.0.0.1:8080') as response:
         assert response.status_code == 200
 
