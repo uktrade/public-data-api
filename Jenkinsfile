@@ -23,24 +23,7 @@ pipeline {
       }
     }
 
-
-    stage('release: dev') {
-      steps {
-        ci_pipeline("dev", params.GIT_COMMIT)
-      }
-    }
-
-
     stage('release: staging') {
-      when {
-          expression {
-              milestone label: "release-staging"
-              input message: 'Deploy to staging?'
-              return true
-          }
-          beforeAgent true
-      }
-
       steps {
         ci_pipeline("staging", params.GIT_COMMIT)
       }
