@@ -69,7 +69,7 @@ def ensure_csvs(
             s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
             aws_multipart_upload(signed_s3_request, s3_key, chunks)
 
-        def save_csv_compressed(path, chunks):
+        def save_csv_compressed(table, chunks):
             def yield_compressed_bytes(_uncompressed_bytes):
                 # wbits controls whether a header and trailer is included in the output.
                 # 31 means a basic gzip header and trailing checksum will be included in
@@ -84,7 +84,6 @@ def ensure_csvs(
                 if compressed_bytes:
                     yield compressed_bytes
 
-            table = path.replace('_', '-')  # GDS API guidelines prefer dash to underscore
             s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv.gz'
             aws_multipart_upload(signed_s3_request, s3_key, yield_compressed_bytes(chunks))
 
@@ -94,11 +93,12 @@ def ensure_csvs(
             etag = response.headers['etag'].strip('"')
             to_csvs(response.stream(65536), save_csv)
 
-        with signed_s3_request('GET', s3_key=f'{dataset_id}/{version}/data.json') as response:
-            if response.status != 200:
-                return
-            etag = response.headers['etag'].strip('"')
-            to_csvs(response.stream(65536), save_csv_compressed)
+        for table in aws_list_folders(signed_s3_request, f'{dataset_id}/{version}/tables/'):
+            s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+            with signed_s3_request('GET', s3_key=s3_key) as response:
+                if response.status != 200:
+                    return
+                save_csv_compressed(table, response.stream(65536))
 
         etag_key = f'{dataset_id}/{version}/data.json__CSV_VERSION_{CSV_VERSION}__{etag}'
         with signed_s3_request('PUT', s3_key=etag_key) as response:
