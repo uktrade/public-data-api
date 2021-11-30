@@ -51,18 +51,6 @@ def ensure_csvs(
             for version in aws_list_folders(signed_s3_request, f'{dataset_id}/'):
                 yield dataset_id, version
 
-    def get_dataset_ids_versions_needing_csvs(dataset_ids_versions):
-        for dataset_id, version in dataset_ids_versions:
-            status, headers = aws_head(signed_s3_request, f'{dataset_id}/{version}/data.json')
-            if status != 200:
-                continue
-            etag = headers['etag'].strip('"')
-            etag_key = f'{dataset_id}/{version}/data.json__CSV_VERSION_{CSV_VERSION}__{etag}'
-            status, _ = aws_head(signed_s3_request, etag_key)
-            if status == 200:
-                continue
-            yield dataset_id, version
-
     def write_csvs(dataset_id, version):
         def save_csv(path, chunks):
             table = path.replace('_', '-')  # GDS API guidelines prefer dash to underscore
@@ -111,10 +99,18 @@ def ensure_csvs(
 
     dataset_ids = get_dataset_ids()
     dataset_ids_versions = get_dataset_ids_versions(dataset_ids)
-    dataset_ids_versions_needing_csvs = get_dataset_ids_versions_needing_csvs(dataset_ids_versions)
-    for dataset_id, version in dataset_ids_versions_needing_csvs:
+    for dataset_id, version in dataset_ids_versions:
         if shut_down.is_set():
             break
+
+        status, headers = aws_head(signed_s3_request, f'{dataset_id}/{version}/data.json')
+        if status != 200:
+            continue
+        etag = headers['etag'].strip('"')
+        etag_key = f'{dataset_id}/{version}/data.json__CSV_VERSION_{CSV_VERSION}__{etag}'
+        status, _ = aws_head(signed_s3_request, etag_key)
+        if status == 200:
+            continue
 
         try:
             write_csvs(dataset_id, version)
