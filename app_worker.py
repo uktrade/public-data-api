@@ -7,6 +7,10 @@ monkey.patch_all()
 
 import ecs_logging
 
+from base64 import (
+    b64encode,
+)
+import csv
 from functools import (
     partial,
 )
@@ -23,6 +27,8 @@ from tidy_json_to_csv import (
 )
 import urllib3
 import zlib
+
+from sqlite_s3_query import sqlite_s3_query
 
 from app_aws import (
     aws_s3_request,
@@ -62,6 +68,65 @@ def ensure_csvs(
                 return
             to_csvs(response.stream(65536), save_csv)
 
+    def convert_sqlite_to_csvs(dataset_id, version):
+
+        class PseudoBuffer:
+            def write(self, value):
+                return value
+
+        def quote_identifier(value):
+            return '"' + value.replace('"', '""') + '"'
+
+        def convert_for_csv(value):
+            return \
+                '#NA' if value is None else \
+                b64encode(value).decode() if isinstance(value, bytes) else \
+                value
+
+        def csv_data(columns, rows):
+            csv_writer = csv.writer(PseudoBuffer(), quoting=csv.QUOTE_NONNUMERIC)
+            yield csv_writer.writerow(columns).encode()
+            for row in rows:
+                yield csv_writer.writerow(convert_for_csv(val) for val in row).encode()
+
+        url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
+        with sqlite_s3_query(
+                url=url,
+                get_credentials=lambda _: (
+                    region_name,
+                    aws_access_key_id,
+                    aws_secret_access_key,
+                    None,
+                )
+        ) as query:
+
+            # Find tables
+            with query('''
+                SELECT name FROM sqlite_master
+                WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                ORDER BY rowid
+            ''') as (_, tables):
+
+                for (table_name,) in tables:
+
+                    # Find primary key columns, in correct order
+                    table_info_sql = f'PRAGMA table_info({quote_identifier(table_name)})'
+                    with query(table_info_sql) as (table_info_cols, table_info_rows):
+                        primary_keys = sorted([
+                            (table_info_row_dict['pk'], table_info_row_dict['name'])
+                            for table_info_row in table_info_rows
+                            for table_info_row_dict in [dict(zip(table_info_cols, table_info_row))]
+                            if table_info_row_dict['pk']
+                        ]) or [(1, 'rowid')]
+
+                    # Save as CSV, with rows ordered by primary kay columns
+                    data_sql = f'SELECT * FROM {quote_identifier(table_name)} ORDER BY ' + \
+                        ','.join(quote_identifier(key) for (_, key) in primary_keys)
+                    with query(data_sql) as (cols, rows):
+                        table_id = table_name.replace('_', '-')
+                        s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
+                        aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+
     def save_csv_compressed(dataset_id, version, table, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):
             # wbits controls whether a header and trailer is included in the output.
@@ -86,21 +151,34 @@ def ensure_csvs(
         if shut_down.is_set():
             break
 
+        sqlite_s3_key = f'{dataset_id}/{version}/data.sqlite'
         json_s3_key = f'{dataset_id}/{version}/data.json'
-        status, headers = aws_head(signed_s3_request, json_s3_key)
-        if status != 200:
+
+        # Decide between SQLite source and JSON source
+        status_json, headers_json = aws_head(signed_s3_request, json_s3_key)
+        status_sqlite, headers_sqlite = aws_head(signed_s3_request, sqlite_s3_key)
+
+        if status_json == 200 and status_sqlite == 404:
+            source_s3_key = sqlite_s3_key
+            headers = headers_json
+            convert_func = convert_json_to_csvs
+        elif status_sqlite == 200:
+            source_s3_key = sqlite_s3_key
+            headers = headers_sqlite
+            convert_func = convert_sqlite_to_csvs
+        else:
             continue
 
         # Skip if we have already converted the source
         etag = headers['etag'].strip('"')
-        etag_key = f'{json_s3_key}__CSV_VERSION_{CSV_VERSION}__{etag}'
+        etag_key = f'{source_s3_key}__CSV_VERSION_{CSV_VERSION}__{etag}'
         status, _ = aws_head(signed_s3_request, etag_key)
         if status == 200:
             continue
 
         # Convert the source to CSVs
         try:
-            convert_json_to_csvs(dataset_id, version)
+            convert_func(dataset_id, version)
         except Exception:
             logger.exception('Exception writing CSVs %s %s', dataset_id, version)
             continue

@@ -1,5 +1,8 @@
 # pylint: disable=unused-argument
 
+from base64 import (
+    b64encode,
+)
 from contextlib import contextmanager
 from datetime import (
     datetime,
@@ -13,6 +16,7 @@ import os
 import tempfile
 import time
 import shlex
+import sqlite3
 import socket
 import subprocess
 import urllib.parse
@@ -1450,6 +1454,61 @@ def test_csv_created(processes):
     # Ensure that we haven't unnecessarily recreated the CSVs
     _, top_headers_2 = get_csv_data(dataset_id, version, 'top')
     assert top_headers['last-modified'] == top_headers_2['last-modified']
+
+
+def test_csvs_created_from_sqlite(processes):
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+
+    with tempfile.NamedTemporaryFile() as f:
+        with sqlite3.connect(f.name) as con:
+            cur = con.cursor()
+
+            # There are only 5 datatypes in SQLite: INTEGER, REAL, TEXT, BLOB, and NULL
+            cur.execute('''
+                CREATE TABLE my_table_no_primary_key (
+                    col_int int,
+                    col_real real,
+                    col_text text,
+                    col_blob blob
+                )
+            ''')
+            cur.execute('INSERT INTO my_table_no_primary_key VALUES (?,?,?,?)',
+                        (1, 1.5, 'Some text 🍰', b'\0\1\2'))
+            cur.execute('INSERT INTO my_table_no_primary_key VALUES (?,?,?,?)',
+                        (1, None, 'Some text 🍰', None))
+
+            # Ensure we order by primary key when there is one, including when it's multi-column,
+            # and when the columns are not ordered in the same order as they are in the table
+            cur.execute('''
+                CREATE TABLE my_table_with_primary_key (
+                    col_int_a int,
+                    col_int_b int,
+                    PRIMARY KEY (col_int_b, col_int_a)
+                )
+            ''')
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
+
+        put_version_data(dataset_id, version, f.read(), 'sqlite')
+
+    time.sleep(12)
+
+    table_bytes, _ = get_csv_data(dataset_id, version, 'my-table-no-primary-key')
+    assert table_bytes == \
+        b'"col_int","col_real","col_text","col_blob"\r\n' + \
+        b'1,1.5,"Some text ' + '🍰'.encode('utf-8') + b'","' + b64encode(b'\0\1\2') + b'"\r\n' + \
+        b'1,"#NA","Some text ' + '🍰'.encode('utf-8') + b'","#NA"\r\n'
+
+    table_bytes, _ = get_csv_data(dataset_id, version, 'my-table-with-primary-key')
+    assert table_bytes == \
+        b'"col_int_a","col_int_b"\r\n' + \
+        b'3,1\r\n' + \
+        b'2,2\r\n' + \
+        b'3,2\r\n' + \
+        b'1,3\r\n'
 
 
 def test_logs_ecs_format():
