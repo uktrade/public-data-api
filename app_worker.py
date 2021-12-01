@@ -86,11 +86,12 @@ def ensure_csvs(
         if shut_down.is_set():
             break
 
-        status, headers = aws_head(signed_s3_request, f'{dataset_id}/{version}/data.json')
+        json_s3_key = f'{dataset_id}/{version}/data.json'
+        status, headers = aws_head(signed_s3_request, json_s3_key)
         if status != 200:
             continue
         etag = headers['etag'].strip('"')
-        etag_key = f'{dataset_id}/{version}/data.json__CSV_VERSION_{CSV_VERSION}__{etag}'
+        etag_key = f'{json_s3_key}__CSV_VERSION_{CSV_VERSION}__{etag}'
         status, _ = aws_head(signed_s3_request, etag_key)
         if status == 200:
             continue
@@ -108,7 +109,7 @@ def ensure_csvs(
                     return
                 save_csv_compressed(dataset_id, version, table, response.stream(65536))
 
-        status, headers = aws_head(signed_s3_request, f'{dataset_id}/{version}/data.json')
+        status, headers = aws_head(signed_s3_request, json_s3_key)
         if status != 200:
             continue
         if etag != headers['etag'].strip('"'):
