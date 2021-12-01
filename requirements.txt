@@ -4,6 +4,8 @@
 #
 #    pip-compile requirements.in
 #
+anyio==3.4.0
+    # via httpcore
 blinker==1.4
     # via
     #   elastic-apm
@@ -11,10 +13,14 @@ blinker==1.4
 certifi==2021.5.30
     # via
     #   elastic-apm
+    #   httpcore
+    #   httpx
     #   requests
     #   sentry-sdk
 chardet==4.0.0
     # via requests
+charset-normalizer==2.0.9
+    # via httpx
 click==7.0
     # via flask
 ecs-logging==0.5.0
@@ -29,8 +35,17 @@ gevent==21.8.0
     # via -r requirements.in
 greenlet==1.1.2
     # via gevent
+h11==0.12.0
+    # via httpcore
+httpcore==0.14.3
+    # via httpx
+httpx==0.21.1
+    # via sqlite-s3-query
 idna==2.10
-    # via requests
+    # via
+    #   anyio
+    #   requests
+    #   rfc3986
 ijson==3.1.2.post0
     # via tidy-json-to-csv
 itsdangerous==2.0.1
@@ -41,7 +56,16 @@ markupsafe==2.0.1
     # via jinja2
 requests==2.25.1
     # via -r requirements.in
+rfc3986[idna2008]==1.5.0
+    # via httpx
 sentry-sdk[flask]==1.5.0
+    # via -r requirements.in
+sniffio==1.2.0
+    # via
+    #   anyio
+    #   httpcore
+    #   httpx
+sqlite-s3-query==0.0.44
     # via -r requirements.in
 tidy-json-to-csv==0.0.13
     # via -r requirements.in

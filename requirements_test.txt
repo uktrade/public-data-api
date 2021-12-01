@@ -4,6 +4,10 @@
 #
 #    pip-compile requirements_test.in
 #
+anyio==3.4.0
+    # via
+    #   -r requirements.txt
+    #   httpcore
 astroid==2.8.5
     # via pylint
 attrs==20.2.0
@@ -19,6 +23,8 @@ certifi==2021.5.30
     # via
     #   -r requirements.txt
     #   elastic-apm
+    #   httpcore
+    #   httpx
     #   requests
     #   sentry-sdk
 cfgv==2.0.1
@@ -27,6 +33,10 @@ chardet==4.0.0
     # via
     #   -r requirements.txt
     #   requests
+charset-normalizer==2.0.9
+    # via
+    #   -r requirements.txt
+    #   httpx
 click==7.0
     # via
     #   -r requirements.txt
@@ -54,12 +64,26 @@ greenlet==1.1.2
     # via
     #   -r requirements.txt
     #   gevent
+h11==0.12.0
+    # via
+    #   -r requirements.txt
+    #   httpcore
+httpcore==0.14.3
+    # via
+    #   -r requirements.txt
+    #   httpx
+httpx==0.21.1
+    # via
+    #   -r requirements.txt
+    #   sqlite-s3-query
 identify==1.4.5
     # via pre-commit
 idna==2.10
     # via
     #   -r requirements.txt
+    #   anyio
     #   requests
+    #   rfc3986
 ijson==3.1.2.post0
     # via
     #   -r requirements.txt
@@ -110,6 +134,10 @@ pyyaml==5.4
     # via pre-commit
 requests==2.25.1
     # via -r requirements.txt
+rfc3986[idna2008]==1.5.0
+    # via
+    #   -r requirements.txt
+    #   httpx
 sentry-sdk[flask]==1.5.0
     # via
     #   -r requirements.txt
@@ -119,6 +147,14 @@ six==1.12.0
     #   cfgv
     #   packaging
     #   virtualenv
+sniffio==1.2.0
+    # via
+    #   -r requirements.txt
+    #   anyio
+    #   httpcore
+    #   httpx
+sqlite-s3-query==0.0.44
+    # via -r requirements.txt
 tidy-json-to-csv==0.0.13
     # via -r requirements.txt
 toml==0.10.0
