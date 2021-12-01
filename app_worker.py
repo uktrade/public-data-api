@@ -51,7 +51,7 @@ def ensure_csvs(
             for version in aws_list_folders(signed_s3_request, f'{dataset_id}/'):
                 yield dataset_id, version
 
-    def write_csvs(dataset_id, version):
+    def convert_json_to_csvs(dataset_id, version):
         def save_csv(path, chunks):
             table = path.replace('_', '-')  # GDS API guidelines prefer dash to underscore
             s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
@@ -96,7 +96,7 @@ def ensure_csvs(
             continue
 
         try:
-            write_csvs(dataset_id, version)
+            convert_json_to_csvs(dataset_id, version)
         except Exception:
             logger.exception('Exception writing CSVs %s %s', dataset_id, version)
             continue
