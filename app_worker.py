@@ -62,13 +62,6 @@ def ensure_csvs(
                 return
             to_csvs(response.stream(65536), save_csv)
 
-        for table in aws_list_folders(signed_s3_request, f'{dataset_id}/{version}/tables/'):
-            s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-            with signed_s3_request('GET', s3_key=s3_key) as response:
-                if response.status != 200:
-                    return
-                save_csv_compressed(dataset_id, version, table, response.stream(65536))
-
     def save_csv_compressed(dataset_id, version, table, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):
             # wbits controls whether a header and trailer is included in the output.
@@ -107,6 +100,13 @@ def ensure_csvs(
         except Exception:
             logger.exception('Exception writing CSVs %s %s', dataset_id, version)
             continue
+
+        for table in aws_list_folders(signed_s3_request, f'{dataset_id}/{version}/tables/'):
+            s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+            with signed_s3_request('GET', s3_key=s3_key) as response:
+                if response.status != 200:
+                    return
+                save_csv_compressed(dataset_id, version, table, response.stream(65536))
 
         status, headers = aws_head(signed_s3_request, f'{dataset_id}/{version}/data.json')
         if status != 200:
