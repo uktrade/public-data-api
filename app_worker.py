@@ -78,7 +78,6 @@ def ensure_csvs(
         with signed_s3_request('GET', s3_key=f'{dataset_id}/{version}/data.json') as response:
             if response.status != 200:
                 return
-            etag = response.headers['etag'].strip('"')
             to_csvs(response.stream(65536), save_csv)
 
         for table in aws_list_folders(signed_s3_request, f'{dataset_id}/{version}/tables/'):
@@ -87,15 +86,6 @@ def ensure_csvs(
                 if response.status != 200:
                     return
                 save_csv_compressed(table, response.stream(65536))
-
-        etag_key = f'{dataset_id}/{version}/data.json__CSV_VERSION_{CSV_VERSION}__{etag}'
-        with signed_s3_request('PUT', s3_key=etag_key) as response:
-            put_response_body = response.read()
-            if response.status != 200:
-                raise Exception('Error saving etag object {} {} {}'.format(
-                    etag_key, response.status, put_response_body))
-
-        logger.info('Saved as CSV %s %s', dataset_id, version)
 
     dataset_ids = get_dataset_ids()
     dataset_ids_versions = get_dataset_ids_versions(dataset_ids)
@@ -116,6 +106,22 @@ def ensure_csvs(
             write_csvs(dataset_id, version)
         except Exception:
             logger.exception('Exception writing CSVs %s %s', dataset_id, version)
+            continue
+
+        status, headers = aws_head(signed_s3_request, f'{dataset_id}/{version}/data.json')
+        if status != 200:
+            continue
+        if etag != headers['etag'].strip('"'):
+            logger.info('Data has changed since starting to generate CSVs')
+            continue
+
+        with signed_s3_request('PUT', s3_key=etag_key) as response:
+            put_response_body = response.read()
+            if response.status != 200:
+                raise Exception('Error saving etag object {} {} {}'.format(
+                    etag_key, response.status, put_response_body))
+
+        logger.info('Saved as CSV %s %s', dataset_id, version)
 
 
 def main():
