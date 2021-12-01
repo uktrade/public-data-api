@@ -81,6 +81,9 @@
                           <a href="#list-tables"><span>GET list of tables in a version</span></a>
                         </li>
                         <li>
+                          <a href="#get-metadata"><span>GET metadata of a version</span></a>
+                        </li>
+                        <li>
                           <a href="#get-data"><span>GET data in a version</span></a>
                         </li>
                         <li>
@@ -248,6 +251,52 @@
             <h5 id="list-tables-latest-version-example-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
 Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format=json</code></pre>
+
+            <h3 id="get-metadata">GET metadata of a version</h3>
+            <p>The metadata of a dataset version can be accessed using this endpoint.</p>
+            <pre><code class="hljs html">GET /v1/datasets/:dataset/versions/:version/metadata</code></pre>
+            <h4 id="get-metadata-query-string-parameters">Query string parameters</h4>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header govuk-!-width-one-quarter">Name</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">format</code> (required)</td>
+                  <td class="govuk-table__cell">The requested output format. This must be <code class="hljs html">csvw</code> or <code class="hljs html">html</code></td>
+                </tr>
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html">download</code> (optional)</td>
+                  <td class="govuk-table__cell">The presence of this parameter results in a <code class="hljs html">content-disposition</code> header so that browsers attempt to download the metadata rather than display it inline</td>
+                </tr>
+              </tbody>
+            </table>
+            <h4 id="get-metadata-csvw-example">Example requesting CSVW</h4>
+            <h5 id="get-metadata-csvw-example-request">Request</h5>
+            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/metadata?format=csvw</code></pre>
+            <h5 id="get-metadata-csvw-example-response">Response (excerpt)</h5>
+            <pre><code class="hljs html">Status: 200 OK
+{
+  "@context": [
+    "http://www.w3.org/ns/csvw",
+    {"dit": "http://data.api.trade.gov.uk/"}
+  ],
+  "dc:title": "Tariffs to trade with the UK from 1 January 2021",
+  ...
+  "tables": [{
+    "id": "commodities",
+    ...
+    "tableSchema": {
+      "columns": [{
+        "name": "id",
+        ...
+      }, ...]
+    }
+  }, ...]
+}</code></pre>
 
             <h3 id="get-data">GET data in a version</h3>
             <p>Entire data of a version of the dataset can be accessed/downloaded using this endpoint</p>
