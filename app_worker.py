@@ -103,8 +103,8 @@ def ensure_csvs(
             continue
 
         for table in aws_list_folders(signed_s3_request, f'{dataset_id}/{version}/tables/'):
-            s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-            with signed_s3_request('GET', s3_key=s3_key) as response:
+            csv_s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+            with signed_s3_request('GET', s3_key=csv_s3_key) as response:
                 if response.status != 200:
                     return
                 save_csv_compressed(dataset_id, version, table, response.stream(65536))
