@@ -549,6 +549,7 @@ def proxy_app(
             'version': os.environ.get('DOCS_SAMPLE_VERSION', 'v2.1.0'),
             'latest_version': os.environ.get('DOCS_SAMPLE_LATEST_VERSION', 'v2.1.2'),
             'table_name': os.environ.get('DOCS_SAMPLE_TABLE_NAME', 'commodities'),
+            'security_email': os.environ.get('DOCS_SECURITY_EMAIL'),
         }
         return render_template('docs/index.html', **context)
 

@@ -88,6 +88,12 @@
                         </li>
                       </ul>
                     </li>
+                    <li>
+                      <a href="#support"><span>Support</span></a>
+                    </li>
+                    <li>
+                      <a href="#security"><span>Security</span></a>
+                    </li>
                   </ul>
                 </li>
               </ul>
@@ -347,6 +353,14 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/data?format=j
             <h5 id="get-data-table-example-latest-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
 Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables/{{ table_name }}/data?format=csv</code></pre>
+
+            <h2 id="support">Support</h2>
+
+            <p>For help with the {{ service_name }} please create an issue on its <a href="{{ github_repo_url }}/issues">GitHub issues page</a>.</p>
+
+            <h2 id="security">Security</h2>
+
+            <p>To report a security vulnerability please contact us at <a href="mailto:{{ security_email }}">{{ security_email }}</a>.</p>
 
           </main>
           <footer class="govuk-footer app-footer" role="contentinfo">
