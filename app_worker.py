@@ -57,24 +57,6 @@ def ensure_csvs(
             s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
             aws_multipart_upload(signed_s3_request, s3_key, chunks)
 
-        def save_csv_compressed(table, chunks):
-            def yield_compressed_bytes(_uncompressed_bytes):
-                # wbits controls whether a header and trailer is included in the output.
-                # 31 means a basic gzip header and trailing checksum will be included in
-                # the output. See https://docs.python.org/3/library/zlib.html#zlib.compressobj
-                compress_obj = zlib.compressobj(wbits=31)
-                for chunk in _uncompressed_bytes:
-                    compressed_bytes = compress_obj.compress(chunk)
-                    if compressed_bytes:
-                        yield compressed_bytes
-
-                compressed_bytes = compress_obj.flush()
-                if compressed_bytes:
-                    yield compressed_bytes
-
-            s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv.gz'
-            aws_multipart_upload(signed_s3_request, s3_key, yield_compressed_bytes(chunks))
-
         with signed_s3_request('GET', s3_key=f'{dataset_id}/{version}/data.json') as response:
             if response.status != 200:
                 return
@@ -85,7 +67,25 @@ def ensure_csvs(
             with signed_s3_request('GET', s3_key=s3_key) as response:
                 if response.status != 200:
                     return
-                save_csv_compressed(table, response.stream(65536))
+                save_csv_compressed(dataset_id, version, table, response.stream(65536))
+
+    def save_csv_compressed(dataset_id, version, table, chunks):
+        def yield_compressed_bytes(_uncompressed_bytes):
+            # wbits controls whether a header and trailer is included in the output.
+            # 31 means a basic gzip header and trailing checksum will be included in
+            # the output. See https://docs.python.org/3/library/zlib.html#zlib.compressobj
+            compress_obj = zlib.compressobj(wbits=31)
+            for chunk in _uncompressed_bytes:
+                compressed_bytes = compress_obj.compress(chunk)
+                if compressed_bytes:
+                    yield compressed_bytes
+
+            compressed_bytes = compress_obj.flush()
+            if compressed_bytes:
+                yield compressed_bytes
+
+        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv.gz'
+        aws_multipart_upload(signed_s3_request, s3_key, yield_compressed_bytes(chunks))
 
     dataset_ids = get_dataset_ids()
     dataset_ids_versions = get_dataset_ids_versions(dataset_ids)
