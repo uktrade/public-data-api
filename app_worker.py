@@ -90,18 +90,22 @@ def ensure_csvs(
         status, headers = aws_head(signed_s3_request, json_s3_key)
         if status != 200:
             continue
+
+        # Skip if we have already converted the source
         etag = headers['etag'].strip('"')
         etag_key = f'{json_s3_key}__CSV_VERSION_{CSV_VERSION}__{etag}'
         status, _ = aws_head(signed_s3_request, etag_key)
         if status == 200:
             continue
 
+        # Convert the source to CSVs
         try:
             convert_json_to_csvs(dataset_id, version)
         except Exception:
             logger.exception('Exception writing CSVs %s %s', dataset_id, version)
             continue
 
+        # Compress the CSVs
         for table in aws_list_folders(signed_s3_request, f'{dataset_id}/{version}/tables/'):
             csv_s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
             with signed_s3_request('GET', s3_key=csv_s3_key) as response:
@@ -109,6 +113,7 @@ def ensure_csvs(
                     return
                 save_csv_compressed(dataset_id, version, table, response.stream(65536))
 
+        # Re-create the CSVs if the data has since changed...
         status, headers = aws_head(signed_s3_request, json_s3_key)
         if status != 200:
             continue
@@ -116,6 +121,7 @@ def ensure_csvs(
             logger.info('Data has changed since starting to generate CSVs')
             continue
 
+        # ... and don't re-create the CSVs if it has not since changed
         with signed_s3_request('PUT', s3_key=etag_key) as response:
             put_response_body = response.read()
             if response.status != 200:
