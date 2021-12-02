@@ -284,7 +284,7 @@ def proxy_app(
             for table_id, (_, headers) in table_head_status_headers
         }
         filter_urls = {table['id']: url_for(
-            'filter_rows', dataset_id=dataset_id, version=version, table=table['id']
+            'filter_table_rows', dataset_id=dataset_id, version=version, table=table['id']
         ) for table in csvw['tables']}
         return html_template_environment.get_template('metadata.html').render(
             version=version,
@@ -445,7 +445,7 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    def filter_rows(dataset_id, version, table):
+    def filter_table_rows(dataset_id, version, table):
         metadata_table, _, filterable_columns = _get_table_metadata(dataset_id, version, table)
         filters = (
             {c.name: request.args.get(c.name)
@@ -453,9 +453,9 @@ def proxy_app(
         )
 
         return html_template_environment.get_template('filter_rows.html').render(
-            reset_url=url_for('filter_rows', dataset_id=dataset_id,
+            reset_url=url_for('filter_table_rows', dataset_id=dataset_id,
                               version=version, table=table),
-            submit_url=url_for('filter_columns', dataset_id=dataset_id,
+            submit_url=url_for('filter_table_columns', dataset_id=dataset_id,
                                version=version, table=table),
             filterable_columns=filterable_columns,
             filters=filters,
@@ -464,7 +464,7 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    def filter_columns(dataset_id, version, table):
+    def filter_table_columns(dataset_id, version, table):
         metadata_table, columns, filterable_columns = _get_table_metadata(
             dataset_id, version, table)
         filters = (
@@ -473,7 +473,7 @@ def proxy_app(
         )
 
         return html_template_environment.get_template('filter_columns.html').render(
-            back_url=url_for('filter_rows', dataset_id=dataset_id,
+            back_url=url_for('filter_table_rows', dataset_id=dataset_id,
                              version=version, table=table, **filters),
             submit_url=url_for('proxy_table', dataset_id=dataset_id,
                                version=version, table=table),
@@ -594,12 +594,12 @@ def proxy_app(
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
         '/filter/rows',
-        view_func=filter_rows
+        view_func=filter_table_rows
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
         '/filter/columns',
-        view_func=filter_columns
+        view_func=filter_table_columns
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
