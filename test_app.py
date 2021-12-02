@@ -172,6 +172,14 @@ def test_metadata_key_that_exists(processes):
                 'url': 'tables/the-second-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
+            {
+                'url': 'reports/the-first-report/data?format=csv&download',
+                'tableSchema': {'columns': []}
+            },
+            {
+                'url': 'reports/the-second-report/data?format=csv&download',
+                'tableSchema': {'columns': []}
+            },
         ]
     }).encode('utf-8')
     version = 'v0.0.1'
@@ -179,6 +187,10 @@ def test_metadata_key_that_exists(processes):
                 b'header\n' + b'value\n' * 10000)
     put_version('table', dataset_id, version, 'the-second-table',
                 b'header\n' + b'value\n' * 1000000)
+    put_version('report', dataset_id, version, 'the-first-report',
+                b'header\n' + b'value\n' * 20000)
+    put_version('report', dataset_id, version, 'the-second-report',
+                b'header\n' + b'value\n' * 2000000)
     put_version_metadata(dataset_id, version, content)
 
     with \
@@ -207,6 +219,8 @@ def test_metadata_key_that_exists(processes):
         assert b'The title of the dataset - v0.0.1' in response.content
         assert b'60.0 kB' in response.content
         assert b'6.0 MB' in response.content
+        assert b'120.0 kB' in response.content
+        assert b'12.0 MB' in response.content
         assert datetime.now().strftime('%d %B %Y').encode() in response.content
         assert b'?format=csvw&amp;download"' in response.content
         assert response.headers['content-type'] == 'text/html'
@@ -242,31 +256,37 @@ def test_table_key_that_exists(processes):
         assert not response.history
 
 
-def test_table_gzipped(processes):
+@pytest.mark.parametrize('table_or_report,expected_filename_format', (
+    ('table', '{dataset_id}--{version}--{table}.csv'),
+    ('report', '{dataset_id}--{version}--report--{table}.csv'),
+))
+def test_table_gzipped(processes, table_or_report, expected_filename_format):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
     version = 'v0.0.1'
-    put_version('table', dataset_id, version, table, content)
-    put_version_gzipped('table', dataset_id, version, table, content)
+    expected_filename = expected_filename_format.format(
+        dataset_id=dataset_id, version=version, table=table)
+
+    put_version(table_or_report, dataset_id, version, table, content)
+    put_version_gzipped(table_or_report, dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
-            session.get(version_public_url_download('table', dataset_id, version, table),
+            session.get(version_public_url_download(table_or_report, dataset_id, version, table),
                         headers={'accept-encoding': None}
                         ) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'text/csv'
-        assert response.headers[
-            'content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}--{table}.csv"'
+        assert response.headers['content-disposition'] == \
+            f'attachment; filename="{expected_filename}"'
         assert 'content-encoding' not in response.headers
         assert not response.history
 
     with \
             requests.Session() as session, \
-            session.get(version_public_url_download('table', dataset_id, version, table),
+            session.get(version_public_url_download(table_or_report, dataset_id, version, table),
                         headers={'accept-encoding': 'gzip'}
                         ) as response:
         assert response.content == content
@@ -274,7 +294,7 @@ def test_table_gzipped(processes):
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-encoding'] == 'gzip'
         assert response.headers['content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}--{table}.csv"'
+            f'attachment; filename="{expected_filename}"'
         assert not response.history
 
 
@@ -354,13 +374,17 @@ def test_table_s3_select(processes):
         assert not response.history
 
 
-def test_filter_rows(processes):
+@pytest.mark.parametrize('table_or_report', (
+    'table',
+    'report',
+))
+def test_filter_rows(processes, table_or_report):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'dc:title': 'The title of the dataset',
         'tables': [
             {
-                'url': 'tables/the-first-table/data?format=csv&download',
+                'url': f'{table_or_report}s/the-first-table/data?format=csv&download',
                 'dc:title': 'First table title',
                 'tableSchema': {'columns': [
                     {
@@ -380,12 +404,12 @@ def test_filter_rows(processes):
     }).encode('utf-8')
     version = 'v0.0.1'
     contents = b'id_field,name_field\n' + b'1,test\n'
-    put_version('table', dataset_id, version, 'the-first-table', contents)
+    put_version(table_or_report, dataset_id, version, 'the-first-table', contents)
     put_version_metadata(dataset_id, version, content)
 
     with \
             requests.Session() as session, \
-            session.get(version_filter_rows('table', dataset_id,
+            session.get(version_filter_rows(table_or_report, dataset_id,
                                             version,
                                             'the-first-table')
                         ) as response:
@@ -397,13 +421,17 @@ def test_filter_rows(processes):
         assert b'A name field' not in response.content
 
 
-def test_filter_columns(processes):
+@pytest.mark.parametrize('table_or_report,expected_filename_format', (
+    ('table', '{dataset_id}--{version}--{table}.csv'),
+    ('report', '{dataset_id}--{version}--report--{table}.csv'),
+))
+def test_filter_columns(processes, table_or_report, expected_filename_format):
     dataset_id = str(uuid.uuid4())
     content = json.dumps({
         'dc:title': 'The title of the dataset',
         'tables': [
             {
-                'url': 'tables/the-first-table/data?format=csv&download',
+                'url': f'{table_or_report}s/the-first-table/data?format=csv&download',
                 'dc:title': 'First table title',
                 'tableSchema': {'columns': [
                     {
@@ -423,12 +451,14 @@ def test_filter_columns(processes):
     }).encode('utf-8')
     version = 'v0.0.1'
     contents = b'id_field,name_field\n' + b'1,foo\n' + b'2,bar\n'
-    put_version('table', dataset_id, version, 'the-first-table', contents)
+    expected_filename = expected_filename_format.format(
+        dataset_id=dataset_id, version=version, table='the-first-table')
+    put_version(table_or_report, dataset_id, version, 'the-first-table', contents)
     put_version_metadata(dataset_id, version, content)
 
     with \
             requests.Session() as session, \
-            session.get(version_filter_columns('table', dataset_id,
+            session.get(version_filter_columns(table_or_report, dataset_id,
                                                version,
                                                'the-first-table')
                         ) as response:
@@ -441,13 +471,13 @@ def test_filter_columns(processes):
     base_query_args = '&query-simple'
     with \
             requests.Session() as session, \
-            session.get(version_public_url_download('table', dataset_id,
+            session.get(version_public_url_download(table_or_report, dataset_id,
                                                     version,
                                                     'the-first-table')
                         + base_query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}--the-first-table.csv"'
+            f'attachment; filename="{expected_filename}"'
 
         assert b'1,foo' in response.content
         assert b'2,bar' in response.content
@@ -456,13 +486,13 @@ def test_filter_columns(processes):
     query_args = base_query_args + '&_columns=name_field'
     with \
             requests.Session() as session, \
-            session.get(version_public_url_download('table', dataset_id,
+            session.get(version_public_url_download(table_or_report, dataset_id,
                                                     version,
                                                     'the-first-table')
                         + query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}--the-first-table.csv"'
+            f'attachment; filename="{expected_filename}"'
 
         assert b'1' not in response.content
         assert b'foo' in response.content
@@ -473,13 +503,13 @@ def test_filter_columns(processes):
     query_args = base_query_args + '&id_field=1&_columns=name_field'
     with \
             requests.Session() as session, \
-            session.get(version_public_url_download('table', dataset_id,
+            session.get(version_public_url_download(table_or_report, dataset_id,
                                                     version,
                                                     'the-first-table')
                         + query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}--the-first-table.csv"'
+            f'attachment; filename="{expected_filename}"'
 
         assert b'1' not in response.content
         assert b'foo' in response.content
@@ -490,13 +520,13 @@ def test_filter_columns(processes):
     query_args = base_query_args + '&id_field=1,2&_columns=name_field'
     with \
             requests.Session() as session, \
-            session.get(version_public_url_download('table', dataset_id,
+            session.get(version_public_url_download(table_or_report, dataset_id,
                                                     version,
                                                     'the-first-table')
                         + query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
-            f'attachment; filename="{dataset_id}--{version}--the-first-table.csv"'
+            f'attachment; filename="{expected_filename}"'
 
         assert b'1' not in response.content
         assert b'foo' in response.content
@@ -675,38 +705,44 @@ def test_list_tables_for_dataset_version_no_tables(processes):
         assert response.content == b'{"tables": []}'
 
 
-def test_list_tables_for_dataset_version(processes):
+@pytest.mark.parametrize('table_or_report', (
+    'table',
+    'report',
+))
+def test_list_tables_for_dataset_version(processes, table_or_report):
     dataset_id = str(uuid.uuid4())
-    put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
-    url = list_dataset_public_url('table', dataset_id, 'v0.0.1')
+    put_version(table_or_report, dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
             session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
-        assert response.content == b'{"tables": [{"id": "foo"}]}'
+        assert response.content == b'{"' + table_or_report.encode() + b's": [{"id": "foo"}]}'
 
-    put_version('table', dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
-    url = list_dataset_public_url('table', dataset_id, 'v0.0.1')
+    put_version(table_or_report, dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
+    url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
             session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
-        assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
+        assert response.content == b'{"' + table_or_report.encode() + \
+            b's": [{"id": "bar"}, {"id": "foo"}]}'
 
-    put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
-    url = list_dataset_public_url('table', dataset_id, 'v0.0.1')
+    put_version(table_or_report, dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
             session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
-        assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
+        assert response.content == b'{"' + table_or_report.encode() + \
+            b's": [{"id": "bar"}, {"id": "foo"}]}'
 
-    url = list_dataset_public_url('table', dataset_id, 'v0.0.2')
+    url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.2')
     with \
             requests.Session() as session, \
             session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
-        assert response.content == b'{"tables": [{"id": "baz"}]}'
+        assert response.content == b'{"' + table_or_report.encode() + b's": [{"id": "baz"}]}'
 
 
 def test_list_tables_for_dataset__latest_version(processes):

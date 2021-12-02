@@ -279,22 +279,28 @@ def proxy_app(
             'tables': [
                 {
                     **table,
-                    '_id': table['url'].split('/')[1]
+                    '_id': table['url'].split('/')[1],
+                    '_html_id': f"{table['url'].split('/')[0][:-1]}--{table['url'].split('/')[1]}",
+                    '_table_or_report': table['url'].split('/')[0][:-1],
                 }
                 for table in csvw['tables']
             ]
         }
         table_head_status_headers = [
-            (table['_id'], aws_head(signed_s3_request, key))
+            (
+                table['_html_id'],
+                aws_head(signed_s3_request, f'{dataset_id}/{version}/'
+                         + f'{table["_table_or_report"]}s/{table["_id"]}/data.csv'),
+            )
             for table in csvw_with_id['tables']
-            for key in [f'{dataset_id}/{version}/tables/{table["_id"]}/data.csv']
         ]
         table_sizes = {
-            table_id: headers['content-length']
-            for table_id, (_, headers) in table_head_status_headers
+            table_html_id: headers['content-length']
+            for table_html_id, (_, headers) in table_head_status_headers
         }
-        filter_urls = {table['_id']: url_for(
-            'filter_table_rows', dataset_id=dataset_id, version=version, table=table['_id']
+        filter_urls = {table['_html_id']: url_for(
+            f'filter_{table["_table_or_report"]}_rows',
+            dataset_id=dataset_id, version=version, table=table['_id']
         ) for table in csvw_with_id['tables']}
         return html_template_environment.get_template('metadata.html').render(
             version=version,
@@ -352,6 +358,20 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
+    @validate_format(('json',))
+    def list_reports_for_dataset_version(dataset_id, version):
+        folders = aws_list_folders(
+            signed_s3_request,
+            f'{dataset_id}/{version}/reports/',
+        )
+        reports = {'reports': [{'id': report} for report in folders]}
+
+        response = Response(json.dumps(reports), status=200)
+        response.headers['Content-Type'] = 'text/json'
+        return response
+
+    @track_analytics
+    @validate_and_redirect_version
     @validate_format(('json', 'sqlite',))
     def proxy_data(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
@@ -377,9 +397,19 @@ def proxy_app(
     @validate_and_redirect_version
     @validate_format(('csv',))
     def proxy_table(dataset_id, version, table):
-        logger.debug('Attempt to proxy: %s %s %s %s', request, dataset_id, version, table)
+        return proxy_table_or_report('table', dataset_id, version, table)
+
+    @track_analytics
+    @validate_and_redirect_version
+    @validate_format(('csv',))
+    def proxy_report(dataset_id, version, table):
+        return proxy_table_or_report('report', dataset_id, version, table)
+
+    def proxy_table_or_report(table_or_report, dataset_id, version, table):
+        logger.debug('Attempt to proxy: %s %s %s %s %s', table_or_report,
+                     request, dataset_id, version, table)
         header_row = None
-        s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
+        s3_key = f'{dataset_id}/{version}/{table_or_report}s/{table}/data.csv'
 
         if 'query-simple' in request.args:
             _, columns, filterable_columns = _get_table_metadata(
@@ -431,7 +461,9 @@ def proxy_app(
         if header_row:
             body_generator = chain(header_row, body_generator)
 
-        download_filename = f'{dataset_id}--{version}--{table}.csv'
+        download_filename = \
+            f'{dataset_id}--{version}--{table}.csv' if table_or_report == 'table' else \
+            f'{dataset_id}--{version}--report--{table}.csv'
         content_type = 'text/csv'
 
         return _generate_downstream_response(
@@ -456,6 +488,14 @@ def proxy_app(
     @track_analytics
     @validate_and_redirect_version
     def filter_table_rows(dataset_id, version, table):
+        return filter_table_or_report_rows('table', dataset_id, version, table)
+
+    @track_analytics
+    @validate_and_redirect_version
+    def filter_report_rows(dataset_id, version, table):
+        return filter_table_or_report_rows('report', dataset_id, version, table)
+
+    def filter_table_or_report_rows(table_or_report, dataset_id, version, table):
         metadata_table, _, filterable_columns = _get_table_metadata(dataset_id, version, table)
         filters = (
             {c.name: request.args.get(c.name)
@@ -463,9 +503,9 @@ def proxy_app(
         )
 
         return html_template_environment.get_template('filter_rows.html').render(
-            reset_url=url_for('filter_table_rows', dataset_id=dataset_id,
+            reset_url=url_for(f'filter_{table_or_report}_rows', dataset_id=dataset_id,
                               version=version, table=table),
-            submit_url=url_for('filter_table_columns', dataset_id=dataset_id,
+            submit_url=url_for(f'filter_{table_or_report}_columns', dataset_id=dataset_id,
                                version=version, table=table),
             filterable_columns=filterable_columns,
             filters=filters,
@@ -475,6 +515,14 @@ def proxy_app(
     @track_analytics
     @validate_and_redirect_version
     def filter_table_columns(dataset_id, version, table):
+        return filter_table_or_report_columns('table', dataset_id, version, table)
+
+    @track_analytics
+    @validate_and_redirect_version
+    def filter_report_columns(dataset_id, version, table):
+        return filter_table_or_report_columns('report', dataset_id, version, table)
+
+    def filter_table_or_report_columns(table_or_report, dataset_id, version, table):
         metadata_table, columns, filterable_columns = _get_table_metadata(
             dataset_id, version, table)
         filters = (
@@ -483,9 +531,9 @@ def proxy_app(
         )
 
         return html_template_environment.get_template('filter_columns.html').render(
-            back_url=url_for('filter_table_rows', dataset_id=dataset_id,
+            back_url=url_for(f'filter_{table_or_report}_rows', dataset_id=dataset_id,
                              version=version, table=table, **filters),
-            submit_url=url_for('proxy_table', dataset_id=dataset_id,
+            submit_url=url_for(f'proxy_{table_or_report}', dataset_id=dataset_id,
                                version=version, table=table),
             filters=filters,
             columns=columns,
@@ -598,8 +646,16 @@ def proxy_app(
         view_func=list_tables_for_dataset_version
     )
     app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports',
+        view_func=list_reports_for_dataset_version
+    )
+    app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/data',
         view_func=proxy_table
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports/<string:table>/data',
+        view_func=proxy_report
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
@@ -607,9 +663,19 @@ def proxy_app(
         view_func=filter_table_rows
     )
     app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports/<string:table>'
+        '/filter/rows',
+        view_func=filter_report_rows
+    )
+    app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
         '/filter/columns',
         view_func=filter_table_columns
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports/<string:table>'
+        '/filter/columns',
+        view_func=filter_report_columns
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
