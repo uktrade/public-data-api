@@ -176,9 +176,10 @@ def test_metadata_key_that_exists(processes):
 
     }).encode('utf-8')
     version = 'v0.0.1'
-    put_version_table(dataset_id, version, 'the-first-table', b'header\n' + b'value\n' * 10000)
-    put_version_table(dataset_id, version, 'the-second-table',
-                      b'header\n' + b'value\n' * 1000000)
+    put_version('table', dataset_id, version, 'the-first-table',
+                b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, version, 'the-second-table',
+                b'header\n' + b'value\n' * 1000000)
     put_version_metadata(dataset_id, version, content)
 
     with \
@@ -219,7 +220,7 @@ def test_table_key_that_exists(processes):
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
     version = 'v0.0.1'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
@@ -247,7 +248,7 @@ def test_table_gzipped(processes):
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
     version = 'v0.0.1'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
     put_version_gzipped('table', dataset_id, version, table, content)
 
     with \
@@ -283,7 +284,7 @@ def test_table_serves_uncompressed_if_gzip_file_does_not_exist(processes):
     content = str(uuid.uuid4()).encode() * 100000
     table = 'table'
     version = 'v0.0.1'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
@@ -307,7 +308,7 @@ def test_table_serves_uncompressed_if_s3_select_query_provided(processes):
             'utf-8')
     table = 'table'
     version = 'v0.0.1'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
     put_version_gzipped('table', dataset_id, version, table, content)
     params = {
         'query-s3-select': 'SELECT col_a FROM S3Object[*] WHERE col_b = \'d\''
@@ -338,7 +339,7 @@ def test_table_s3_select(processes):
             'utf-8')
     table = 'table'
     version = 'v0.0.1'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
     params = {
         'query-s3-select': 'SELECT col_a FROM S3Object[*] WHERE col_b = \'d\''
     }
@@ -381,7 +382,7 @@ def test_filter_rows(processes):
     }).encode('utf-8')
     version = 'v0.0.1'
     contents = b'id_field,name_field\n' + b'1,test\n'
-    put_version_table(dataset_id, version, 'the-first-table', contents)
+    put_version('table', dataset_id, version, 'the-first-table', contents)
     put_version_metadata(dataset_id, version, content)
 
     with \
@@ -425,7 +426,7 @@ def test_filter_columns(processes):
     }).encode('utf-8')
     version = 'v0.0.1'
     contents = b'id_field,name_field\n' + b'1,foo\n' + b'2,bar\n'
-    put_version_table(dataset_id, version, 'the-first-table', contents)
+    put_version('table', dataset_id, version, 'the-first-table', contents)
     put_version_metadata(dataset_id, version, content)
 
     with \
@@ -679,21 +680,21 @@ def test_list_tables_for_dataset_version_no_tables(processes):
 
 def test_list_tables_for_dataset_version(processes):
     dataset_id = str(uuid.uuid4())
-    put_version_table(dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
             session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "foo"}]}'
 
-    put_version_table(dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
+    put_version('table', dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
     with \
             requests.Session() as session, \
             session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
 
-    put_version_table(dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
             session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
@@ -709,9 +710,9 @@ def test_list_tables_for_dataset_version(processes):
 
 def test_list_tables_for_dataset__latest_version(processes):
     dataset_id = str(uuid.uuid4())
-    put_version_table(dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
-    put_version_table(dataset_id, 'v0.0.2', 'bar', b'header\n' + b'value\n' * 10000)
-    put_version_table(dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.2', 'bar', b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
             session.get(list_dataset_tables_public_url(dataset_id, 'latest')) as response:
@@ -905,7 +906,7 @@ def test_table_key_that_exists_without_format(processes):
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
     table = 'table'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
 
     table_url = version_table_public_url_no_format(dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
@@ -950,7 +951,7 @@ def test_table_key_that_exists_with_bad_format(processes):
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
     table = 'table'
-    put_version_table(dataset_id, version, table, content)
+    put_version('table', dataset_id, version, table, content)
 
     table_url = version_table_public_url_bad_format(dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
@@ -1134,7 +1135,7 @@ def test_redirect_to_latest_version(processes):
         content = str(uuid.uuid4()).encode() * 10
         version = f'v{major}.{minor}.{patch}'
         put_version_data(dataset_id, version, content, 'json')
-        put_version_table(dataset_id, version, table, content)
+        put_version('table', dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
@@ -1180,7 +1181,7 @@ def test_table_redirect_to_latest_version(processes):
     for major, minor, patch in itertools.product(range(0, 11), range(0, 11), range(0, 33)):
         content = str(uuid.uuid4()).encode() * 10
         version = f'v{major}.{minor}.{patch}'
-        put_version_table(dataset_id, version, table, content)
+        put_version('table', dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
@@ -1457,8 +1458,8 @@ def put_version_data(dataset_id, version, contents, extension):
     return put_object(f'{dataset_id}/{version}/data.{extension}', contents)
 
 
-def put_version_table(dataset_id, version, table, contents):
-    return put_object(f'{dataset_id}/{version}/tables/{table}/data.csv', contents)
+def put_version(table_or_report, dataset_id, version, table, contents):
+    return put_object(f'{dataset_id}/{version}/{table_or_report}s/{table}/data.csv', contents)
 
 
 def put_version_gzipped(table_or_report, dataset_id, version, table, contents):
