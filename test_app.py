@@ -248,7 +248,7 @@ def test_table_gzipped(processes):
     table = 'table'
     version = 'v0.0.1'
     put_version_table(dataset_id, version, table, content)
-    put_version_table_gzipped(dataset_id, version, table, content)
+    put_version_gzipped('table', dataset_id, version, table, content)
 
     with \
             requests.Session() as session, \
@@ -308,7 +308,7 @@ def test_table_serves_uncompressed_if_s3_select_query_provided(processes):
     table = 'table'
     version = 'v0.0.1'
     put_version_table(dataset_id, version, table, content)
-    put_version_table_gzipped(dataset_id, version, table, content)
+    put_version_gzipped('table', dataset_id, version, table, content)
     params = {
         'query-s3-select': 'SELECT col_a FROM S3Object[*] WHERE col_b = \'d\''
     }
@@ -1461,9 +1461,9 @@ def put_version_table(dataset_id, version, table, contents):
     return put_object(f'{dataset_id}/{version}/tables/{table}/data.csv', contents)
 
 
-def put_version_table_gzipped(dataset_id, version, table, contents):
+def put_version_gzipped(table_or_report, dataset_id, version, table, contents):
     return put_object(
-        f'{dataset_id}/{version}/tables/{table}/data.csv.gz', gzip.compress(contents)
+        f'{dataset_id}/{version}/{table_or_report}s/{table}/data.csv.gz', gzip.compress(contents)
     )
 
 
