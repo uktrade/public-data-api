@@ -165,11 +165,11 @@ def test_metadata_key_that_exists(processes):
         'dc:title': 'The title of the dataset',
         'tables': [
             {
-                'id': 'the-first-table',
+                'url': 'tables/the-first-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
-                'id': 'the-second-table',
+                'url': 'tables/the-second-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
         ]
@@ -362,7 +362,6 @@ def test_filter_rows(processes):
             {
                 'url': 'tables/the-first-table/data?format=csv&download',
                 'dc:title': 'First table title',
-                'id': 'the-first-table',
                 'tableSchema': {'columns': [
                     {
                         'name': 'id_field',
@@ -406,7 +405,6 @@ def test_filter_columns(processes):
             {
                 'url': 'tables/the-first-table/data?format=csv&download',
                 'dc:title': 'First table title',
-                'id': 'the-first-table',
                 'tableSchema': {'columns': [
                     {
                         'name': 'id_field',

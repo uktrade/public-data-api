@@ -44,7 +44,7 @@
 
             <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
             {% for table in csvw['tables'] %}
-                <li><a class="govuk-link govuk-link--no-visited-state" href="#{{ table['id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</a></li>
+                <li><a class="govuk-link govuk-link--no-visited-state" href="#{{ table['_id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</a></li>
             {% endfor %}
             </ul>
 
@@ -53,12 +53,12 @@
     </div></div>
 
     {% for table in csvw['tables'] %}
-    <h2 class="govuk-heading-m" id="{{ table['id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</h2>
+    <h2 class="govuk-heading-m" id="{{ table['_id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</h2>
 
     <p class="govuk-body">{{ table['dc:description'] }}</p>
 
     <p class="govuk-body">
-        Download the <a href="{{ table['url'] }}" class="govuk-link">{{ table['dc:title'] }} table</a> (CSV, {{ table_sizes[table['id']] | filesizeformat }}). To download less data you can <a href="{{ filter_urls[table['id']] }}" >filter on columns and rows in the {{ table['dc:title'] }} table.</a>
+        Download the <a href="{{ table['url'] }}" class="govuk-link">{{ table['dc:title'] }} table</a> (CSV, {{ table_sizes[table['_id']] | filesizeformat }}). To download less data you can <a href="{{ filter_urls[table['_id']] }}" >filter on columns and rows in the {{ table['dc:title'] }} table.</a>
     </p>
 
     <table class="govuk-table">

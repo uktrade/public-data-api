@@ -274,24 +274,34 @@ def proxy_app(
 
     def _convert_csvw_to_html(dataset_id, version, body_generator):
         csvw = json.loads(b''.join(body_generator))
+        csvw_with_id = {
+            **csvw,
+            'tables': [
+                {
+                    **table,
+                    '_id': table['url'].split('/')[1]
+                }
+                for table in csvw['tables']
+            ]
+        }
         table_head_status_headers = [
-            (table['id'], aws_head(signed_s3_request, key))
-            for table in csvw['tables']
-            for key in [f'{dataset_id}/{version}/tables/{table["id"]}/data.csv']
+            (table['_id'], aws_head(signed_s3_request, key))
+            for table in csvw_with_id['tables']
+            for key in [f'{dataset_id}/{version}/tables/{table["_id"]}/data.csv']
         ]
         table_sizes = {
             table_id: headers['content-length']
             for table_id, (_, headers) in table_head_status_headers
         }
-        filter_urls = {table['id']: url_for(
-            'filter_table_rows', dataset_id=dataset_id, version=version, table=table['id']
-        ) for table in csvw['tables']}
+        filter_urls = {table['_id']: url_for(
+            'filter_table_rows', dataset_id=dataset_id, version=version, table=table['_id']
+        ) for table in csvw_with_id['tables']}
         return html_template_environment.get_template('metadata.html').render(
             version=version,
             version_published_at=max((
                 datetime.datetime(*parsedate(headers['last-modified'])[:6])
                 for _, (_, headers) in table_head_status_headers)),
-            csvw=csvw,
+            csvw=csvw_with_id,
             filter_urls=filter_urls,
             metadata_download_url=url_for('proxy_metadata', dataset_id=dataset_id, version=version)
             + '?format=csvw&download',
