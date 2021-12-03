@@ -673,7 +673,7 @@ def test_list_tables_for_dataset_version_no_tables(processes):
 
     with \
             requests.Session() as session, \
-            session.get(list_dataset_tables_public_url(dataset_id, version)) as response:
+            session.get(list_dataset_public_url('table', dataset_id, version)) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": []}'
 
@@ -683,27 +683,27 @@ def test_list_tables_for_dataset_version(processes):
     put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
-            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
+            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.1')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "foo"}]}'
 
     put_version('table', dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
     with \
             requests.Session() as session, \
-            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
+            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.1')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
 
     put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
-            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.1')) as response:
+            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.1')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
 
     with \
             requests.Session() as session, \
-            session.get(list_dataset_tables_public_url(dataset_id, 'v0.0.2')) as response:
+            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.2')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "baz"}]}'
 
@@ -715,7 +715,7 @@ def test_list_tables_for_dataset__latest_version(processes):
     put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
-            session.get(list_dataset_tables_public_url(dataset_id, 'latest')) as response:
+            session.get(list_dataset_public_url('table', dataset_id, 'latest')) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "baz"}]}'
 
@@ -1566,8 +1566,8 @@ def list_dataset_versions_public_url(dataset_id):
     return f'{_url_prefix}/{dataset_id}/versions?format=json'
 
 
-def list_dataset_tables_public_url(dataset_id, version):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables?format=json'
+def list_dataset_public_url(table_or_report, dataset_id, version):
+    return f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s?format=json'
 
 
 def version_metadata_public_url(dataset_id, version):
