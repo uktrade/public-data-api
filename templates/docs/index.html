@@ -178,7 +178,7 @@
             </table>
             <h4 id="list-datasets-example">Example</h4>
             <h5 id="list-datasets-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets?format=json</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets?format=json</code></pre>
             <h5 id="list-datasets-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -206,7 +206,7 @@
             </table>
             <h4 id="list-versions-example">Example</h4>
             <h5 id="list-versions-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions?format=json</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions?format=json</code></pre>
             <h5 id="list-versions-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -234,7 +234,7 @@
             </table>
             <h4 id="list-tables-version-example">Example for specific version</h4>
             <h5 id="list-tables-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables?format=json</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables?format=json</code></pre>
             <h5 id="list-tables-example-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -247,7 +247,7 @@
             <h4 id="list-tables-latest-version-example">Example for latest version</h4>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
             <h5 id="list-tables-latest-version-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables?format=json</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables?format=json</code></pre>
             <h5 id="list-tables-latest-version-example-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
 Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format=json</code></pre>
@@ -276,7 +276,7 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format
             </table>
             <h4 id="get-metadata-csvw-example">Example requesting CSVW</h4>
             <h5 id="get-metadata-csvw-example-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/metadata?format=csvw</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/metadata?format=csvw</code></pre>
             <h5 id="get-metadata-csvw-example-response">Response (excerpt)</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -329,7 +329,7 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format
             <p>If a <code class="hljs html">query-s3-select</code> is <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the dataset. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
             <h4 id="get-specific-version-example-without-query">Example without a query</h4>
             <h5 id="get-specific-version-example-without-query-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data?format=json</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data?format=json</code></pre>
             <h5 id="get-specific-version-example-without-a-query-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 {
@@ -341,7 +341,7 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format
 }</code></pre>
             <h4 id="get-specific-version-example-with-query">Example with a query</h4>
             <h5 id="get-specific-version-example-with-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data?format=json&query-s3-select=\
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data?format=json&query-s3-select=\
 SELECT \
   * \
 FROM \
@@ -358,7 +358,7 @@ WHERE \
             <h4 id="get-latest-version-example">Example for latest data</h4>
             <h5 id="get-latest-version-example-request">Request</h5>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/data?format=json</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/data?format=json</code></pre>
             <h5 id="get-latest-version-example-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
 Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/data?format=json</code></pre>
@@ -387,7 +387,7 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/data?format=j
             </table>
             <h4 id="get-data-table-example-version">Example</h4>
             <h5 id="get-data-table-example-version-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data?format=csv</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data?format=csv</code></pre>
             <h5 id="get-data-table-example-version-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 "id","commodity__sid","commodity__code","commodity__suffix","commodity__description","commodity__validity_start","commodity__validity_end","parent__sid","parent__code","parent__suffix"
@@ -398,7 +398,7 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/data?format=j
             <h4 id="get-data-table-example-latest">Example with latest</h4>
             <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
             <h5 id="get-data-table-example-latest-request">Request</h5>
-            <pre><code class="hljs html">curl -X GET {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables/{{ table_name }}/data?format=csv</code></pre>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables/{{ table_name }}/data?format=csv</code></pre>
             <h5 id="get-data-table-example-latest-response">Response</h5>
             <pre><code class="hljs html">Status: 302 Found
 Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables/{{ table_name }}/data?format=csv</code></pre>
