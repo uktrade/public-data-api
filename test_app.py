@@ -173,7 +173,6 @@ def test_metadata_key_that_exists(processes):
                 'tableSchema': {'columns': []}
             },
         ]
-
     }).encode('utf-8')
     version = 'v0.0.1'
     put_version('table', dataset_id, version, 'the-first-table',
