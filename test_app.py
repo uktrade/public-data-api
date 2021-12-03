@@ -224,7 +224,7 @@ def test_table_key_that_exists(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url(dataset_id, version, table)) as response:
+            session.get(version_public_url('table', dataset_id, version, table)) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'text/csv'
@@ -233,8 +233,8 @@ def test_table_key_that_exists(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id,
-                                                          version, table)) as response:
+            session.get(version_public_url_download('table', dataset_id,
+                                                    version, table)) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'text/csv'
@@ -253,7 +253,7 @@ def test_table_gzipped(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id, version, table),
+            session.get(version_public_url_download('table', dataset_id, version, table),
                         headers={'accept-encoding': None}
                         ) as response:
         assert response.content == content
@@ -267,7 +267,7 @@ def test_table_gzipped(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id, version, table),
+            session.get(version_public_url_download('table', dataset_id, version, table),
                         headers={'accept-encoding': 'gzip'}
                         ) as response:
         assert response.content == content
@@ -288,7 +288,7 @@ def test_table_serves_uncompressed_if_gzip_file_does_not_exist(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id, version, table),
+            session.get(version_public_url_download('table', dataset_id, version, table),
                         headers={'accept-encoding': 'gzip'}
                         ) as response:
         assert response.content, content
@@ -315,7 +315,7 @@ def test_table_serves_uncompressed_if_s3_select_query_provided(processes):
     }
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id, version, table),
+            session.get(version_public_url_download('table', dataset_id, version, table),
                         params=params, headers={'accept-encoding': 'gzip'}
                         ) as response:
         assert response.content == \
@@ -345,7 +345,7 @@ def test_table_s3_select(processes):
     }
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id, version, table),
+            session.get(version_public_url_download('table', dataset_id, version, table),
                         params=params) as response:
         assert response.content == \
             'c🍰é\ne\n&>' '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8')
@@ -387,9 +387,9 @@ def test_filter_rows(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_filter_rows(dataset_id,
-                                                  version,
-                                                  'the-first-table')
+            session.get(version_filter_rows('table', dataset_id,
+                                            version,
+                                            'the-first-table')
                         ) as response:
         assert b'Table: First table title' in response.content
         assert b'id_field' in response.content
@@ -431,9 +431,9 @@ def test_filter_columns(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_filter_columns(dataset_id,
-                                                     version,
-                                                     'the-first-table')
+            session.get(version_filter_columns('table', dataset_id,
+                                               version,
+                                               'the-first-table')
                         ) as response:
         assert b'Table: First table title' in response.content
         # all metadata fields should be available when selecting the required columns
@@ -444,9 +444,9 @@ def test_filter_columns(processes):
     base_query_args = '&query-simple'
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id,
-                                                          version,
-                                                          'the-first-table')
+            session.get(version_public_url_download('table', dataset_id,
+                                                    version,
+                                                    'the-first-table')
                         + base_query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
@@ -459,9 +459,9 @@ def test_filter_columns(processes):
     query_args = base_query_args + '&_columns=name_field'
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id,
-                                                          version,
-                                                          'the-first-table')
+            session.get(version_public_url_download('table', dataset_id,
+                                                    version,
+                                                    'the-first-table')
                         + query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
@@ -476,9 +476,9 @@ def test_filter_columns(processes):
     query_args = base_query_args + '&id_field=1&_columns=name_field'
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id,
-                                                          version,
-                                                          'the-first-table')
+            session.get(version_public_url_download('table', dataset_id,
+                                                    version,
+                                                    'the-first-table')
                         + query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
@@ -493,9 +493,9 @@ def test_filter_columns(processes):
     query_args = base_query_args + '&id_field=1,2&_columns=name_field'
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url_download(dataset_id,
-                                                          version,
-                                                          'the-first-table')
+            session.get(version_public_url_download('table', dataset_id,
+                                                    version,
+                                                    'the-first-table')
                         + query_args) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
@@ -875,7 +875,7 @@ def test_table_key_that_does_not_exist(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url(dataset_id, version, table)) as response:
+            session.get(version_public_url('table', dataset_id, version, table)) as response:
         assert response.status_code == 404
 
 
@@ -908,13 +908,13 @@ def test_table_key_that_exists_without_format(processes):
     table = 'table'
     put_version('table', dataset_id, version, table, content)
 
-    table_url = version_table_public_url_no_format(dataset_id, version, table)
+    table_url = version_public_url_no_format('table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 400
         assert response.content == b'The query string must have a "format" term'
         assert not response.history
 
-    table_url = version_table_public_url(dataset_id, version, table)
+    table_url = version_public_url('table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
@@ -953,13 +953,13 @@ def test_table_key_that_exists_with_bad_format(processes):
     table = 'table'
     put_version('table', dataset_id, version, table, content)
 
-    table_url = version_table_public_url_bad_format(dataset_id, version, table)
+    table_url = version_public_url_bad_format('table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 400
         assert response.content == b'The query string "format" term must be one of "(\'csv\',)"'
         assert not response.history
 
-    table_url = version_table_public_url(dataset_id, version, table)
+    table_url = version_public_url('table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
@@ -1117,7 +1117,7 @@ def test_no_latest_version(processes):
         assert response.content == b'Dataset not found'
         assert not response.history
 
-    table_url = version_table_public_url(dataset_id, 'latest', 'does-not-exist')
+    table_url = version_public_url('table', dataset_id, 'latest', 'does-not-exist')
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 404
         assert response.content == b'Dataset not found'
@@ -1193,7 +1193,7 @@ def test_table_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url(dataset_id, 'latest', table)) as response:
+            session.get(version_public_url('table', dataset_id, 'latest', table)) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'text/csv'
@@ -1203,7 +1203,7 @@ def test_table_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url(dataset_id, 'v2', table)) as response:
+            session.get(version_public_url('table', dataset_id, 'v2', table)) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert len(response.history) == 1
         assert response.history[0].status_code == 302
@@ -1211,7 +1211,7 @@ def test_table_redirect_to_latest_version(processes):
 
     with \
             requests.Session() as session, \
-            session.get(version_table_public_url(dataset_id, 'v3.4', table)) as response:
+            session.get(version_public_url('table', dataset_id, 'v3.4', table)) as response:
         assert response.headers['content-type'] == 'text/csv'
         assert len(response.history) == 1
         assert response.history[0].status_code == 302
@@ -1437,8 +1437,8 @@ def test_google_analytics_integration(processes):
     with requests.Session() as session:
         session.get(version_data_public_url(dataset_id, version, 'json'))
         session.get(version_data_public_url_download(dataset_id, version, 'json'))
-        session.get(version_table_public_url(dataset_id, version, 'table'))
-        session.get(version_table_public_url_download(dataset_id, version, 'table'))
+        session.get(version_public_url('table', dataset_id, version, 'table'))
+        session.get(version_public_url_download('table', dataset_id, version, 'table'))
         with \
                 requests.Session() as session, \
                 session.post('http://127.0.0.1:9002/calls') as response:
@@ -1598,34 +1598,34 @@ def version_data_public_url_bad_format(dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/data?format=txt'
 
 
-def version_table_public_url(dataset_id, version, table):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=csv'
+def version_public_url(table_or_report, dataset_id, version, table):
+    return (f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s/{table}/'
+            + 'data?format=csv')
 
 
-def version_table_public_url_download(dataset_id, version, table):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=csv&download'
+def version_public_url_download(table_or_report, dataset_id, version, table):
+    return (f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s/{table}/'
+            + 'data?format=csv&download')
 
 
-def version_table_public_url_no_format(dataset_id, version, table):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data'
+def version_public_url_no_format(table_or_report, dataset_id, version, table):
+    return (f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s/{table}/'
+            + 'data')
 
 
-def version_table_public_url_bad_format(dataset_id, version, table):
-    return f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/data?format=txt'
+def version_public_url_bad_format(table_or_report, dataset_id, version, table):
+    return (f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s/{table}/'
+            + 'data?format=txt')
 
 
-def version_table_filter_rows(dataset_id, version, table):
-    return (
-        f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/'
-        'filter/rows'
-    )
+def version_filter_rows(table_or_report, dataset_id, version, table):
+    return (f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s/{table}/'
+            + 'filter/rows')
 
 
-def version_table_filter_columns(dataset_id, version, table):
-    return (
-        f'{_url_prefix}/{dataset_id}/versions/{version}/tables/{table}/'
-        'filter/columns'
-    )
+def version_filter_columns(table_or_report, dataset_id, version, table):
+    return (f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s/{table}/'
+            + 'filter/columns')
 
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
