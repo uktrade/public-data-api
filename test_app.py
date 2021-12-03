@@ -681,29 +681,33 @@ def test_list_tables_for_dataset_version_no_tables(processes):
 def test_list_tables_for_dataset_version(processes):
     dataset_id = str(uuid.uuid4())
     put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    url = list_dataset_public_url('table', dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
-            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.1')) as response:
+            session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "foo"}]}'
 
     put_version('table', dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
+    url = list_dataset_public_url('table', dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
-            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.1')) as response:
+            session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
 
     put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    url = list_dataset_public_url('table', dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
-            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.1')) as response:
+            session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "bar"}, {"id": "foo"}]}'
 
+    url = list_dataset_public_url('table', dataset_id, 'v0.0.2')
     with \
             requests.Session() as session, \
-            session.get(list_dataset_public_url('table', dataset_id, 'v0.0.2')) as response:
+            session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
         assert response.content == b'{"tables": [{"id": "baz"}]}'
 
