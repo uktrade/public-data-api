@@ -30,6 +30,11 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
     outputs = {}
 
     put_object_no_raise('', b'')  # Ensures bucket created
+    put_object('', '''
+        <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Status>Enabled</Status>
+        </VersioningConfiguration>
+    '''.encode(), params=(('versioning', ''),))
     delete_all_objects()
     with open('Procfile', 'r') as file:
         lines = file.read().splitlines()
@@ -1512,16 +1517,16 @@ def get_csv_data_gzipped(dataset_id, version, table):
     return get_object(f'{dataset_id}/{version}/tables/{table}/data.csv.gz')
 
 
-def put_object(key, contents):
+def put_object(key, contents, params=()):
     url = f'http://127.0.0.1:9000/my-bucket/{key}'
     body_hash = hashlib.sha256(contents).hexdigest()
     parsed_url = urllib.parse.urlsplit(url)
 
     headers = aws_sigv4_headers(
         'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-        (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
+        (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, params, body_hash,
     )
-    with requests.put(url, data=contents, headers=dict(headers)) as response:
+    with requests.put(url, params=params, data=contents, headers=dict(headers)) as response:
         response.raise_for_status()
 
 
@@ -1556,15 +1561,17 @@ def delete_all_objects():
         url = 'http://127.0.0.1:9000/my-bucket/'
         parsed_url = urllib.parse.urlsplit(url)
         namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
-        token = ''
+        key_marker = ''
+        version_marker = ''
 
         def _list(extra_query_items=()):
-            nonlocal token
+            nonlocal key_marker, version_marker
 
-            token = ''
+            key_marker = ''
+            version_marker = ''
             query = (
                 ('max-keys', '1000'),
-                ('list-type', '2'),
+                ('versions', ''),
             ) + extra_query_items
 
             body = b''
@@ -1578,28 +1585,34 @@ def delete_all_objects():
                 body_bytes = response.content
 
             for element in ET.fromstring(body_bytes):
-                if element.tag == f'{namespace}Contents':
+                if element.tag in (f'{namespace}Version', f'{namespace}DeleteMarker'):
                     for child in element:
                         if child.tag == f'{namespace}Key':
-                            yield child.text
-                if element.tag == f'{namespace}NextContinuationToken':
-                    token = element.text
+                            key = child.text
+                        if child.tag == f'{namespace}VersionId':
+                            version_id = child.text
+                    yield key, version_id
+                if element.tag == f'{namespace}NextKeyMarker':
+                    key_marker = element.text
+                if element.tag == f'{namespace}NextVersionMarker':
+                    version_marker = element.text
 
         yield from _list()
 
-        while token:
-            yield from _list((('continuation-token', token),))
+        while key_marker:
+            yield from _list((('key-marker', key_marker), ('version-marker', version_marker)))
 
-    for key in list_keys():
+    for key, version_id in list_keys():
         url = f'http://127.0.0.1:9000/my-bucket/{key}'
+        params = (('versionId', version_id),)
         parsed_url = urllib.parse.urlsplit(url)
         body = b''
         body_hash = hashlib.sha256(body).hexdigest()
         headers = aws_sigv4_headers(
             'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-            (), 's3', 'us-east-1', parsed_url.netloc, 'DELETE', parsed_url.path, (), body_hash,
+            (), 's3', 'us-east-1', parsed_url.netloc, 'DELETE', parsed_url.path, params, body_hash,
         )
-        with requests.delete(url, data=body, headers=dict(headers)) as response:
+        with requests.delete(url, params=params, data=body, headers=dict(headers)) as response:
             response.raise_for_status()
 
 
