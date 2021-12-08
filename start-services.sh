@@ -10,7 +10,7 @@ docker run --rm -p 9000:9000 --name s3proxy-minio -d \
   -e 'MINIO_REGION=us-east-1' \
   --entrypoint sh \
   minio/minio:RELEASE.2020-07-31T03-39-05Z \
-  -c 'mkdir -p /data/my-bucket && minio server /data'
+  -c 'mkdir -p /data1 && mkdir -p /data2 && mkdir -p /data3 && mkdir -p /data4 && minio server /data{1...4}'
 
 docker run --network public-data-api-network --rm -p 9201:9200 -p 9301:9300 --name elasticsearch -d \
   -e "discovery.type=single-node" \
