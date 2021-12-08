@@ -1319,8 +1319,6 @@ def test_redirect_with_utf_8_in_query_string(processes):
 
 
 def test_csv_created(processes):
-    delete_all_objects()
-
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
     content = b'{"top":[{"id":1,"key":"value","nested":[{"key_2":"value_2"}]}]}'
