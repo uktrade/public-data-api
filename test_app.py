@@ -29,6 +29,7 @@ import requests
 def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
     outputs = {}
 
+    put_object_no_raise('', b'')  # Ensures bucket created
     delete_all_objects()
     with open('Procfile', 'r') as file:
         lines = file.read().splitlines()
@@ -1522,6 +1523,18 @@ def put_object(key, contents):
     )
     with requests.put(url, data=contents, headers=dict(headers)) as response:
         response.raise_for_status()
+
+
+def put_object_no_raise(key, contents):
+    url = f'http://127.0.0.1:9000/my-bucket/{key}'
+    body_hash = hashlib.sha256(contents).hexdigest()
+    parsed_url = urllib.parse.urlsplit(url)
+
+    headers = aws_sigv4_headers(
+        'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
+    )
+    requests.put(url, data=contents, headers=dict(headers))
 
 
 def get_object(key):

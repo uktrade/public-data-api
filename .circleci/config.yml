@@ -11,7 +11,7 @@ jobs:
           MINIO_SECRET_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
           MINIO_REGION: us-east-1
         entrypoint: sh
-        command: ['-c', 'mkdir -p /data/my-bucket && minio server /data']
+        command: ['-c', 'mkdir -p /data1 && mkdir -p /data2 && mkdir -p /data3 && mkdir -p /data4 && minio server /data{1...4}']
       - image: redis:3.2.11
       - image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
         environment:
