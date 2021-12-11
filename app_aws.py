@@ -335,7 +335,7 @@ def aws_select_parse_result(convert_records_to_output, input_iterable, min_outpu
     return output
 
 
-def aws_list_folders(signed_s3_request, prefix):
+def aws_list(signed_s3_request, prefix, delimeter):
     namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
     token = ''
 
@@ -346,7 +346,7 @@ def aws_list_folders(signed_s3_request, prefix):
         query = (
             ('max-keys', '1000'),
             ('list-type', '2'),
-            ('delimiter', '/'),
+            ('delimiter', delimeter),
             ('prefix', prefix),
         ) + extra_query_items
         with signed_s3_request('GET', s3_key='', params=query) as response:
