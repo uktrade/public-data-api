@@ -152,8 +152,8 @@ def test_key_that_exists(processes, requested_format, expected_content_type):
             session.get(version_data_public_url(dataset_id, version,
                                                 requested_format)) as response:
         assert response.content == content
-        assert response.headers['content-length'], str(len(content))
-        assert response.headers['content-type'], expected_content_type
+        assert response.headers['content-length'] == str(len(content))
+        assert response.headers['content-type'] == expected_content_type
         assert'content-disposition' not in response.headers
         assert not response.history
 
