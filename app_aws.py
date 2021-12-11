@@ -339,7 +339,7 @@ def aws_list(signed_s3_request, prefix, delimeter):
     namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
     token = ''
 
-    def _list(extra_query_items=()):
+    def _list(extra_query_params=()):
         nonlocal token
 
         token = ''
@@ -348,7 +348,7 @@ def aws_list(signed_s3_request, prefix, delimeter):
             ('list-type', '2'),
             ('delimiter', delimeter),
             ('prefix', prefix),
-        ) + extra_query_items
+        ) + extra_query_params
         with signed_s3_request('GET', s3_key='', params=query) as response:
             body_bytes = response.read()
 
