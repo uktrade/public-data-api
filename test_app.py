@@ -233,6 +233,51 @@ def test_metadata_key_that_exists(processes):
         assert 'content-disposition' not in response.headers
         assert not response.history
 
+    content = json.dumps({
+        'dc:title': 'The updated title of the dataset',
+        'tables': [
+            {
+                'url': 'tables/the-first-table/data?format=csv&download',
+                'tableSchema': {'columns': []}
+            },
+            {
+                'url': 'tables/the-second-table/data?format=csv&download',
+                'tableSchema': {'columns': []}
+            },
+            {
+                'url': 'reports/the-first-report/data?format=csv&download',
+                'tableSchema': {'columns': []}
+            },
+            {
+                'url': 'reports/the-second-report/data?format=csv&download',
+                'tableSchema': {'columns': []}
+            },
+        ]
+    }).encode('utf-8')
+    version = 'v0.0.2'
+    put_version('table', dataset_id, version, 'the-first-table',
+                b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, version, 'the-second-table',
+                b'header\n' + b'value\n' * 1000000)
+    put_version('report', dataset_id, version, 'the-first-report',
+                b'header\n' + b'value\n' * 20000)
+    put_version('report', dataset_id, version, 'the-second-report',
+                b'header\n' + b'value\n' * 2000000)
+    put_version_metadata(dataset_id, version, content)
+
+    with \
+            requests.Session() as session, \
+            session.get(dataset_metadata_public_url(dataset_id)) as response:
+        dataset_metadata = response.json()
+        assert dataset_metadata == {'dataset': [{'title': 'The updated title of the dataset'}]}
+
+
+def test_metadata_key_that_does_not_exist(processes):
+    with \
+            requests.Session() as session, \
+            session.get(dataset_metadata_public_url('not-exist')) as response:
+        assert response.status_code == 404
+
 
 def test_table_key_that_exists(processes):
     dataset_id = str(uuid.uuid4())
@@ -1629,6 +1674,10 @@ def list_dataset_versions_public_url(dataset_id):
 
 def list_dataset_public_url(table_or_report, dataset_id, version):
     return f'{_url_prefix}/{dataset_id}/versions/{version}/{table_or_report}s?format=json'
+
+
+def dataset_metadata_public_url(dataset_id):
+    return f'{_url_prefix}/{dataset_id}/metadata?format=data.json'
 
 
 def version_metadata_public_url(dataset_id, version):

@@ -59,6 +59,7 @@ from app_aws import (
     aws_select_convert_records_to_json,
     aws_select_parse_result,
     aws_list_folders,
+    aws_list_keys,
 )
 
 
@@ -325,6 +326,38 @@ def proxy_app(
         }
 
         return Response(json.dumps(versions), headers={'content-type': 'text/json'}, status=200)
+
+    @track_analytics
+    @validate_format(('data.json',))
+    def get_metadata_for_dataset(dataset_id):
+        def semver_key(path):
+            v_major_str, minor_str, patch_str = path.split('.')
+            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+        # Fetch all metadata files
+        metadatas = {}
+        for key in aws_list_keys(signed_s3_request, dataset_id + '/'):
+            components = key.split('/')
+            if len(components) == 2 and components[1] == 'metadata--csvw.json':
+                version = components[0]
+                body_generator, _ = _proxy(dataset_id + '/' + key, None, None, request.headers)
+                metadatas[version] = json.loads(b''.join(body_generator))
+
+        if not metadatas:
+            abort(404)
+
+        # Sort metadatas by semver, to have most recent at the start
+        metadatas = dict(sorted(metadatas.items(),
+                                key=lambda key_value: semver_key(key_value[0]), reverse=True))
+
+        # Choose most recent metadata as the one for the title
+        metadata_recent = metadatas[next(iter(metadatas.keys()))]
+
+        return Response(json.dumps({
+            'dataset': [{
+                'title': metadata_recent['dc:title']
+            }]
+        }), headers={'content-type': 'text/json'}, status=200)
 
     @track_analytics
     @validate_format(('json',))
@@ -622,6 +655,10 @@ def proxy_app(
     app.add_url_rule(
         '/v1/datasets',
         view_func=list_all_datasets
+    )
+    app.add_url_rule(
+        '/v1/datasets/<string:dataset_id>/metadata',
+        view_func=get_metadata_for_dataset,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions',
