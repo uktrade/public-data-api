@@ -335,7 +335,7 @@ def aws_select_parse_result(convert_records_to_output, input_iterable, min_outpu
     return output
 
 
-def aws_list(signed_s3_request, prefix, delimeter):
+def aws_list(signed_s3_request, prefix=None, delimeter=None):
     namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
     token = ''
 
@@ -346,9 +346,10 @@ def aws_list(signed_s3_request, prefix, delimeter):
         query = (
             ('max-keys', '1000'),
             ('list-type', '2'),
-            ('delimiter', delimeter),
-            ('prefix', prefix),
-        ) + extra_query_params
+        ) + \
+            ((('prefix', prefix),) if prefix is not None else ()) + \
+            ((('delimiter', delimeter),) if delimeter is not None else ()) + \
+            extra_query_params
         with signed_s3_request('GET', s3_key='', params=query) as response:
             body_bytes = response.read()
 
@@ -358,7 +359,7 @@ def aws_list(signed_s3_request, prefix, delimeter):
         for element in ET.fromstring(body_bytes):
             if element.tag == f'{namespace}CommonPrefixes':
                 for child in element:
-                    yield child.text[len(prefix):-1]
+                    yield child.text[len(prefix if prefix is not None else ''):-1]
             if element.tag == f'{namespace}NextContinuationToken':
                 token = element.text
 
