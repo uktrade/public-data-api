@@ -147,20 +147,20 @@ def test_key_that_exists(processes, requested_format, expected_content_type):
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, requested_format)
 
+    url = version_data_public_url(dataset_id, version, requested_format)
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url(dataset_id, version,
-                                                requested_format)) as response:
+            session.get(url) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == expected_content_type
         assert'content-disposition' not in response.headers
         assert not response.history
 
+    url = version_data_public_url_download(dataset_id, version, requested_format)
     with \
             requests.Session() as session, \
-            session.get(version_data_public_url_download(dataset_id, version,
-                                                         requested_format)) as response:
+            session.get(url) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == expected_content_type
