@@ -235,6 +235,9 @@ def test_metadata_key_that_exists(processes):
 
     content = json.dumps({
         'dc:title': 'The updated title of the dataset',
+        'dc:description': 'The updated description',
+        'dc:license': 'http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/',
+        'dc:creator': 'The creator',
         'tables': [
             {
                 'url': 'tables/the-first-table/data?format=csv&download',
@@ -269,7 +272,15 @@ def test_metadata_key_that_exists(processes):
             requests.Session() as session, \
             session.get(dataset_metadata_public_url(dataset_id)) as response:
         dataset_metadata = response.json()
-        assert dataset_metadata == {'dataset': [{'title': 'The updated title of the dataset'}]}
+        print(dataset_metadata)
+        assert dataset_metadata == {'dataset': [{
+            'title': 'The updated title of the dataset',
+            'description': 'The updated description',
+            'license': 'http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/',
+            'publisher': {
+                'name': 'The creator',
+            },
+        }]}
 
 
 def test_metadata_key_that_does_not_exist(processes):
