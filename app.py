@@ -334,6 +334,10 @@ def proxy_app(
             v_major_str, minor_str, patch_str = path.split('.')
             return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
+        def relative_to_metadata(version, relative_url):
+            return urllib.parse.urljoin(url_for('proxy_metadata', dataset_id=dataset_id,
+                                                version=version, _external=True), relative_url)
+
         # Fetch all metadata files
         metadatas = {}
         for key in aws_list_keys(signed_s3_request, dataset_id + '/'):
@@ -354,14 +358,25 @@ def proxy_app(
         metadata_recent = metadatas[next(iter(metadatas.keys()))]
 
         return Response(json.dumps({
-            'dataset': [{
-                'title': metadata_recent['dc:title'],
-                'description': metadata_recent['dc:description'],
-                'license': metadata_recent['dc:license'],
-                'publisher': {
-                    'name': metadata_recent['dc:creator'],
-                },
-            }]
+            'dataset': [
+                {
+                    'title': metadata_recent['dc:title'],
+                    'description': metadata_recent['dc:description'],
+                    'license': metadata_recent['dc:license'],
+                    'publisher': {
+                        'name': metadata_recent['dc:creator'],
+                    },
+                    'distribution': [
+                        {
+                            'title': f'{version} - {table["dc:title"]}',
+                            'format': 'CSV',
+                            'downloadURL': relative_to_metadata(version, table['url']),
+                        }
+                        for (version, metadata) in metadatas.items()
+                        for table in metadata['tables']
+                    ]
+                }
+            ]
         }), headers={'content-type': 'text/json'}, status=200)
 
     @track_analytics
