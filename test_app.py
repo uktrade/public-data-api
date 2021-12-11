@@ -137,13 +137,33 @@ def test_meta_application_fails():
         application(max_attempts=1).__enter__()  # pylint: disable=no-member
 
 
-@pytest.mark.parametrize('requested_format,expected_content_type', (
-    ('json', 'application/json'),
-    ('sqlite', 'application/vnd.sqlite3'),
+def get_sqlite_data():
+    with tempfile.NamedTemporaryFile() as f:
+        with sqlite3.connect(f.name) as con:
+            cur = con.cursor()
+
+            cur.execute('''
+                CREATE TABLE my_table (
+                    col_blob blob
+                )
+            ''')
+            cur.execute('INSERT INTO my_table VALUES (?)',
+                        (str(uuid.uuid4()).encode() * 100000,))
+
+        return f.read()
+
+
+def get_json_data():
+    return json.dumps({'top': [{'col': str(uuid.uuid4()) * 100000}]}).encode()
+
+
+@pytest.mark.parametrize('requested_format,expected_content_type,get_content', (
+    ('json', 'application/json', get_json_data),
+    ('sqlite', 'application/vnd.sqlite3', get_sqlite_data),
 ))
-def test_key_that_exists(processes, requested_format, expected_content_type):
+def test_key_that_exists(processes, requested_format, expected_content_type, get_content):
     dataset_id = str(uuid.uuid4())
-    content = str(uuid.uuid4()).encode() * 100000
+    content = get_content()
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, requested_format)
 
@@ -153,7 +173,7 @@ def test_key_that_exists(processes, requested_format, expected_content_type):
             session.get(url) as response:
         assert response.content == content
         assert response.headers['content-length'] == str(len(content))
-        assert response.headers['content-type'] == expected_content_type
+        assert response.headers['content-type'], expected_content_type
         assert'content-disposition' not in response.headers
         assert not response.history
 
