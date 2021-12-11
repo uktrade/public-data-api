@@ -355,7 +355,12 @@ def proxy_app(
 
         return Response(json.dumps({
             'dataset': [{
-                'title': metadata_recent['dc:title']
+                'title': metadata_recent['dc:title'],
+                'description': metadata_recent['dc:description'],
+                'license': metadata_recent['dc:license'],
+                'publisher': {
+                    'name': metadata_recent['dc:creator'],
+                },
             }]
         }), headers={'content-type': 'text/json'}, status=200)
 
