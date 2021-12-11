@@ -323,9 +323,7 @@ def proxy_app(
             ]
         }
 
-        response = Response(json.dumps(versions), status=200)
-        response.headers['Content-Type'] = 'text/json'
-        return response
+        return Response(json.dumps(versions), headers={'content-type': 'text/json'}, status=200)
 
     @track_analytics
     @validate_format(('json',))
@@ -338,9 +336,7 @@ def proxy_app(
         sorted_versions = sorted(folders, key=semver_key, reverse=True)
         versions = {'versions': [{'id': version} for version in sorted_versions]}
 
-        response = Response(json.dumps(versions), status=200)
-        response.headers['Content-Type'] = 'text/json'
-        return response
+        return Response(json.dumps(versions), headers={'content-type': 'text/json'}, status=200)
 
     @track_analytics
     @validate_and_redirect_version
@@ -352,9 +348,7 @@ def proxy_app(
         )
         tables = {'tables': [{'id': table} for table in folders]}
 
-        response = Response(json.dumps(tables), status=200)
-        response.headers['Content-Type'] = 'text/json'
-        return response
+        return Response(json.dumps(tables), headers={'content-type': 'text/json'}, status=200)
 
     @track_analytics
     @validate_and_redirect_version
@@ -365,10 +359,7 @@ def proxy_app(
             f'{dataset_id}/{version}/reports/',
         )
         reports = {'reports': [{'id': report} for report in folders]}
-
-        response = Response(json.dumps(reports), status=200)
-        response.headers['Content-Type'] = 'text/json'
-        return response
+        return Response(json.dumps(reports), headers={'content-type': 'text/json'}, status=200)
 
     @track_analytics
     @validate_and_redirect_version
@@ -587,10 +578,10 @@ def proxy_app(
                 <status>OK</status>
             </pingdom_http_custom_check>\n"""
 
-            response = Response(pingdom_xml, status=200, mimetype='application/xml')
-            response.headers['Content-Type'] = 'text/xml'
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            return response
+            return Response(pingdom_xml, headers={
+                'content-type': 'text/xml',
+                'cache-control': 'no-cache, no-store, must-revalidate'
+            }, status=200)
 
         return Response(status=503)
 
