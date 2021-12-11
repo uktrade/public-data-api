@@ -159,7 +159,7 @@ def ensure_csvs(
         status_sqlite, headers_sqlite = aws_head(signed_s3_request, sqlite_s3_key)
 
         if status_json == 200 and status_sqlite == 404:
-            source_s3_key = sqlite_s3_key
+            source_s3_key = json_s3_key
             headers = headers_json
             convert_func = convert_json_to_csvs
         elif status_sqlite == 200:
@@ -192,7 +192,7 @@ def ensure_csvs(
                 save_csv_compressed(dataset_id, version, table, response.stream(65536))
 
         # Re-create the CSVs if the data has since changed...
-        status, headers = aws_head(signed_s3_request, json_s3_key)
+        status, headers = aws_head(signed_s3_request, source_s3_key)
         if status != 200:
             continue
         if etag != headers['etag'].strip('"'):
