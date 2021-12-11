@@ -127,7 +127,7 @@ def ensure_csvs(
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
-    def save_csv_compressed(dataset_id, version, table, chunks):
+    def save_compressed(dataset_id, version, table, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):
             # wbits controls whether a header and trailer is included in the output.
             # 31 means a basic gzip header and trailing checksum will be included in
@@ -189,7 +189,7 @@ def ensure_csvs(
             with signed_s3_request('GET', s3_key=csv_s3_key) as response:
                 if response.status != 200:
                     return
-                save_csv_compressed(dataset_id, version, table, response.stream(65536))
+                save_compressed(dataset_id, version, table, response.stream(65536))
 
         # Re-create the CSVs if the data has since changed...
         status, headers = aws_head(signed_s3_request, source_s3_key)
