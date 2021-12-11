@@ -171,18 +171,22 @@ def test_metadata_key_that_exists(processes):
         'dc:title': 'The title of the dataset',
         'tables': [
             {
+                'dc:title': 'The first table',
                 'url': 'tables/the-first-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
+                'dc:title': 'The second table',
                 'url': 'tables/the-second-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
+                'dc:title': 'The first report',
                 'url': 'reports/the-first-report/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
+                'dc:title': 'The second report',
                 'url': 'reports/the-second-report/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
@@ -240,18 +244,22 @@ def test_metadata_key_that_exists(processes):
         'dc:creator': 'The creator',
         'tables': [
             {
+                'dc:title': 'The first table',
                 'url': 'tables/the-first-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
+                'dc:title': 'The second table',
                 'url': 'tables/the-second-table/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
+                'dc:title': 'The first report',
                 'url': 'reports/the-first-report/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
             {
+                'dc:title': 'The second report',
                 'url': 'reports/the-second-report/data?format=csv&download',
                 'tableSchema': {'columns': []}
             },
@@ -279,6 +287,47 @@ def test_metadata_key_that_exists(processes):
             'publisher': {
                 'name': 'The creator',
             },
+            'distribution': [{
+                'title': 'v0.0.2 - The first table',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('table', dataset_id,
+                                                           'v0.0.2', 'the-first-table'),
+            }, {
+                'title': 'v0.0.2 - The second table',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('table', dataset_id,
+                                                           'v0.0.2', 'the-second-table'),
+            }, {
+                'title': 'v0.0.2 - The first report',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('report', dataset_id,
+                                                           'v0.0.2', 'the-first-report'),
+            }, {
+                'title': 'v0.0.2 - The second report',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('report', dataset_id,
+                                                           'v0.0.2', 'the-second-report'),
+            }, {
+                'title': 'v0.0.1 - The first table',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('table', dataset_id,
+                                                           'v0.0.1', 'the-first-table'),
+            }, {
+                'title': 'v0.0.1 - The second table',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('table', dataset_id,
+                                                           'v0.0.1', 'the-second-table'),
+            }, {
+                'title': 'v0.0.1 - The first report',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('report', dataset_id,
+                                                           'v0.0.1', 'the-first-report'),
+            }, {
+                'title': 'v0.0.1 - The second report',
+                'format': 'CSV',
+                'downloadURL': version_public_url_download('report', dataset_id,
+                                                           'v0.0.1', 'the-second-report'),
+            }]
         }]}
 
 
