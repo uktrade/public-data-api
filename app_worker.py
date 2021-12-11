@@ -191,6 +191,12 @@ def ensure_csvs(
                 s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv.gz'
                 save_compressed(s3_key, response.stream(65536))
 
+        # Compress the source file
+        with signed_s3_request('GET', s3_key=source_s3_key) as response:
+            if response.status != 200:
+                continue
+            save_compressed(source_s3_key + '.gz', response.stream(65536))
+
         # Re-create the CSVs if the data has since changed...
         status, headers = aws_head(signed_s3_request, source_s3_key)
         if status != 200:

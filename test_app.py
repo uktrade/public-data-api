@@ -24,6 +24,7 @@ import uuid
 from xml.etree import (
     ElementTree as ET,
 )
+import zlib
 
 import pytest
 import requests
@@ -157,33 +158,58 @@ def get_json_data():
     return json.dumps({'top': [{'col': str(uuid.uuid4()) * 100000}]}).encode()
 
 
+def gzip_compress(source):
+    def _chunks():
+        compress_obj = zlib.compressobj(wbits=31)
+        compressed_bytes = compress_obj.compress(source)
+        if compressed_bytes:
+            yield compressed_bytes
+
+        compressed_bytes = compress_obj.flush()
+        if compressed_bytes:
+            yield compressed_bytes
+
+    return b''.join(_chunks())
+
+
+@pytest.mark.parametrize('encoding,compressor', (
+    ('gzip', gzip_compress),
+    (None, lambda x: x),
+))
 @pytest.mark.parametrize('requested_format,expected_content_type,get_content', (
     ('json', 'application/json', get_json_data),
     ('sqlite', 'application/vnd.sqlite3', get_sqlite_data),
 ))
-def test_key_that_exists(processes, requested_format, expected_content_type, get_content):
+def test_key_that_exists(processes, encoding, compressor, requested_format,
+                         expected_content_type, get_content):
     dataset_id = str(uuid.uuid4())
     content = get_content()
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, requested_format)
 
+    time.sleep(15)
+
     url = version_data_public_url(dataset_id, version, requested_format)
+    headers = {'accept-encoding': encoding}
     with \
             requests.Session() as session, \
-            session.get(url) as response:
+            session.get(url, headers=headers) as response:
         assert response.content == content
-        assert response.headers['content-length'] == str(len(content))
+        assert response.headers['content-length'] == str(len(compressor(content)))
         assert response.headers['content-type'], expected_content_type
+        assert response.headers.get('content-encoding') == encoding
         assert'content-disposition' not in response.headers
         assert not response.history
 
     url = version_data_public_url_download(dataset_id, version, requested_format)
+    headers = {'accept-encoding': encoding}
     with \
             requests.Session() as session, \
-            session.get(url) as response:
+            session.get(url, headers=headers) as response:
         assert response.content == content
-        assert response.headers['content-length'] == str(len(content))
+        assert response.headers['content-length'] == str(len(compressor(content)))
         assert response.headers['content-type'] == expected_content_type
+        assert response.headers.get('content-encoding') == encoding
         assert response.headers['content-disposition'] == \
             f'attachment; filename="{dataset_id}--{version}.{requested_format}"'
         assert not response.history
@@ -1163,6 +1189,18 @@ def test_select_all(processes):
 
     data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url, params=params) as response:
+        assert response.status_code == 200
+        assert response.content == expected_content
+        assert response.headers['content-type'] == 'application/json'
+        assert not response.history
+
+    # By this time a gzipped version would have been created, so we make sure
+    # that requests still work if this has happened
+    time.sleep(12)
+    headers = {'accept-encoding': 'gzip'}
+    with \
+            requests.Session() as session, \
+            session.get(data_url, params=params, headers=headers) as response:
         assert response.status_code == 200
         assert response.content == expected_content
         assert response.headers['content-type'] == 'application/json'
