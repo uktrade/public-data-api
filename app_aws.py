@@ -369,6 +369,40 @@ def aws_list_folders(signed_s3_request, prefix=None):
         yield from _list((('continuation-token', token),))
 
 
+def aws_list_keys(signed_s3_request, prefix=None):
+    namespace = '{http://s3.amazonaws.com/doc/2006-03-01/}'
+    token = ''
+
+    def _list(extra_query_params=()):
+        nonlocal token
+
+        token = ''
+        query = (
+            ('max-keys', '1000'),
+            ('list-type', '2'),
+        ) + \
+            ((('prefix', prefix),) if prefix is not None else ()) + \
+            extra_query_params
+        with signed_s3_request('GET', s3_key='', params=query) as response:
+            body_bytes = response.read()
+
+        if response.status != 200:
+            raise Exception(response.status, body_bytes)
+
+        for element in ET.fromstring(body_bytes):
+            if element.tag == f'{namespace}Contents':
+                for child in element:
+                    if child.tag == f'{namespace}Key':
+                        yield child.text[len(prefix if prefix is not None else ''):]
+            if element.tag == f'{namespace}NextContinuationToken':
+                token = element.text
+
+    yield from _list()
+
+    while token:
+        yield from _list((('continuation-token', token),))
+
+
 def aws_head(signed_s3_request, key):
     with signed_s3_request('HEAD', s3_key=key) as response:
         response.read()
