@@ -58,7 +58,7 @@ from app_aws import (
     aws_select_convert_records_to_csv,
     aws_select_convert_records_to_json,
     aws_select_parse_result,
-    aws_list,
+    aws_list_folders,
 )
 
 
@@ -177,8 +177,8 @@ def proxy_app(
                 v_major_str, minor_str, patch_str = path.split('.')
                 return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
-            folders = aws_list(signed_s3_request,
-                               prefix=request.view_args['dataset_id'] + '/', delimeter='/')
+            folders = aws_list_folders(signed_s3_request,
+                                       prefix=request.view_args['dataset_id'] + '/')
             matching_folders = filter(predicate, folders)
             latest_matching_version = max(matching_folders, default=None, key=semver_key)
 
@@ -317,7 +317,7 @@ def proxy_app(
     @track_analytics
     @validate_format(('json',))
     def list_all_datasets():
-        folders = aws_list(signed_s3_request, delimeter='/')
+        folders = aws_list_folders(signed_s3_request)
         versions = {
             'datasets': [
                 {'id': dataset} for dataset in folders if dataset != 'healthcheck'
@@ -333,7 +333,7 @@ def proxy_app(
             v_major_str, minor_str, patch_str = path.split('.')
             return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
-        folders = aws_list(signed_s3_request, prefix=dataset_id + '/', delimeter='/')
+        folders = aws_list_folders(signed_s3_request, prefix=dataset_id + '/')
         sorted_versions = sorted(folders, key=semver_key, reverse=True)
         versions = {'versions': [{'id': version} for version in sorted_versions]}
 
@@ -343,8 +343,7 @@ def proxy_app(
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_tables_for_dataset_version(dataset_id, version):
-        folders = aws_list(signed_s3_request,
-                           prefix=f'{dataset_id}/{version}/tables/', delimeter='/')
+        folders = aws_list_folders(signed_s3_request, prefix=f'{dataset_id}/{version}/tables/')
         tables = {'tables': [{'id': table} for table in folders]}
 
         return Response(json.dumps(tables), headers={'content-type': 'text/json'}, status=200)
@@ -353,8 +352,7 @@ def proxy_app(
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_reports_for_dataset_version(dataset_id, version):
-        folders = aws_list(signed_s3_request,
-                           prefix=f'{dataset_id}/{version}/reports/', delimeter='/')
+        folders = aws_list_folders(signed_s3_request, prefix=f'{dataset_id}/{version}/reports/')
         reports = {'reports': [{'id': report} for report in folders]}
         return Response(json.dumps(reports), headers={'content-type': 'text/json'}, status=200)
 
