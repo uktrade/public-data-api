@@ -139,7 +139,7 @@ def test_meta_application_fails():
 
 @pytest.mark.parametrize('requested_format,expected_content_type', (
     ('json', 'application/json'),
-    ('sqlite', 'application/vnd.sqlite3', ),
+    ('sqlite', 'application/vnd.sqlite3'),
 ))
 def test_key_that_exists(processes, requested_format, expected_content_type):
     dataset_id = str(uuid.uuid4())
