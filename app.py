@@ -177,7 +177,8 @@ def proxy_app(
                 v_major_str, minor_str, patch_str = path.split('.')
                 return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
-            folders = aws_list(signed_s3_request, request.view_args['dataset_id'] + '/', '/')
+            folders = aws_list(signed_s3_request,
+                               prefix=request.view_args['dataset_id'] + '/', delimeter='/')
             matching_folders = filter(predicate, folders)
             latest_matching_version = max(matching_folders, default=None, key=semver_key)
 
@@ -316,7 +317,7 @@ def proxy_app(
     @track_analytics
     @validate_format(('json',))
     def list_all_datasets():
-        folders = aws_list(signed_s3_request, '', '/')
+        folders = aws_list(signed_s3_request, delimeter='/')
         versions = {
             'datasets': [
                 {'id': dataset} for dataset in folders if dataset != 'healthcheck'
@@ -332,7 +333,7 @@ def proxy_app(
             v_major_str, minor_str, patch_str = path.split('.')
             return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
-        folders = aws_list(signed_s3_request, dataset_id + '/', '/')
+        folders = aws_list(signed_s3_request, prefix=dataset_id + '/', delimeter='/')
         sorted_versions = sorted(folders, key=semver_key, reverse=True)
         versions = {'versions': [{'id': version} for version in sorted_versions]}
 
@@ -342,7 +343,8 @@ def proxy_app(
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_tables_for_dataset_version(dataset_id, version):
-        folders = aws_list(signed_s3_request, f'{dataset_id}/{version}/tables/', '/')
+        folders = aws_list(signed_s3_request,
+                           prefix=f'{dataset_id}/{version}/tables/', delimeter='/')
         tables = {'tables': [{'id': table} for table in folders]}
 
         return Response(json.dumps(tables), headers={'content-type': 'text/json'}, status=200)
@@ -351,7 +353,8 @@ def proxy_app(
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_reports_for_dataset_version(dataset_id, version):
-        folders = aws_list(signed_s3_request, f'{dataset_id}/{version}/reports/', '/')
+        folders = aws_list(signed_s3_request,
+                           prefix=f'{dataset_id}/{version}/reports/', delimeter='/')
         reports = {'reports': [{'id': report} for report in folders]}
         return Response(json.dumps(reports), headers={'content-type': 'text/json'}, status=200)
 

@@ -44,11 +44,11 @@ def ensure_csvs(
                                 aws_access_key_id, aws_secret_access_key, region_name)
 
     def get_dataset_ids():
-        yield from aws_list(signed_s3_request, '', '/')
+        yield from aws_list(signed_s3_request, delimeter='/')
 
     def get_dataset_ids_versions(dataset_ids):
         for dataset_id in dataset_ids:
-            for version in aws_list(signed_s3_request, f'{dataset_id}/', '/'):
+            for version in aws_list(signed_s3_request, prefix=f'{dataset_id}/', delimeter='/'):
                 yield dataset_id, version
 
     def convert_json_to_csvs(dataset_id, version):
@@ -106,7 +106,8 @@ def ensure_csvs(
             continue
 
         # Compress the CSVs
-        for table in aws_list(signed_s3_request, f'{dataset_id}/{version}/tables/', '/'):
+        for table in aws_list(signed_s3_request,
+                              prefix=f'{dataset_id}/{version}/tables/', delimeter='/'):
             csv_s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
             with signed_s3_request('GET', s3_key=csv_s3_key) as response:
                 if response.status != 200:
