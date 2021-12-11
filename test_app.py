@@ -272,7 +272,6 @@ def test_metadata_key_that_exists(processes):
             requests.Session() as session, \
             session.get(dataset_metadata_public_url(dataset_id)) as response:
         dataset_metadata = response.json()
-        print(dataset_metadata)
         assert dataset_metadata == {'dataset': [{
             'title': 'The updated title of the dataset',
             'description': 'The updated description',
