@@ -63,9 +63,6 @@
                       <a href="#base-url"><span>Base URL</span></a>
                     </li>
                     <li>
-                      <a href="#concepts"><span>Concepts</span></a>
-                    </li>
-                    <li>
                       <a href="#common-parameters"><span>Common Parameters</span></a>
                     </li>
                     <li>
@@ -112,6 +109,7 @@
             <ul>
               <li>Datasets are versioned</li>
               <li>Each dataset version is immutable</li>
+              <li>Each dataset version has one or more tables</li>
               <li>Metadata for each dataset version is available as <a href="https://en.wikipedia.org/wiki/HTML">HTML</a> or <a href="https://www.w3.org/TR/tabular-data-primer/">CSVW</a> (CSV on the Web)</li>
               <li>Columns and rows can be filtered using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a></li>
               <li>Data is supplied as <a href="https://en.wikipedia.org/wiki/JSON">JSON</a> or <a href="https://www.gov.uk/government/publications/recommended-open-standards-for-government/tabular-data-standard">CSV</a></li>
@@ -123,12 +121,6 @@
             <h2 id="base-url">Base URL</h2>
             <p>All requests to this API should be prefixed with the following URL:</p>
             <p><strong>{{ base_url }}</strong></p>
-
-            <!-- API -->
-            <h2 id="concepts">Concepts</h2>
-            <p>The function of the {{ service_name }} is to supply datasets. A dataset has one or more immutable versions, and each version has one or more tables.<p>
-
-            <p>All the data in a version can be accessed by the <a href="#get-data">GET data in a version</a> endpoint, or the data in a single table of a version can be access by the <a href="#get-data-table">GET data in a table</a> endpoint.</p>
 
             <h2 id="common-parameters">Common parameters</h2>
 
