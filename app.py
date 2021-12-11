@@ -415,22 +415,39 @@ def proxy_app(
     def proxy_data(dataset_id, version):
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
-        s3_key = f'{dataset_id}/{version}/data.{request.args["format"]}'
-
         s3_query = request.args.get('query-s3-select')
-        body_generator, response = _proxy(
-            s3_key,
-            aws_select_post_body_json(s3_query) if s3_query is not None else None,
-            partial(aws_select_parse_result,
-                    aws_select_convert_records_to_json) if s3_query is not None else None,
-            request.headers)
+        accepted_encodings = request.headers.get('accept-encoding', '').replace(' ', '').split(',')
+        attempt_gzip = 'gzip' in accepted_encodings and s3_query is None
+
+        base_s3_key = f'{dataset_id}/{version}/data.{request.args["format"]}'
+        key_content_encodings = () + \
+            (((base_s3_key + '.gz', 'gzip'),) if attempt_gzip else ()) + \
+            ((base_s3_key, None),)
+
+        for s3_key, content_encoding in key_content_encodings:
+            body_generator, response = _proxy(
+                s3_key,
+                aws_select_post_body_json(s3_query) if s3_query is not None else None,
+                partial(aws_select_parse_result,
+                        aws_select_convert_records_to_json) if s3_query is not None else None,
+                request.headers)
+            if response.status in (200, 206):
+                break
+            for _ in response.stream(65536, decode_content=False):
+                pass
+        else:
+            if response.status == 404:
+                abort(404)
+            else:
+                raise Exception(f'Unexpected code from S3: {response.status}')
 
         download_filename = f'{dataset_id}--{version}.{request.args["format"]}'
         content_type = \
             'application/vnd.sqlite3' if request.args['format'] == 'sqlite' else \
             'application/json'
         return _generate_downstream_response(
-            body_generator, response, content_type, download_filename)
+            body_generator, response, content_type, download_filename,
+            content_encoding=content_encoding)
 
     @track_analytics
     @validate_and_redirect_version
