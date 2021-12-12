@@ -151,6 +151,7 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
@@ -188,12 +189,14 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code> (required)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
                   <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
                 </tr>
               </tbody>
@@ -218,12 +221,14 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code> (required)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
                   <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
                 </tr>
               </tbody>
@@ -248,12 +253,14 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code> (required)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
                   <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
                 </tr>
               </tbody>
@@ -280,16 +287,19 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code> (required)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
                   <td class="govuk-table__cell">The requested output format. This must be <code class="hljs html">csvw</code> or <code class="hljs html">html</code></td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code> (optional)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code></td>
+                  <td class="govuk-table__cell">No</td>
                   <td class="govuk-table__cell">The presence of this parameter results in a <code class="hljs html">content-disposition</code> header so that browsers attempt to download the metadata rather than display it inline</td>
                 </tr>
               </tbody>
@@ -327,16 +337,19 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code> (required)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
                   <td class="govuk-table__cell">The requested output format. This must be <code class="hljs html">sqlite</code> or <code class="hljs html">json</code></td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-s3-select</code> (optional)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-s3-select</code></td>
+                  <td class="govuk-table__cell">No</td>
                   <td class="govuk-table__cell">
                     <p>A query using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a>,  e.g. <code class="hljs psql">SELECT * FROM S3Object[*]</code></p>
                     <p>The response is a JSON object with the query results under the <code class="hljs html">rows</code> key, i.e. <code class="hljs html">{"rows": [...]}</code></p>
@@ -344,7 +357,8 @@
                   </td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code> (optional)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code></td>
+                  <td class="govuk-table__cell">No</td>
                   <td class="govuk-table__cell">The presence of this parameter results in a <code class="hljs html">content-disposition</code> header so that browsers attempt to download the data rather than display it inline.</td>
                 </tr>
               </tbody>
@@ -394,22 +408,26 @@
               <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                   <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
                   <th scope="col" class="govuk-table__header">Description</th>
                 </tr>
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code> (required)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
                   <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">csv</code></td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-s3-select</code> (optional)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-s3-select</code></td>
+                  <td class="govuk-table__cell">No</td>
                   <td class="govuk-table__cell">
                     <p>A query using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a>,  e.g. <code class="hljs psql">SELECT * FROM S3Object</code></p>
                   </td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code> (optional)</td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code></td>
+                  <td class="govuk-table__cell">No</td>
                   <td class="govuk-table__cell">The presence of this parameter results in a <code class="hljs html">content-disposition</code> header so that browsers attempt to download the data rather than display it inline.</td>
                 </tr>
               </tbody>
