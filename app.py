@@ -677,7 +677,7 @@ def proxy_app(
 
     @app.after_request
     def _add_noindex_header(resp):
-        resp.headers['X-Robots-Tag'] = 'no-index, no-follow'
+        resp.headers['x-robots-tag'] = 'no-index, no-follow'
         return resp
 
     apm = ElasticAPM(

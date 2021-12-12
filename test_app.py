@@ -1666,7 +1666,7 @@ def test_noindex_header(processes):
     data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url) as response:
         assert response.status_code == 200
-        assert response.headers['X-Robots-Tag'] == 'no-index, no-follow'
+        assert response.headers['x-robots-tag'] == 'no-index, no-follow'
 
 
 def test_sentry_integration(processes_bad_key):
