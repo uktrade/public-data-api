@@ -112,7 +112,7 @@
               <li>Each dataset version has one or more tables</li>
               <li>Metadata for each dataset version is available as <a href="https://en.wikipedia.org/wiki/HTML">HTML</a> or <a href="https://www.w3.org/TR/tabular-data-primer/">CSVW</a> (CSV on the Web)</li>
               <li>Data can be filtered or aggregated using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a></li>
-              <li>Data is supplied as <a href="https://en.wikipedia.org/wiki/JSON">JSON</a> or <a href="https://www.gov.uk/government/publications/recommended-open-standards-for-government/tabular-data-standard">CSV</a></li>
+              <li>Data is supplied as <a href="https://www.sqlite.org/">SQLite</a>, <a href="https://en.wikipedia.org/wiki/JSON">JSON</a>, or <a href="https://www.gov.uk/government/publications/recommended-open-standards-for-government/tabular-data-standard">CSV</a></li>
               <li>Authentication is not required</li>
             </ul>
 
@@ -317,12 +317,15 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html">format</code> (required)</td>
-                  <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
+                  <td class="govuk-table__cell">The requested output format. This must be <code class="hljs html">sqlite</code> or <code class="hljs html">json</code></td>
                 </tr>
                 <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html">query-s3-select</code> (optional)</td>
-                  <td class="govuk-table__cell">A query using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a>. If specified, the response is a JSON object with results under the <code class="hljs html">rows</code> key, i.e. <code class="hljs html">{"rows": [...]}</code>,
-                  e.g. <code class="hljs psql">SELECT * FROM S3Object[*]</code></td>
+                  <td class="govuk-table__cell">
+                    <p>A query using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a>,  e.g. <code class="hljs psql">SELECT * FROM S3Object[*]</code></p>
+                    <p>The response is a JSON object with the query results under the <code class="hljs html">rows</code> key, i.e. <code class="hljs html">{"rows": [...]}</code></p>
+                    <p>Using <code class="hljs html">query-s3-select</code> requires that the <code class="hljs html">format</code> parameter be <code class="hljs html">json</code>.</p>
+                  </td>
                 </tr>
                 <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html">download</code> (optional)</td>
