@@ -181,6 +181,7 @@
             <h2 id="api">API Endpoints</h2>
 
             <h3 id="list-datasets">GET list of datasets</h3>
+            <p>The list of all datasets available in the {{ service_name }} can be accessed using this endpoint.</p>
             <pre><code class="hljs html">GET /v1/datasets</code></pre>
             <h4 id="list-datasets-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
@@ -210,6 +211,7 @@
 }</code></pre>
 
             <h3 id="list-versions">GET list of versions of a dataset</h3>
+            <p>The list of versions of each dataset can be accessed using this endpoint.</p>
             <pre><code class="hljs html">GET /v1/datasets/:dataset/versions</code></pre>
             <h4 id="list-versions-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
@@ -239,6 +241,7 @@
 }</code></pre>
 
             <h3 id="list-tables">GET list of tables in a version</h3>
+            <p>The list of tables of each dataset version can be accessed using this endpoint.</p>
             <pre><code class="hljs html">GET /v1/datasets/:dataset/versions/:version/tables</code></pre>
             <h4 id="list-tables-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
