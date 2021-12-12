@@ -63,6 +63,9 @@
                       <a href="#base-url"><span>Base URL</span></a>
                     </li>
                     <li>
+                      <a href="#versioning"><span>Versioning</span></a>
+                    </li>
+                    <li>
                       <a href="#common-parameters"><span>Common Parameters</span></a>
                     </li>
                     <li>
@@ -120,6 +123,16 @@
             <h2 id="base-url">Base URL</h2>
             <p>All requests to this API should be prefixed with the following URL:</p>
             <p><strong>{{ base_url }}</strong></p>
+
+            <h2 id="versioning">Versioning</h2>
+
+            <p>Datasets are versioned according to a subset of the <a href="https://semver.org/">Semver 2.0</a> specification. Each version is of the form X.Y.Z, where X is the major version, Y is the minor version, and X is the patch version. Each release of a dataset increments the version according to the following rules.</p>
+
+            <ul>
+              <li>Patch: incremented when data is added or changed, but the structure of the data is the same.</li>
+              <li>Minor: incremented when new fields or tables are added to the data, but existing ones are unchanged.</li>
+              <li>Major: incremented when existing fields are removed or change type.</li>
+            </ul>
 
             <h2 id="common-parameters">Common parameters</h2>
 
