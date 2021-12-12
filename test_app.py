@@ -1656,7 +1656,7 @@ def test_healthcheck_fail(processes):
         assert response.status_code == 503
 
 
-def test_noindex_header(processes):
+def test_headers(processes):
     dataset_id = str(uuid.uuid4())
     content_str = {'foo': 'bar'}
     content = json.dumps(content_str).encode()
