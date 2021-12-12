@@ -103,7 +103,10 @@ def ensure_csvs(
             # Find tables
             with query('''
                 SELECT name FROM sqlite_master
-                WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                WHERE
+                    type = 'table'
+                    AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
+                    AND name NOT LIKE '\\_%' ESCAPE '\\'
                 ORDER BY rowid
             ''') as (_, tables):
 
