@@ -60,6 +60,9 @@
                   <a href="#top"><span>{{ service_name }}</span></a>
                   <ul>
                     <li>
+                      <a href="#getting-started"><span>Getting started</span></a>
+                    </li>
+                    <li>
                       <a href="#base-url"><span>Base URL</span></a>
                     </li>
                     <li>
@@ -119,6 +122,12 @@
             </ul>
 
             <p>The source code for the {{ service_name }} is available in its <a href="{{ github_repo_url }}">GitHub repository</a>.</p>
+
+            <h2 id="getting-started">Getting started</h2>
+
+            <p>Any tool that can make HTTPS requests can access the {{ service_name}}. Examples are <a href="https://curl.se/">curl</a>, <a href="https://www.postman.com/">Postman</a>, or the web browser you're currently using.</p>
+
+            <p>For example <a href="https://data.api.trade.gov.uk/v1/datasets?format=json">https://data.api.trade.gov.uk/v1/datasets?format=json</a> will return a list of datasets.</p>
 
             <h2 id="base-url">Base URL</h2>
             <p>All requests to this API should be prefixed with the following URL.</p>
