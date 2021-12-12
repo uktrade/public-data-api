@@ -3574,3 +3574,7 @@
     width: 80%; }
   .app-header .govuk-header__content {
     width: 20%; } }
+
+.nowrap {
+  white-space: nowrap;
+}
