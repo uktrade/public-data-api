@@ -186,13 +186,14 @@ def ensure_csvs(
             continue
 
         # Compress the CSVs
-        for table in aws_list_folders(signed_s3_request, prefix=f'{dataset_id}/{version}/tables/'):
-            csv_s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv'
-            with signed_s3_request('GET', s3_key=csv_s3_key) as response:
-                if response.status != 200:
-                    return
-                s3_key = f'{dataset_id}/{version}/tables/{table}/data.csv.gz'
-                save_compressed(s3_key, response.stream(65536))
+        prefixes = (f'{dataset_id}/{version}/tables/', f'{dataset_id}/{version}/reports/')
+        for prefix in prefixes:
+            for table in aws_list_folders(signed_s3_request, prefix=prefix):
+                csv_s3_key = f'{prefix}{table}/data.csv'
+                with signed_s3_request('GET', s3_key=csv_s3_key) as response:
+                    if response.status != 200:
+                        return
+                    save_compressed(f'{csv_s3_key}.gz', response.stream(65536))
 
         # Compress the source file
         with signed_s3_request('GET', s3_key=source_s3_key) as response:
