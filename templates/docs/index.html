@@ -268,14 +268,6 @@
         {"id": "measures-on-declarable-commodities"}
     ]
 }</code></pre>
-            <h4 id="list-tables-latest-version-example">Example for latest version</h4>
-            <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
-            <h5 id="list-tables-latest-version-example-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/tables
-    --data-urlencode "format=json"</code></pre>
-            <h5 id="list-tables-latest-version-example-response">Response</h5>
-            <pre><code class="hljs html">Status: 302 Found
-Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format=json</code></pre>
 
             <h3 id="get-metadata">GET metadata of a version</h3>
             <p>The metadata of a dataset version can be accessed using this endpoint.</p>
@@ -390,14 +382,6 @@ Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/tables?format
       {"commodity__code": "0101210000", "commodity__suffix": "10", "commodity__description": "Horses"}
     ]
 }</code></pre>
-            <h4 id="get-latest-version-example">Example for latest data</h4>
-            <h5 id="get-latest-version-example-request">Request</h5>
-            <p>Replacing the version string with the word <code>latest</code> will result in a redirect to the latest version of the dataset.</p>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/latest/data \
-    --data-urlencode "format=json"</code></pre>
-            <h5 id="get-latest-version-example-response">Response</h5>
-            <pre><code class="hljs html">Status: 302 Found
-Location: /v1/datasets/{{ dataset }}/versions/{{ latest_version }}/data?format=json</code></pre>
 
             <h3 id="get-data-table">GET data in a table</h3>
             <p>A version of the dataset can have one or more tables. Each table can be accessed/downloaded using this endpoint</p>
