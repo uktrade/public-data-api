@@ -677,6 +677,7 @@ def proxy_app(
 
     @app.after_request
     def _add_noindex_header(resp):
+        resp.headers['access-control-allow-origin'] = '*'
         resp.headers['x-robots-tag'] = 'no-index, no-follow'
         return resp
 

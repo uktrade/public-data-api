@@ -1666,6 +1666,7 @@ def test_headers(processes):
     data_url = version_data_public_url(dataset_id, version, 'json')
     with requests.Session() as session, session.get(data_url) as response:
         assert response.status_code == 200
+        assert response.headers['access-control-allow-origin'] == '*'
         assert response.headers['x-robots-tag'] == 'no-index, no-follow'
 
 
