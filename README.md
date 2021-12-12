@@ -50,32 +50,32 @@ DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
 
 | Variable and examples   | Description and examples |
 | :--                     | :--                      |
-| `AWS_S3_REGION`         | The AWS region of the S3 bucket<br>`eu-west-2` |
-| `AWS_S3_ENDPOINT` | The URL to the bucket, optionally including a key prefix, and will typically end in a slash.<br>Supports both path and domain-style bucket-access.<br>`https://my-bucket.s3-eu-west-2.amazonaws.com/key-prefix/`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/key-prefix/` |
-| `READONLY_AWS_ACCESS_KEY_ID`     | The AWS access key ID that has GetObject, and optionally ListBucket, permissions - used by the API |
-| `READONLY_AWS_SECRET_ACCESS_KEY` | The secret part of the readonly AWS access key |
-| `READ_AND_WRITE_AWS_ACCESS_KEY_ID`     | The AWS access key ID that has write permissions on the S3 bucket (for the csv-generating worker) |
-| `READ_AND_WRITE_AWS_SECRET_ACCESS_KEY` | The secret part of the read+write AWS access key |
-| `APM_SECRET_TOKEN`      | A secret token to authorize requests to the APM Server. |
-| `APM_SERVER_URL`        | The URL of the APM server<br>`https://apm.elk.uktrade.digital`|
-| `ENVIRONMENT`           | The current environment where the application is running<br>`develop` |
-| `GA_ENDPOINT`           | The endpoint to send analytics info to |
-| `GA_TRACKING_ID`        | The unique identifier for the google analytics property |
+| AWS_S3_REGION         | The AWS region of the S3 bucket<br>`eu-west-2` |
+| AWS_S3_ENDPOINT | The URL to the bucket, optionally including a key prefix, and will typically end in a slash.<br>Supports both path and domain-style bucket-access.<br>`https://my-bucket.s3-eu-west-2.amazonaws.com/key-prefix/`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/key-prefix/` |
+| READONLY_AWS_ACCESS_KEY_ID     | The AWS access key ID that has GetObject, and optionally ListBucket, permissions - used by the API |
+| READONLY_AWS_SECRET_ACCESS_KEY | The secret part of the readonly AWS access key |
+| READ_AND_WRITE_AWS_ACCESS_KEY_ID     | The AWS access key ID that has write permissions on the S3 bucket (for the csv-generating worker) |
+| READ_AND_WRITE_AWS_SECRET_ACCESS_KEY | The secret part of the read+write AWS access key |
+| APM_SECRET_TOKEN      | A secret token to authorize requests to the APM Server. |
+| APM_SERVER_URL        | The URL of the APM server<br>`https://apm.elk.uktrade.digital`|
+| ENVIRONMENT           | The current environment where the application is running<br>`develop` |
+| GA_ENDPOINT           | The endpoint to send analytics info to |
+| GA_TRACKING_ID        | The unique identifier for the google analytics property |
 
 Environment variables used for serving API documentation.
 
 | Variable                  | Description and examples |
 | :--                       | :--                      |
-| `DOCS_DEPARTMENT_NAME`    | The name of the department the data is hosted by<br>`A Government Department` |
-| `DOCS_SERVICE_NAME`       | The name of this service<br>`Data API` |
-| `DOCS_GITHUB_REPO_URL`    | The URL for this github repository<br>`https://github.com/uktrade/public-data-api` |
-| `DOCS_SECURITY_EMAIL`     | The email address security vulnerabilities should be reported to<br>`security@example.com`|
+| DOCS_DEPARTMENT_NAME    | The name of the department the data is hosted by<br>`A Government Department` |
+| DOCS_SERVICE_NAME       | The name of this service<br>`Data API` |
+| DOCS_GITHUB_REPO_URL    | The URL for this github repository<br>`https://github.com/uktrade/public-data-api` |
+| DOCS_SECURITY_EMAIL     | The email address security vulnerabilities should be reported to<br>`security@example.com`|
 
 The below environment variables are also required, but typically populated by PaaS.
 
 | Variable        | Description and examples |
 | :--             | :--                      |
-| `PORT`          | The port for the application to listen on<br>`8080`|
+| PORT          | The port for the application to listen on<br>`8080`|
 
 
 ## Permissions and 404s
