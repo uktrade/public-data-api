@@ -162,7 +162,7 @@
                 <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">version_id</code></td>
                   <td class="govuk-table__cell">
-                      <p>A version in the format <code class="hljs html nowrap">vX.Y.Z</code>, where <code class="hljs html">X.Y.Z</code> is the <a href="https://semver.org/">Semver 2.0</a> version of the dataset, e.g. <code>{{ version }}</code></p>
+                      <p>A version identifier in the format <code class="hljs html nowrap">vX.Y.Z</code>, where <code class="hljs html">X.Y.Z</code> is the <a href="https://semver.org/">Semver 2.0</a> version of the dataset, e.g. <code>{{ version }}</code></p>
                       <p>or</p>
                       <p>A version in the format <code class="hljs html">vX.Y</code>. In this case, a HTTP 302 redirect is returned to the original URL requested, but with <code class="hljs html">version_id</code> replaced with the latest <code class="hljs html">vX.Y</code> version of the dataset</p>
                       <p>or</p>
@@ -173,7 +173,7 @@
                 </tr>
                 <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">table_id</code></td>
-                  <td class="govuk-table__cell">A human-readable table name, e.g. <code>{{ table_name }}</code></td>
+                  <td class="govuk-table__cell">A human-readable identifier of the table, e.g. <code>{{ table_name }}</code></td>
                 </tr>
               </tbody>
             </table>
