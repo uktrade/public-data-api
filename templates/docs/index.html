@@ -164,11 +164,11 @@
                   <td class="govuk-table__cell">
                       <p>A version identifier in the format <code class="hljs html nowrap">vX.Y.Z</code>, where <code class="hljs html">X.Y.Z</code> is the <a href="https://semver.org/">Semver 2.0</a> version of the dataset, e.g. <code>{{ version }}</code></p>
                       <p>or</p>
-                      <p>A version in the format <code class="hljs html">vX.Y</code>. In this case, a HTTP 302 redirect is returned to the original URL requested, but with <code class="hljs html">version_id</code> replaced with the latest <code class="hljs html">vX.Y</code> version of the dataset</p>
+                      <p>A version in the format <code class="hljs html">vX.Y</code>. In this case, a HTTP 302 redirect is returned to the URL requested, but with <code class="hljs html">version_id</code> equal to the latest version of the dataset with major and minor components matching <code class="hljs html">vX.Y</code></p>
                       <p>or</p>
-                      <p>A version in the format <code class="hljs html">vX</code>. In this case, a 302 redirect is returned to the original URL requested, but with <code class="hljs html">version_id</code> replaced with the latest <code class="hljs html">vX</code> version of the dataset</p>
+                      <p>A version in the format <code class="hljs html">vX</code>. In this case, a HTTP 302 redirect is returned to the URL requested, but with <code class="hljs html">version_id</code> equal to the latest version of the dataset with major component matching <code class="hljs html">vX</code></p>
                       <p>or</p>
-                      <p>The literal <code class="hljs html">latest</code>. In this case, a 302 redirect is returned to the original URL requested, but with <code class="hljs html">version_id</code> replaced with the latest version of the dataset</p>
+                      <p>The literal <code class="hljs html">latest</code>. In this case, a HTTP 302 redirect is returned to the URL requested, but with <code class="hljs html">version_id</code> equal to the latest version of the dataset</p>
                   </td>
                 </tr>
                 <tr class="govuk-table__row">
