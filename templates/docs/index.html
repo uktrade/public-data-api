@@ -156,11 +156,11 @@
               </thead>
               <tbody class="govuk-table__body">
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">dataset</code></td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">dataset_id</code></td>
                   <td class="govuk-table__cell">A human-readable identifier of the dataset, e.g. <code>{{ dataset }}</code></td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">version</code></td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">version_id</code></td>
                   <td class="govuk-table__cell">
                       <p>A version in the format <code class="hljs html nowrap">vX.Y.Z</code>, where <code class="hljs html">X.Y.Z</code> is the <a href="https://semver.org/">Semver 2.0</a> version of the dataset, e.g. <code>{{ version }}</code></p>
                       <p>or</p>
@@ -172,7 +172,7 @@
                   </td>
                 </tr>
                 <tr class="govuk-table__row">
-                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">table</code></td>
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">table_id</code></td>
                   <td class="govuk-table__cell">A human-readable table name, e.g. <code>{{ table_name }}</code></td>
                 </tr>
               </tbody>
@@ -214,7 +214,7 @@
 
             <h3 id="list-versions">GET list of versions of a dataset</h3>
             <p>The list of versions of each dataset can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/:dataset/versions</code></pre>
+            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions</code></pre>
             <h4 id="list-versions-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -246,7 +246,7 @@
 
             <h3 id="list-tables">GET list of tables in a version</h3>
             <p>The list of tables of each dataset version can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/:dataset/versions/:version/tables</code></pre>
+            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/tables</code></pre>
             <h4 id="list-tables-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -280,7 +280,7 @@
 
             <h3 id="get-metadata">GET metadata of a version</h3>
             <p>The metadata of a dataset version can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/:dataset/versions/:version/metadata</code></pre>
+            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/metadata</code></pre>
             <h4 id="get-metadata-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -330,7 +330,7 @@
 
             <h3 id="get-data">GET data in a version</h3>
             <p>All of the data of a dataset version can be accessed using this endpoint</p>
-            <pre><code class="hljs html">GET /v1/datasets/:dataset/versions/:version/data</code></pre>
+            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/data</code></pre>
             <h4 id="get-specific-version-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -401,7 +401,7 @@
 
             <h3 id="get-data-table">GET data in a table</h3>
             <p>The data of single table in a dataset version can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/:dataset/versions/:version/tables/:table/data</code></pre>
+            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/tables/{table_id}/data</code></pre>
             <h4 id="get-data-table-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
