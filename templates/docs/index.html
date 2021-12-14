@@ -441,7 +441,7 @@
               </tbody>
             </table>
             <h4 id="get-specific-version-range-requests">Range requests</h4>
-            <p>If a <code class="hljs html">query-s3-select</code> is <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the table. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
+            <p>If <code class="hljs html">query-s3-select</code> and <code class="hljs html">query-simple</code> are <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the table. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
             <h4 id="get-data-table-example-without-query">Example without a query</h4>
             <h5 id="get-data-table-example-without-query-request">Request</h5>
             <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
