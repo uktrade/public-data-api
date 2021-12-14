@@ -131,7 +131,7 @@
 
             <h2 id="base-url">Base URL</h2>
             <p>All requests to this API should be prefixed with the following URL.</p>
-            <pre><code class="hljs html">{{ base_url }}</code></pre>
+            <pre tabindex="0"><code class="hljs html">{{ base_url }}</code></pre>
 
             <h2 id="versioning">Versioning</h2>
 
@@ -182,7 +182,7 @@
 
             <h3 id="list-datasets">GET list of datasets</h3>
             <p>The list of all datasets available in the {{ service_name }} can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets</code></pre>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets</code></pre>
             <h4 id="list-datasets-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -202,10 +202,10 @@
             </table>
             <h4 id="list-datasets-example">Example</h4>
             <h5 id="list-datasets-example-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets \
     --data-urlencode "format=json"</code></pre>
             <h5 id="list-datasets-example-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 {
     "datasets": [
         {"id": "market-barriers"}, {"id": "uk-tariff-2021-01-01"}
@@ -214,7 +214,7 @@
 
             <h3 id="list-versions">GET list of versions of a dataset</h3>
             <p>The list of versions of each dataset can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions</code></pre>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions</code></pre>
             <h4 id="list-versions-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -234,10 +234,10 @@
             </table>
             <h4 id="list-versions-example">Example</h4>
             <h5 id="list-versions-example-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions \
     --data-urlencode "format=json"</code></pre>
             <h5 id="list-versions-example-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 {
     "versions": [
         {"id": "{{ latest_version }}"}, {"id": "{{ version }}"}
@@ -246,7 +246,7 @@
 
             <h3 id="list-tables">GET list of tables in a version</h3>
             <p>The list of tables of each dataset version can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/tables</code></pre>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/tables</code></pre>
             <h4 id="list-tables-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -266,10 +266,10 @@
             </table>
             <h4 id="list-tables-version-example">Example for specific version</h4>
             <h5 id="list-tables-example-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables \
     --data-urlencode "format=json"</code></pre>
             <h5 id="list-tables-example-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 {
     "tables": [
         {"id": "commodities"},
@@ -280,7 +280,7 @@
 
             <h3 id="get-metadata">GET metadata of a version</h3>
             <p>The metadata of a dataset version can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/metadata</code></pre>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/metadata</code></pre>
             <h4 id="get-metadata-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -305,10 +305,10 @@
             </table>
             <h4 id="get-metadata-csvw-example">Example requesting CSVW</h4>
             <h5 id="get-metadata-csvw-example-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/metadata \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/metadata \
     --data-urlencode "format=csvw"</code></pre>
             <h5 id="get-metadata-csvw-example-response">Response (excerpt)</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 {
   "@context": [
     "http://www.w3.org/ns/csvw",
@@ -330,7 +330,7 @@
 
             <h3 id="get-data">GET data in a version</h3>
             <p>All of the data of a dataset version can be accessed using this endpoint</p>
-            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/data</code></pre>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/data</code></pre>
             <h4 id="get-specific-version-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -366,10 +366,10 @@
             <p>If a <code class="hljs html">query-s3-select</code> is <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the dataset. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
             <h4 id="get-specific-version-example-without-query">Example without a query</h4>
             <h5 id="get-specific-version-example-without-query-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/data \
     --data-urlencode "format=json"</code></pre>
             <h5 id="get-specific-version-example-without-a-query-response">Response (excerpt)</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 {
     "commodities": [
         {"id": "1", "commodity__code": "0100000000", ...
@@ -379,7 +379,7 @@
 }</code></pre>
             <h4 id="get-specific-version-example-with-query">Example with a query</h4>
             <h5 id="get-specific-version-example-with-request">Request</h5>
-            <pre><code class="hljs html">curl --get https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/data \
+            <pre tabindex="0"><code class="hljs html">curl --get https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v2.1.0/data \
     --data-urlencode "format=json" \
     --data-urlencode "query-s3-select=
         SELECT
@@ -392,7 +392,7 @@
             1
     "</code></pre>
             <h5 id="get-specific-version-example-with-query-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 {
     "rows":[
       {"commodity__code": "0101210000", "commodity__suffix": "10", "commodity__description": "Horses"}
@@ -401,7 +401,7 @@
 
             <h3 id="get-data-table">GET data in a table</h3>
             <p>The data of single table in a dataset version can be accessed using this endpoint.</p>
-            <pre><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/tables/{table_id}/data</code></pre>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/tables/{table_id}/data</code></pre>
             <h4 id="get-data-table-query-string-parameters">Query string parameters</h4>
             <table class="govuk-table">
               <thead class="govuk-table__head">
@@ -444,10 +444,10 @@
             <p>If a <code class="hljs html">query-s3-select</code> is <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the table. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
             <h4 id="get-data-table-example-without-query">Example without a query</h4>
             <h5 id="get-data-table-example-without-query-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
     --data-urlencode "format=csv"</code></pre>
             <h5 id="get-data-table-example-without-query-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 "id","commodity__sid","commodity__code","commodity__suffix","commodity__description","commodity__validity_start","commodity__validity_end","parent__sid","parent__code","parent__suffix"
 "1","27623","0100000000","80","LIVE ANIMALS","1971-12-31","#NA","#NA","#NA","#NA"
 "2","27624","0101000000","80","Live horses, asses, mules and hinnies","1972-01-01","#NA","27623","0100000000","80"
@@ -456,7 +456,7 @@
 
             <h4 id="get-data-table-example-with-query">Example with an S3 Select query</h4>
             <h5 id="get-data-table-example-with-query-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
     --data-urlencode "format=csv" \
     --data-urlencode "query-s3-select=
         SELECT
@@ -470,13 +470,13 @@
     "</code></pre>
 
             <h5 id="get-data-table-example-with-query-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 0101210000,10,Horses
 </code></pre>
 
             <h4 id="get-data-table-example-with-query">Example with a simple query</h4>
             <h5 id="get-data-table-example-with-query-request">Request</h5>
-            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
     --data-urlencode "format=csv" \
     --data-urlencode "commodity__code=0101210000" \
     --data-urlencode "_columns=commodity__code" \
@@ -485,7 +485,7 @@
 </code></pre>
 
             <h5 id="get-data-table-example-with-query-response">Response</h5>
-            <pre><code class="hljs html">Status: 200 OK
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
 commodity__code,commodity__suffix,commodity__description
 0101210000,10,Horses
 0101210000,80,Pure-bred breeding animals
