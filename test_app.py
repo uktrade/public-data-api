@@ -1702,10 +1702,8 @@ def test_google_analytics_integration_on_api(processes):
         session.get(version_data_public_url_download(dataset_id, version, 'json'))
         session.get(version_public_url('table', dataset_id, version, 'table'))
         session.get(version_public_url_download('table', dataset_id, version, 'table'))
-        with \
-                requests.Session() as session, \
-                session.post('http://127.0.0.1:9002/calls') as response:
-            assert int(response.content) == 4
+        response = session.post('http://127.0.0.1:9002/calls')
+        assert int(response.content) == 4
 
 
 def test_docs(processes):
