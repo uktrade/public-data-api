@@ -650,6 +650,7 @@ def proxy_app(
 
         return Response(status=503)
 
+    @track_analytics
     def docs():
         """
         Documentation homepage

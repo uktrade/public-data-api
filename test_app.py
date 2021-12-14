@@ -1708,6 +1708,17 @@ def test_google_analytics_integration_on_api(processes):
         assert int(response.content) == 4
 
 
+def test_google_analytics_integration_on_docs(processes):
+    with requests.Session() as session:
+        session.get('http://127.0.0.1:8080')
+        session.get('http://127.0.0.1:8080')
+        session.get('http://127.0.0.1:8080')
+
+        time.sleep(1)
+        response = session.post('http://127.0.0.1:9002/calls')
+        assert int(response.content) == 3
+
+
 def test_docs(processes):
     with requests.Session() as session, session.get('http://127.0.0.1:8080') as response:
         assert response.status_code == 200
