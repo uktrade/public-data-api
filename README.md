@@ -48,7 +48,7 @@ DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
 
 ## Environment variables
 
-| Variable and examples   | Description and examples |
+| Variable                | Description and examples |
 | :--                     | :--                      |
 | AWS_S3_REGION         | The AWS region of the S3 bucket<hr>`eu-west-2` |
 | AWS_S3_ENDPOINT | The URL to the bucket, optionally including a key prefix, and will typically end in a slash.<br>Supports both path and domain-style bucket-access.<hr>`https://my-bucket.s3-eu-west-2.amazonaws.com/key-prefix/`<br>`https://s3-eu-west-2.amazonaws.com/my-bucket/key-prefix/` |
