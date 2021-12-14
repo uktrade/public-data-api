@@ -425,6 +425,15 @@
                   </td>
                 </tr>
                 <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-simple</code></td>
+                  <td class="govuk-table__cell">No</td>
+                  <td class="govuk-table__cell">
+                    <p>Enables a "simple" query mode to specify columns to retrieve, and filter rows using exact matching.</p>
+                    <p>In simple mode, the value of each <code class="hljs html nowrap">_columns</code> parameter is a single column to include in the output. This parameter can be passed multiple times to include multiple columns.</p>
+                    <p>Filtering on rows can then be performed by passing key value pairs <code class="hljs html nowrap">column=value</code>. The output includes only those rows where column <code class="hljs html nowrap">column</code> equals <code class="hljs html nowrap">value</code>.</p>
+                  </td>
+                </tr>
+                <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code></td>
                   <td class="govuk-table__cell">No</td>
                   <td class="govuk-table__cell">The presence of this parameter results in a <code class="hljs html">content-disposition</code> header so that browsers attempt to download the data rather than display it inline.</td>
@@ -445,7 +454,7 @@
 "3","93797","0101210000","10","Horses","2012-01-01","#NA","27624","0101000000","80"
 </code></pre>
 
-            <h4 id="get-data-table-example-with-query">Example with a query</h4>
+            <h4 id="get-data-table-example-with-query">Example with an S3 Select query</h4>
             <h5 id="get-data-table-example-with-query-request">Request</h5>
             <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
     --data-urlencode "format=csv" \
@@ -463,6 +472,23 @@
             <h5 id="get-data-table-example-with-query-response">Response</h5>
             <pre><code class="hljs html">Status: 200 OK
 0101210000,10,Horses
+</code></pre>
+
+            <h4 id="get-data-table-example-with-query">Example with a simple query</h4>
+            <h5 id="get-data-table-example-with-query-request">Request</h5>
+            <pre><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
+    --data-urlencode "format=csv" \
+    --data-urlencode "commodity__code=0101210000" \
+    --data-urlencode "_columns=commodity__code" \
+    --data-urlencode "_columns=commodity__suffix" \
+    --data-urlencode "_columns=commodity__description"
+</code></pre>
+
+            <h5 id="get-data-table-example-with-query-response">Response</h5>
+            <pre><code class="hljs html">Status: 200 OK
+commodity__code,commodity__suffix,commodity__description
+0101210000,10,Horses
+0101210000,80,Pure-bred breeding animals
 </code></pre>
 
             <h2 id="support">Support</h2>
