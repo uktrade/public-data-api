@@ -1692,7 +1692,7 @@ def test_sentry_integration(processes_bad_key):
         assert int(response.content) >= 10
 
 
-def test_google_analytics_integration(processes):
+def test_google_analytics_integration_on_api(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
     version = 'v0.0.1'
