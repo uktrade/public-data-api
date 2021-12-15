@@ -1514,7 +1514,7 @@ def test_csv_created(processes):
     assert top_headers['last-modified'] == top_headers_2['last-modified']
 
 
-def test_csvs_created_from_sqlite(processes):
+def test_csvs_created_from_sqlite_without_reports(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
 
@@ -1567,6 +1567,49 @@ def test_csvs_created_from_sqlite(processes):
         b'2,2\r\n' + \
         b'3,2\r\n' + \
         b'1,3\r\n'
+
+
+def test_csvs_created_from_sqlite_with_reports(processes):
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+
+    with tempfile.NamedTemporaryFile() as f:
+        with sqlite3.connect(f.name) as con:
+            cur = con.cursor()
+
+            cur.execute('''
+                CREATE TABLE my_table_with_primary_key (
+                    col_int_a int,
+                    col_int_b int,
+                    PRIMARY KEY (col_int_b, col_int_a)
+                )
+            ''')
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
+
+            cur.execute('''
+                CREATE TABLE _reports (
+                    name TEXT,
+                    script TEXT
+                )
+            ''')
+            cur.execute('INSERT INTO _reports(name, script) VALUES (?,?)', ('my_report', '''
+                SELECT * FROM my_table_with_primary_key
+                WHERE col_int_a = 3
+                ORDER BY col_int_b
+            '''))
+
+        put_version_data(dataset_id, version, f.read(), 'sqlite')
+
+    time.sleep(12)
+
+    report_url = version_public_url_download('report', dataset_id, version, 'my-report')
+    with \
+            requests.Session() as session, \
+            session.get(report_url) as response:
+        assert response.content == b'"col_int_a","col_int_b"\r\n3,1\r\n3,2\r\n'
 
 
 def test_logs_ecs_format():
