@@ -1705,7 +1705,8 @@ def test_google_analytics_integration_on_api(processes):
 
         time.sleep(1)
         response = session.post('http://127.0.0.1:9002/calls')
-        assert len(json.loads(response.content)) == 4
+        calls = json.loads(response.content)
+        assert len(calls) == 4
 
 
 def test_google_analytics_integration_on_docs(processes):
