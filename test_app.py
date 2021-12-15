@@ -1707,7 +1707,8 @@ def test_google_analytics_integration_on_api(processes):
         response = session.post('http://127.0.0.1:9002/calls')
         calls = json.loads(response.content)
         assert len(calls) == 4
-        assert calls[0]['dp'] == f'/v1/datasets/{dataset_id}/versions/v0.0.1/data'
+        assert calls[0]['dl'] == \
+            f'http://127.0.0.1:8080/v1/datasets/{dataset_id}/versions/v0.0.1/data?format=json'
 
 
 def test_google_analytics_integration_on_docs(processes):

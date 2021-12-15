@@ -104,8 +104,8 @@ def proxy_app(
     def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
 
-        def _send(requester_ip, request_host, request_path, request_headers):
-            logger.info('Sending to Google Analytics %s: %s...', request_host, request_path)
+        def _send(requester_ip, request_url, request_headers):
+            logger.info('Sending to Google Analytics %s...', request_url)
             requests.post(
                 os.environ.get('GA_ENDPOINT', 'https://www.google-analytics.com/collect'),
                 data={
@@ -115,8 +115,7 @@ def proxy_app(
                     't': 'pageview',
                     'uip': requester_ip,
                     'aip': '1',
-                    'dh': request_host,
-                    'dp': request_path,
+                    'dl': request_url,
                     'ds': 'public-data-api',
                     'dr': request_headers.get('referer', ''),
                     'ua': request_headers.get('user-agent', ''),
@@ -129,8 +128,7 @@ def proxy_app(
                 gevent.spawn(
                     _send,
                     request.remote_addr,
-                    request.host_url,
-                    request.path,
+                    request.url,
                     request.headers
                 )
             return handler(*args, **kwargs)
