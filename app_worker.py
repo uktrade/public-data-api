@@ -130,6 +130,22 @@ def ensure_csvs(
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
+            # Run all reports and save as CSVs
+            with query('''
+                SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_reports'
+            ''') as (_, rows):
+                if not list(rows):
+                    return
+
+            with query('''
+                SELECT name, script FROM _reports ORDER BY rowid
+            ''') as (_, rows):
+                for name, script in rows:
+                    report_id = name.replace('_', '-')
+                    with query(script) as (cols, rows):
+                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
+                        aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+
     def save_compressed(s3_key, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):
             # wbits controls whether a header and trailer is included in the output.
