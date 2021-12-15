@@ -3,9 +3,13 @@ from gevent import (
 )
 monkey.patch_all()
 import gevent
+import json
 import signal
 
-from flask import Flask
+from flask import (
+    Flask,
+    request,
+)
 from gevent.pywsgi import (
     WSGIServer,
 )
@@ -16,7 +20,7 @@ from werkzeug.middleware.proxy_fix import (
 
 def google_analytics_app():
 
-    calls = 0
+    calls = []
 
     def start():
         server.serve_forever()
@@ -26,14 +30,14 @@ def google_analytics_app():
 
     def _store():
         nonlocal calls
-        calls += 1
+        calls.append(request.form)
         return 'OK'
 
     def _calls():
         nonlocal calls
         last_calls = calls
-        calls = 0
-        return str(last_calls)
+        calls = []
+        return json.dumps(last_calls)
 
     app = Flask('app')
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
