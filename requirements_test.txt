@@ -153,7 +153,7 @@ sniffio==1.2.0
     #   anyio
     #   httpcore
     #   httpx
-sqlite-s3-query==0.0.44
+sqlite-s3-query==0.0.46
     # via -r requirements.txt
 tidy-json-to-csv==0.0.13
     # via -r requirements.txt
