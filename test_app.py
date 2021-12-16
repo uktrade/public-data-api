@@ -338,6 +338,10 @@ def test_metadata_key_that_exists(processes):
                 'name': 'The creator',
             },
             'distribution': [{
+                'title': 'v0.0.2 - Metadata',
+                'format': 'HTML',
+                'downloadURL': version_metadata_public_html_url(dataset_id, 'v0.0.2'),
+            }, {
                 'title': 'v0.0.2 - The first table',
                 'format': 'CSV',
                 'downloadURL': version_public_url_download('table', dataset_id,
@@ -357,6 +361,10 @@ def test_metadata_key_that_exists(processes):
                 'format': 'CSV',
                 'downloadURL': version_public_url_download('report', dataset_id,
                                                            'v0.0.2', 'the-second-report'),
+            }, {
+                'title': 'v0.0.1 - Metadata',
+                'format': 'HTML',
+                'downloadURL': version_metadata_public_html_url(dataset_id, 'v0.0.1'),
             }, {
                 'title': 'v0.0.1 - The first table',
                 'format': 'CSV',
