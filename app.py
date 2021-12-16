@@ -336,6 +336,9 @@ def proxy_app(
             return urllib.parse.urljoin(url_for('proxy_metadata', dataset_id=dataset_id,
                                                 version=version, _external=True), relative_url)
 
+        def flatten(list_of_lists):
+            return [item for sublist in list_of_lists for item in sublist]
+
         # Fetch all metadata files
         metadatas = {}
         for key in aws_list_keys(signed_s3_request, dataset_id + '/'):
@@ -364,15 +367,25 @@ def proxy_app(
                     'publisher': {
                         'name': metadata_recent['dc:creator'],
                     },
-                    'distribution': [
-                        {
-                            'title': f'{version} - {table["dc:title"]}',
-                            'format': 'CSV',
-                            'downloadURL': relative_to_metadata(version, table['url']),
-                        }
+                    'distribution': flatten(
+                        [
+                            {
+                                'title': f'{version} - Metadata',
+                                'format': 'HTML',
+                                'downloadURL': relative_to_metadata(version,
+                                                                    'metadata?format=html'),
+                            }
+                        ]
+                        + [
+                            {
+                                'title': f'{version} - {table["dc:title"]}',
+                                'format': 'CSV',
+                                'downloadURL': relative_to_metadata(version, table['url']),
+                            }
+                            for table in metadata['tables']
+                        ]
                         for (version, metadata) in metadatas.items()
-                        for table in metadata['tables']
-                    ]
+                    )
                 }
             ]
         }), headers={'content-type': 'text/json'}, status=200)
