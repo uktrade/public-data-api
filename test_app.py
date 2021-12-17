@@ -292,6 +292,10 @@ def test_metadata_key_that_exists(processes):
         'dc:description': 'The updated description',
         'dc:license': 'http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/',
         'dc:creator': 'The creator',
+        'dit:databases': [{
+            'dc:title': 'Data',
+            'url': 'data?format=sqlite&download'
+        }],
         'tables': [
             {
                 'dc:title': 'The first table',
@@ -341,6 +345,10 @@ def test_metadata_key_that_exists(processes):
                 'title': 'v0.0.2 - Metadata',
                 'format': 'HTML',
                 'downloadURL': version_metadata_public_html_url(dataset_id, 'v0.0.2'),
+            }, {
+                'title': 'v0.0.2 - Data',
+                'format': 'SQLite',
+                'downloadURL': version_data_public_url_download(dataset_id, 'v0.0.2', 'sqlite'),
             }, {
                 'title': 'v0.0.2 - The first table',
                 'format': 'CSV',

@@ -378,6 +378,14 @@ def proxy_app(
                         ]
                         + [
                             {
+                                'title': f'{version} - {database["dc:title"]}',
+                                'format': 'SQLite',
+                                'downloadURL': relative_to_metadata(version, database['url'])
+                            }
+                            for database in metadata.get('dit:databases', [])
+                        ]
+                        + [
+                            {
                                 'title': f'{version} - {table["dc:title"]}',
                                 'format': 'CSV',
                                 'downloadURL': relative_to_metadata(version, table['url']),
