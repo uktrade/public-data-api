@@ -335,6 +335,7 @@ def test_metadata_key_that_exists(processes):
             session.get(dataset_metadata_public_url(dataset_id)) as response:
         dataset_metadata = response.json()
         assert dataset_metadata == {'dataset': [{
+            'identifier': f'http://127.0.0.1:8080/datasets/{dataset_id}',
             'title': 'The updated title of the dataset',
             'description': 'The updated description',
             'license': 'http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/',

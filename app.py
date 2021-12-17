@@ -358,9 +358,17 @@ def proxy_app(
         # Choose most recent metadata as the one for the title
         metadata_recent = metadatas[next(iter(metadatas.keys()))]
 
+        # Root for identifiers
+        root = urllib.parse.urlunsplit(urllib.parse.urlsplit(
+            request.base_url)._replace(path='/', query=''))
+
         return Response(json.dumps({
             'dataset': [
                 {
+                    # Ideally the identifier is an URL with an HTML page, but doesn't have to be.
+                    # So for now, it's not. It's also deliberately not a URL to a specific version
+                    # of this API, since even in later versions, this identifier must be the same
+                    'identifier': f'{root}datasets/{dataset_id}',
                     'title': metadata_recent['dc:title'],
                     'description': metadata_recent['dc:description'],
                     'license': metadata_recent['dc:license'],
