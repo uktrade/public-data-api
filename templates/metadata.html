@@ -44,15 +44,18 @@
             </dl>
 
             {% if databases %}
-                <p class="govuk-body">This dataset is available as 1 database, and as {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
+                <p class="govuk-body">This dataset is available as 1 database</p>
+
+                <ul class="govuk-list govuk-list--bullet">
+                    <li><a class="govuk-link govuk-link--no-visited-state" href="#database--1">Database 1: {{ databases[0]['dc:title'] }}</a></li>
+                </ul>
+
+                <p>and as {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
             {% else %}
                 <p class="govuk-body">This dataset consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
             {% endif %}
 
             <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
-            {% if databases %}
-                <li><a class="govuk-link govuk-link--no-visited-state" href="#database--1">Database 1: {{ databases[0]['dc:title'] }}</a></li>
-            {% endif %}
             {% for table in csvw['tables'] %}
                 <li><a class="govuk-link govuk-link--no-visited-state" href="#{{ table['_html_id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</a></li>
             {% endfor %}
