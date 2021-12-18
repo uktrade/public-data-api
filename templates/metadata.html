@@ -40,7 +40,7 @@
                 </div>
             </dl>
 
-            <p class="govuk-body">The dataset of {{ csvw['dc:title'] }} consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}
+            <p class="govuk-body">The dataset of {{ csvw['dc:title'] }} consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
 
             <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
             {% for table in csvw['tables'] %}
