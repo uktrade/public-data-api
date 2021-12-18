@@ -13,7 +13,10 @@
 {% block body %}
     <div class="govuk-grid-row"><div class="govuk-grid-column-two-thirds">
 
-        <h1 class="govuk-heading-l">{{ csvw['dc:title'] }}</h1>
+        <h1 class="govuk-heading-l">
+            <span class="govuk-caption-l">Dataset</span>
+            {{ csvw['dc:title'] }}
+        </h1>
 
         <div class="metadata-summary govuk-!-padding-6 govuk-!-margin-bottom-6">
 
@@ -40,7 +43,7 @@
                 </div>
             </dl>
 
-            <p class="govuk-body">The dataset of {{ csvw['dc:title'] }} consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
+            <p class="govuk-body">This dataset consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
 
             <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
             {% for table in csvw['tables'] %}
