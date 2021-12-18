@@ -328,7 +328,14 @@ def test_metadata_key_that_exists(processes):
                 b'header\n' + b'value\n' * 20000)
     put_version('report', dataset_id, version, 'the-second-report',
                 b'header\n' + b'value\n' * 2000000)
+    put_version_data(dataset_id, version, b'value\n' * 500, 'sqlite')
     put_version_metadata(dataset_id, version, content)
+
+    with \
+            requests.Session() as session, \
+            session.get(version_metadata_public_html_url(dataset_id, version)) as response:
+        assert b'The updated title of the dataset - v0.0.2' in response.content
+        assert b'(SQLite, 3.0 kB)' in response.content
 
     with \
             requests.Session() as session, \
