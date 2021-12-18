@@ -302,12 +302,22 @@ def proxy_app(
             f'filter_{table["_table_or_report"]}_rows',
             dataset_id=dataset_id, version=version, table=table['_id']
         ) for table in csvw_with_id['tables']}
+
+        # Our extension to CSVW supports multiple databases for a dataset, but we only support the
+        # one in the API, to make a dataset more self contained in a single file
+        databases = csvw.get('dit:databases', [])
+        database_sizes = [
+            aws_head(signed_s3_request, f'{dataset_id}/{version}/data.sqlite')[1]['content-length']
+        ] if databases else []
+
         return html_template_environment.get_template('metadata.html').render(
             version=version,
             version_published_at=max((
                 datetime.datetime(*parsedate(headers['last-modified'])[:6])
                 for _, (_, headers) in table_head_status_headers)),
             csvw=csvw_with_id,
+            databases=databases,
+            database_sizes=database_sizes,
             filter_urls=filter_urls,
             metadata_download_url=url_for('proxy_metadata', dataset_id=dataset_id, version=version)
             + '?format=csvw&download',

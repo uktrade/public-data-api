@@ -43,9 +43,16 @@
                 </div>
             </dl>
 
-            <p class="govuk-body">This dataset consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
+            {% if databases %}
+                <p class="govuk-body">This dataset is available as 1 database, and as {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
+            {% else %}
+                <p class="govuk-body">This dataset consists of {{ csvw['tables']|length }} table{% if csvw['tables']|length > 1 %}s.{% endif %}</p>
+            {% endif %}
 
             <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+            {% if databases %}
+                <li><a class="govuk-link govuk-link--no-visited-state" href="#database--1">Database 1: {{ databases[0]['dc:title'] }}</a></li>
+            {% endif %}
             {% for table in csvw['tables'] %}
                 <li><a class="govuk-link govuk-link--no-visited-state" href="#{{ table['_html_id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</a></li>
             {% endfor %}
@@ -54,6 +61,11 @@
         </div>
 
     </div></div>
+
+    {% if databases %}
+        <h2 class="govuk-heading-m" id="database--1">Database 1: {{ databases[0]['dc:title'] }}</h2>
+        <p class="govuk-body">Download the <a href="{{ databases[0]['url'] }}" class="govuk-link">{{ databases[0]['dc:title'] }} database</a> (SQLite, {{ database_sizes[0] | filesizeformat }}).</p>
+    {% endif %}
 
     {% for table in csvw['tables'] %}
     <h2 class="govuk-heading-m" id="{{ table['_html_id'] }}">Table {{ loop.index }}: {{ table['dc:title'] }}</h2>
