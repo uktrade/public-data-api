@@ -693,7 +693,7 @@ def proxy_app(
             'table_name': os.environ.get('DOCS_SAMPLE_TABLE_NAME', 'commodities'),
             'security_email': os.environ.get('DOCS_SECURITY_EMAIL'),
         }
-        return render_template('docs/index.html', **context)
+        return render_template('docs.html', **context)
 
     app = Flask('app')
 
