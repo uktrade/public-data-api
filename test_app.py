@@ -1736,6 +1736,12 @@ def test_headers(processes):
         assert response.headers['access-control-allow-origin'] == '*'
         assert response.headers['x-robots-tag'] == 'no-index, no-follow'
 
+    root = 'http://127.0.0.1:8080/'
+    with requests.Session() as session, session.get(root) as response:
+        assert response.status_code == 200
+        assert response.headers['access-control-allow-origin'] == '*'
+        assert 'x-robots-tag' not in response.headers
+
 
 def test_sentry_integration(processes_bad_key):
     # Passing a bad AWS access key will result in a 403 when calling S3
