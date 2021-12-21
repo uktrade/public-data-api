@@ -716,7 +716,8 @@ def proxy_app(
     @app.after_request
     def _add_headers(resp):
         resp.headers['access-control-allow-origin'] = '*'
-        resp.headers['x-robots-tag'] = 'no-index, no-follow'
+        if urllib.parse.urlsplit(request.base_url).path != '/':
+            resp.headers['x-robots-tag'] = 'no-index, no-follow'
         return resp
 
     apm = ElasticAPM(
