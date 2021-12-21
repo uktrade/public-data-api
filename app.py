@@ -714,7 +714,7 @@ def proxy_app(
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, num_proxies=3)
 
     @app.after_request
-    def _add_noindex_header(resp):
+    def _add_headers(resp):
         resp.headers['access-control-allow-origin'] = '*'
         resp.headers['x-robots-tag'] = 'no-index, no-follow'
         return resp
