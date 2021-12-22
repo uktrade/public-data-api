@@ -701,6 +701,16 @@ def proxy_app(
             'version': os.environ.get('DOCS_SAMPLE_VERSION', 'v2.1.0'),
             'latest_version': os.environ.get('DOCS_SAMPLE_LATEST_VERSION', 'v2.1.2'),
             'table_name': os.environ.get('DOCS_SAMPLE_TABLE_NAME', 'commodities'),
+            'sample_dataset_with_report': (
+                os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_DATASET_ID', 'uk-trade-quotas')
+            ),
+            'sample_dataset_with_report_version': (
+                os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_VERSION', 'v1.0.0')
+            ),
+            'sample_dataset_with_report_report_name': (
+                os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_REPORT_ID',
+                               'quotas-including-current-volumes')
+            ),
             'security_email': os.environ.get('DOCS_SECURITY_EMAIL'),
         }
         return render_template('docs.html', **context)
