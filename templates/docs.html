@@ -478,6 +478,7 @@
             <h5 id="get-data-table-example-with-simple-query-request">Request</h5>
             <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ dataset }}/versions/{{ version }}/tables/{{ table_name }}/data \
     --data-urlencode "format=csv" \
+    --data-urlencode "query-simple" \
     --data-urlencode "commodity__code=0101210000" \
     --data-urlencode "_columns=commodity__code" \
     --data-urlencode "_columns=commodity__suffix" \
