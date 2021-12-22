@@ -69,6 +69,9 @@
                       <a href="#versioning"><span>Versioning</span></a>
                     </li>
                     <li>
+                      <a href="#reports"><span>Reports</span></a>
+                    </li>
+                    <li>
                       <a href="#common-parameters"><span>Common parameters</span></a>
                     </li>
                     <li>
@@ -84,6 +87,9 @@
                           <a href="#list-tables"><span>GET list of tables in a version</span></a>
                         </li>
                         <li>
+                          <a href="#list-reports"><span>GET list of reports in a version</span></a>
+                        </li>
+                        <li>
                           <a href="#get-metadata"><span>GET metadata of a version</span></a>
                         </li>
                         <li>
@@ -91,6 +97,9 @@
                         </li>
                         <li>
                           <a href="#get-data-table"><span>GET data in a table</span></a>
+                        </li>
+                        <li>
+                          <a href="#get-data-report"><span>GET data in a report</span></a>
                         </li>
                       </ul>
                     </li>
@@ -116,6 +125,7 @@
               <li>Datasets are versioned</li>
               <li>Each dataset version is immutable</li>
               <li>Each dataset version has one or more tables</li>
+              <li>Each dataset version has zero or more reports - a report contains filtered or aggregated table data</li>
               <li>Metadata for each dataset version is available as <a href="https://en.wikipedia.org/wiki/HTML">HTML</a> or <a href="https://www.w3.org/TR/tabular-data-primer/">CSVW</a> (CSV on the Web)</li>
               <li>Data can be filtered or aggregated using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a></li>
               <li>Data is supplied as <a href="https://www.sqlite.org/">SQLite</a>, <a href="https://en.wikipedia.org/wiki/JSON">JSON</a>, or <a href="https://www.gov.uk/government/publications/recommended-open-standards-for-government/tabular-data-standard">CSV</a></li>
@@ -142,6 +152,12 @@
               <li>Minor: incremented when new fields or tables are added to the data, but existing ones are unchanged.</li>
               <li>Major: incremented when existing fields are removed or change type.</li>
             </ul>
+
+            <h2 id="reports">Reports</h2>
+
+            <p>Datasets can contain reports. Reports are similar to tables, except that the data in reports is generated from the tables in the dataset. Reports are available to satisfy common use cases for filtered or aggregated views of the data in a dataset.</p>
+
+            <p>If a dataset is available as SQLite, reports are generated using SQL in the <code class="hljs html">_reports</code> table in the SQLite file.</p>
 
             <h2 id="common-parameters">Common parameters</h2>
 
@@ -174,6 +190,10 @@
                 <tr class="govuk-table__row">
                   <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">table_id</code></td>
                   <td class="govuk-table__cell">A human-readable identifier of a table, e.g. <code>{{ table_name }}</code></td>
+                </tr>
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">report_id</code></td>
+                  <td class="govuk-table__cell">A human-readable identifier of a report, e.g. <code>{{ report_name }}</code></td>
                 </tr>
               </tbody>
             </table>
@@ -275,6 +295,38 @@
         {"id": "commodities"},
         {"id": "measures-as-defined"},
         {"id": "measures-on-declarable-commodities"}
+    ]
+}</code></pre>
+
+            <h3 id="list-reports">GET list of reports in a version</h3>
+            <p>The list of reports of each dataset version can be accessed using this endpoint.</p>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/reports</code></pre>
+            <h4 id="list-reports-query-string-parameters">Query string parameters</h4>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
+                  <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">json</code></td>
+                </tr>
+              </tbody>
+            </table>
+            <h4 id="list-reports-example">Example</h4>
+            <h5 id="list-reports-example-request">Request</h5>
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ sample_dataset_with_report }}/versions/{{ sample_dataset_with_report_version }}/reports \
+    --data-urlencode "format=json"</code></pre>
+            <h5 id="list-reports-example-response">Response</h5>
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
+{
+    "reports": [
+        {"id": "quotas-including-current-volumes"}
     ]
 }</code></pre>
 
@@ -490,6 +542,103 @@
 commodity__code,commodity__suffix,commodity__description
 0101210000,10,Horses
 0101210000,80,Pure-bred breeding animals
+</code></pre>
+
+            <h3 id="get-data-report">GET data in a report</h3>
+            <p>The data of a single report in a dataset version can be accessed using this endpoint.</p>
+            <pre tabindex="0"><code class="hljs html">GET /v1/datasets/{dataset_id}/versions/{version_id}/reports/{report_id}/data</code></pre>
+            <h4 id="get-data-report-query-string-parameters">Query string parameters</h4>
+            <table class="govuk-table">
+              <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                  <th scope="col" class="govuk-table__header">Name</th>
+                  <th scope="col" class="govuk-table__header">Required</th>
+                  <th scope="col" class="govuk-table__header">Description</th>
+                </tr>
+              </thead>
+              <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">format</code></td>
+                  <td class="govuk-table__cell">Yes</td>
+                  <td class="govuk-table__cell">The requested output format. In all cases, this must be <code class="hljs html">csv</code></td>
+                </tr>
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-s3-select</code></td>
+                  <td class="govuk-table__cell">No</td>
+                  <td class="govuk-table__cell">
+                    <p>A query using the <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference-select.html">S3 Select query language</a>,  e.g. <code class="hljs psql">SELECT * FROM S3Object</code></p>
+                  </td>
+                </tr>
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">query-simple</code></td>
+                  <td class="govuk-table__cell">No</td>
+                  <td class="govuk-table__cell">
+                    <p>Enables a "simple" query mode to specify columns to retrieve, and filter rows using exact matching.</p>
+                    <p>In simple mode, the value of each <code class="hljs html nowrap">_columns</code> parameter is a single column to include in the output. This parameter can be passed multiple times to include multiple columns.</p>
+                    <p>Filtering on rows can then be performed by passing key value pairs <code class="hljs html nowrap">column=value</code>. The output includes only those rows where column <code class="hljs html nowrap">column</code> equals <code class="hljs html nowrap">value</code>.</p>
+                  </td>
+                </tr>
+                <tr class="govuk-table__row">
+                  <td scope="row" class="govuk-table__cell"><code class="hljs html nowrap">download</code></td>
+                  <td class="govuk-table__cell">No</td>
+                  <td class="govuk-table__cell">The presence of this parameter results in a <code class="hljs html">content-disposition</code> header so that browsers attempt to download the data rather than display it inline.</td>
+                </tr>
+              </tbody>
+            </table>
+            <h4 id="get-data-report-range-requests">Range requests</h4>
+            <p>If <code class="hljs html">query-s3-select</code> and <code class="hljs html">query-simple</code> are <i>not</i> specified, the <code class="hljs html">range</code> HTTP header can be passed to select a byte-range of the report. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests">HTTP Range Requests</a> for more details.</p>
+            <h4 id="get-data-report-example-without-query">Example without a query</h4>
+            <h5 id="get-data-report-example-without-query-request">Request</h5>
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ sample_dataset_with_report }}/versions/{{ sample_dataset_with_report_version }}/reports/{{ sample_dataset_with_report_report_name }}/data \
+    --data-urlencode "format=csv"</code></pre>
+            <h5 id="get-data-report-example-without-query-response">Response (excerpt)</h5>
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
+"quota_definition__sid","quota__order_number","quota__geographical_areas","quota__headings","quota__commodities","quota__measurement_unit","quota__monetary_unit","quota_definition__description","quota_definition__validity_start_date","quota_definition__validity_end_date","quota_definition__suspension_periods","quota_definition__blocking_periods","quota_definition__status","quota_definition__last_allocation_date","quota_definition__initial_volume","quota_definition__balance","quota_definition__fill_rate"
+20815,50006,"ERGA OMNES","0302 – Fish, fresh or chilled, excluding fish fillets and other fish meat of heading|0304|0303 – Fish, frozen, excluding fish fillets and other fish meat of heading 0304|0304 – Fish fillets and other fish meat (whether or not minced), fresh, chilled or frozen","0302410000|0303510000|0304595000|0304599010|0304992300","Kilogram (kg)","#NA","#NA","2021-01-01","2021-02-14","#NA","#NA","Closed","2021-01-28",2022900,2022900.0,0.0
+20814,50006,"ERGA OMNES","0302 – Fish, fresh or chilled, excluding fish fillets and other fish meat of heading|0304|0303 – Fish, frozen, excluding fish fillets and other fish meat of heading 0304|0304 – Fish fillets and other fish meat (whether or not minced), fresh, chilled or frozen","0302410000|0303510000|0304595000|0304599010|0304992300","Kilogram (kg)","#NA","#NA","2021-06-16","2022-02-14","#NA","#NA","Open","#NA",2112000,2112000.0,0.0
+</code></pre>
+
+            <h4 id="get-data-report-example-with-s3-select-query">Example with an S3 Select query</h4>
+            <h5 id="get-data-report-example-with-s3-select-query-request">Request</h5>
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ sample_dataset_with_report }}/versions/{{ sample_dataset_with_report_version }}/reports/{{ sample_dataset_with_report_report_name }}/data \
+    --data-urlencode "format=csv" \
+    --data-urlencode "query-s3-select=
+        SELECT
+            q.quota__order_number, q.quota_definition__validity_start_date, q.quota_definition__status, q.quota_definition__initial_volume, q.quota_definition__balance
+        FROM
+            S3Object q
+        WHERE
+            q.quota__commodities LIKE '%0203195900%'
+    "</code></pre>
+
+            <h5 id="get-data-report-example-with-s3-select-query-response">Response</h5>
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
+50123,2021-01-01,Exhausted,2000,0.0
+50123,2021-07-01,Open,1349000,1349000.0
+51921,2021-01-01,Open,1632000,1632000.0
+51944,2021-01-01,Critical,167000,147000.0
+57220,2021-01-01,Open,494000,494000.0
+59282,2021-01-01,Open,4838000,4838000.0
+</code></pre>
+
+            <h4 id="get-data-report-example-with-simple-query">Example with a simple query</h4>
+            <h5 id="get-data-report-example-with-simple-query-request">Request</h5>
+            <pre tabindex="0"><code class="hljs html">curl --get {{ base_url }}/v1/datasets/{{ sample_dataset_with_report }}/versions/{{ sample_dataset_with_report_version }}/reports/{{ sample_dataset_with_report_report_name }}/data \
+    --data-urlencode "format=csv" \
+    --data-urlencode "query-simple" \
+    --data-urlencode "quota__order_number=50123" \
+    --data-urlencode "_columns=quota__order_number" \
+    --data-urlencode "_columns=quota_definition__validity_start_date" \
+    --data-urlencode "_columns=quota_definition__status" \
+    --data-urlencode "_columns=quota_definition__initial_volume" \
+    --data-urlencode "_columns=quota_definition__balance"
+</code></pre>
+
+            <h5 id="get-data-report-example-with-simple-query-response">Response</h5>
+            <pre tabindex="0"><code class="hljs html">Status: 200 OK
+quota__order_number,quota_definition__validity_start_date,quota_definition__status,quota_definition__initial_volume,quota_definition__balance
+50123,2021-01-01,Exhausted,2000,0.0
+50123,2021-07-01,Open,1349000,1349000.0
 </code></pre>
 
             <h2 id="support">Support</h2>
