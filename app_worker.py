@@ -14,6 +14,7 @@ import csv
 from functools import (
     partial,
 )
+import itertools
 import logging
 import os
 import signal
@@ -28,7 +29,7 @@ from tidy_json_to_csv import (
 import urllib3
 import zlib
 
-from sqlite_s3_query import sqlite_s3_query
+from sqlite_s3_query import sqlite_s3_query_multi
 
 from app_aws import (
     aws_s3_request,
@@ -90,7 +91,7 @@ def ensure_csvs(
                 yield csv_writer.writerow(convert_for_csv(val) for val in row).encode()
 
         url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
-        with sqlite_s3_query(
+        with sqlite_s3_query_multi(
                 url=url,
                 get_credentials=lambda _: (
                     region_name,
@@ -101,20 +102,20 @@ def ensure_csvs(
         ) as query:
 
             # Find tables
-            with query('''
+            for (_, tables) in query('''
                 SELECT name FROM sqlite_master
                 WHERE
                     type = 'table'
                     AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
                     AND name NOT LIKE '\\_%' ESCAPE '\\'
                 ORDER BY rowid
-            ''') as (_, tables):
+            '''):
 
                 for (table_name,) in tables:
 
                     # Find primary key columns, in correct order
                     table_info_sql = f'PRAGMA table_info({quote_identifier(table_name)})'
-                    with query(table_info_sql) as (table_info_cols, table_info_rows):
+                    for (table_info_cols, table_info_rows) in query(table_info_sql):
                         primary_keys = sorted([
                             (table_info_row_dict['pk'], table_info_row_dict['name'])
                             for table_info_row in table_info_rows
@@ -125,24 +126,33 @@ def ensure_csvs(
                     # Save as CSV, with rows ordered by primary kay columns
                     data_sql = f'SELECT * FROM {quote_identifier(table_name)} ORDER BY ' + \
                         ','.join(quote_identifier(key) for (_, key) in primary_keys)
-                    with query(data_sql) as (cols, rows):
+                    for (cols, rows) in query(data_sql):
                         table_id = table_name.replace('_', '-')
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
             # Run all reports and save as CSVs
-            with query('''
+            for (_, rows) in query('''
                 SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_reports'
-            ''') as (_, rows):
+            '''):
                 if not list(rows):
                     return
 
-            with query('''
+            # Multi SQL scripts can contain statements that don't return rows, as well as multiple
+            # SELECT statements. We attempt to iterate over all the statements in order for them
+            # to be executed, but if they have no rows then they're not attempted to be uploaded
+            # as CSVs. If there are multiple SELECT statements, then the last one wins.
+            def with_non_zero_rows(it):
+                for cols, rows in it:
+                    for row in rows:
+                        yield (cols, itertools.chain((row,), rows))
+
+            for (_, reports_rows) in query('''
                 SELECT name, script FROM _reports ORDER BY rowid
-            ''') as (_, rows):
-                for name, script in rows:
+            '''):
+                for name, script in reports_rows:
                     report_id = name.replace('_', '-')
-                    with query(script) as (cols, rows):
+                    for (cols, rows) in with_non_zero_rows(query(script)):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 

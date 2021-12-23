@@ -1620,6 +1620,8 @@ def test_csvs_created_from_sqlite_with_reports(processes):
                 )
             ''')
             cur.execute('INSERT INTO _reports(name, script) VALUES (?,?)', ('my_report', '''
+                CREATE TEMPORARY TABLE my_temp AS SELECT * FROM my_table_with_primary_key;
+                SELECT * FROM my_temp;
                 SELECT * FROM my_table_with_primary_key
                 WHERE col_int_a = 3
                 ORDER BY col_int_b
