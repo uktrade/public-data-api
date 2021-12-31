@@ -98,30 +98,7 @@ def ensure_csvs(
                 yield columns, rows
                 break
 
-        @contextmanager
-        def rollback(query):
-            try:
-                with query('BEGIN') as (_, rows):
-                    next(rows, None)
-                yield
-            finally:
-                with query('ROLLBACK') as (_, rows):
-                    next(rows, None)
-
-        url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
-        with sqlite_s3_query_multi(
-                url=url,
-                get_credentials=lambda _: (
-                    region_name,
-                    aws_access_key_id,
-                    aws_secret_access_key,
-                    None,
-                )
-        ) as query_multi:
-
-            query = partial(to_query_single, query_multi)
-
-            # Find tables
+        def get_table_sqls(query):
             with query('''
                 SELECT name FROM sqlite_master
                 WHERE
@@ -145,18 +122,44 @@ def ensure_csvs(
 
                     data_sql = f'SELECT * FROM {quote_identifier(table_name)} ORDER BY ' + \
                         ','.join(quote_identifier(key) for (_, key) in primary_keys)
-                    table_id = table_name.replace('_', '-')
+                    yield table_name, data_sql
 
-                    # Save as CSV, with rows ordered by primary kay columns
-                    with query(data_sql) as (cols, rows):
-                        s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
-                        aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+        @contextmanager
+        def rollback(query):
+            try:
+                with query('BEGIN') as (_, rows):
+                    next(rows, None)
+                yield
+            finally:
+                with query('ROLLBACK') as (_, rows):
+                    next(rows, None)
 
-                    # And save as a single ODS file
-                    with query(data_sql) as (cols, rows):
-                        s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
-                        aws_multipart_upload(signed_s3_request, s3_key,
-                                             stream_write_ods(((table_name, cols, rows),)))
+        url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
+        with sqlite_s3_query_multi(
+                url=url,
+                get_credentials=lambda _: (
+                    region_name,
+                    aws_access_key_id,
+                    aws_secret_access_key,
+                    None,
+                )
+        ) as query_multi:
+
+            query = partial(to_query_single, query_multi)
+
+            for table_name, data_sql in get_table_sqls(query):
+                table_id = table_name.replace('_', '-')
+
+                # Save as CSV, with rows ordered by primary kay columns
+                with query(data_sql) as (cols, rows):
+                    s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
+                    aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+
+                # And save as a single ODS file
+                with query(data_sql) as (cols, rows):
+                    s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
+                    aws_multipart_upload(signed_s3_request, s3_key,
+                                         stream_write_ods(((table_name, cols, rows),)))
 
             # Run all reports and save as CSVs
             with query('''
