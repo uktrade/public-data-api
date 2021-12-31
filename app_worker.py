@@ -10,6 +10,7 @@ import ecs_logging
 from base64 import (
     b64encode,
 )
+from contextlib import contextmanager
 import csv
 from functools import (
     partial,
@@ -30,6 +31,7 @@ import urllib3
 import zlib
 
 from sqlite_s3_query import sqlite_s3_query_multi
+from stream_write_ods import stream_write_ods
 
 from app_aws import (
     aws_s3_request,
@@ -90,6 +92,16 @@ def ensure_csvs(
             for row in rows:
                 yield csv_writer.writerow(convert_for_csv(val) for val in row).encode()
 
+        @contextmanager
+        def rollback(query):
+            try:
+                for (_, rows) in query('BEGIN'):
+                    next(rows, None)
+                yield
+            finally:
+                for (_, rows) in query('ROLLBACK'):
+                    next(rows, None)
+
         url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
         with sqlite_s3_query_multi(
                 url=url,
@@ -123,13 +135,20 @@ def ensure_csvs(
                             if table_info_row_dict['pk']
                         ]) or [(1, 'rowid')]
 
-                    # Save as CSV, with rows ordered by primary kay columns
                     data_sql = f'SELECT * FROM {quote_identifier(table_name)} ORDER BY ' + \
                         ','.join(quote_identifier(key) for (_, key) in primary_keys)
+                    table_id = table_name.replace('_', '-')
+
+                    # Save as CSV, with rows ordered by primary kay columns
                     for (cols, rows) in query(data_sql):
-                        table_id = table_name.replace('_', '-')
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+
+                    # And save as a single ODS file
+                    for (cols, rows) in query(data_sql):
+                        s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
+                        aws_multipart_upload(signed_s3_request, s3_key,
+                                             stream_write_ods(((table_name, cols, rows),)))
 
             # Run all reports and save as CSVs
             for (_, rows) in query('''
@@ -147,14 +166,27 @@ def ensure_csvs(
                     for row in rows:
                         yield (cols, itertools.chain((row,), rows))
 
+            # Load reports into memory to not hold open a SQLite statement which can lock tables
             for (_, reports_rows) in query('''
                 SELECT name, script FROM _reports ORDER BY rowid
             '''):
-                for name, script in reports_rows:
-                    report_id = name.replace('_', '-')
+                reports = tuple(reports_rows)
+
+            for name, script in reports:
+                report_id = name.replace('_', '-')
+
+                # Save as CSV...
+                with rollback(query):
                     for (cols, rows) in with_non_zero_rows(query(script)):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+
+                # ... and as ODS
+                with rollback(query):
+                    for (cols, rows) in with_non_zero_rows(query(script)):
+                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
+                        aws_multipart_upload(signed_s3_request, s3_key,
+                                             stream_write_ods(((name, cols, rows),)))
 
     def save_compressed(s3_key, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):

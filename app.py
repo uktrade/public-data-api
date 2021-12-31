@@ -488,21 +488,21 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('csv',))
+    @validate_format(('csv', 'ods',))
     def proxy_table(dataset_id, version, table):
-        return proxy_table_or_report('table', dataset_id, version, table)
+        return proxy_table_or_report('table', dataset_id, version, table, request.args['format'])
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('csv',))
+    @validate_format(('csv', 'ods',))
     def proxy_report(dataset_id, version, table):
-        return proxy_table_or_report('report', dataset_id, version, table)
+        return proxy_table_or_report('report', dataset_id, version, table, request.args['format'])
 
-    def proxy_table_or_report(table_or_report, dataset_id, version, table):
-        logger.debug('Attempt to proxy: %s %s %s %s %s', table_or_report,
-                     request, dataset_id, version, table)
+    def proxy_table_or_report(table_or_report, dataset_id, version, table, _format):
+        logger.debug('Attempt to proxy: %s %s %s %s %s %s', table_or_report,
+                     request, dataset_id, version, table, format)
         header_row = None
-        s3_key = f'{dataset_id}/{version}/{table_or_report}s/{table}/data.csv'
+        s3_key = f'{dataset_id}/{version}/{table_or_report}s/{table}/data.{_format}'
 
         if 'query-simple' in request.args:
             _, columns, filterable_columns = _get_table_metadata(
@@ -528,7 +528,8 @@ def proxy_app(
             s3_query = request.args.get('query-s3-select')
 
         gzip_encode = 'accept-encoding' in request.headers and 'gzip' in request.headers.get(
-            'accept-encoding', '').replace(' ', '').split(',') and s3_query is None
+            'accept-encoding', '').replace(' ', '').split(',') and \
+            s3_query is None and _format == 'csv'
         content_encoding = 'gzip' if gzip_encode else None
 
         body_generator, response = _proxy(
@@ -555,9 +556,11 @@ def proxy_app(
             body_generator = chain(header_row, body_generator)
 
         download_filename = \
-            f'{dataset_id}--{version}--{table}.csv' if table_or_report == 'table' else \
-            f'{dataset_id}--{version}--report--{table}.csv'
-        content_type = 'text/csv'
+            f'{dataset_id}--{version}--{table}.{_format}' if table_or_report == 'table' else \
+            f'{dataset_id}--{version}--report--{table}.{_format}'
+        content_type = \
+            'text/csv' if _format == 'csv' else \
+            'application/vnd.oasis.opendocument.spreadsheet'
 
         return _generate_downstream_response(
             body_generator, response, content_type, download_filename,

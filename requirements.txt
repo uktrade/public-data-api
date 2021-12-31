@@ -67,6 +67,10 @@ sniffio==1.2.0
     #   httpx
 sqlite-s3-query==0.0.63
     # via -r requirements.in
+stream-write-ods==0.0.9
+    # via -r requirements.in
+stream-zip==0.0.15
+    # via stream-write-ods
 tidy-json-to-csv==0.0.13
     # via -r requirements.in
 urllib3==1.26.5
