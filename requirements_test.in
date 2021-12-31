@@ -7,3 +7,4 @@ sentry-sdk[flask]
 elastic-apm[flask]
 pytest
 pip-tools
+pandas_ods_reader

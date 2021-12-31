@@ -26,6 +26,7 @@ from xml.etree import (
 )
 import zlib
 
+from pandas_ods_reader import read_ods
 import pytest
 import requests
 
@@ -187,7 +188,7 @@ def test_key_that_exists(processes, encoding, compressor, requested_format,
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, requested_format)
 
-    time.sleep(15)
+    time.sleep(20)
 
     url = version_data_public_url(dataset_id, version, requested_format)
     headers = {'accept-encoding': encoding}
@@ -1181,7 +1182,8 @@ def test_table_key_that_exists_with_bad_format(processes):
     table_url = version_public_url_bad_format('table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 400
-        assert response.content == b'The query string "format" term must be one of "(\'csv\',)"'
+        assert response.content == \
+            b'The query string "format" term must be one of "(\'csv\', \'ods\')"'
         assert not response.history
 
     table_url = version_public_url('table', dataset_id, version, table, 'csv')
@@ -1598,7 +1600,7 @@ def test_csvs_created_from_sqlite_without_reports(processes):
         b'1,3\r\n'
 
 
-def test_csvs_created_from_sqlite_with_reports(processes):
+def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
 
@@ -1641,6 +1643,21 @@ def test_csvs_created_from_sqlite_with_reports(processes):
             requests.Session() as session, \
             session.get(report_url) as response:
         assert response.content == b'"col_int_a","col_int_b"\r\n3,1\r\n3,2\r\n'
+
+    report_url = version_public_url_download('report', dataset_id, version, 'my-report', 'ods')
+    with \
+            requests.Session() as session, \
+            session.get(report_url) as response:
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(response.content)
+            f.flush()
+            report = read_ods(f.name, 'my_report')
+            report_rows = report.values.tolist()
+            report_cols = report.columns.tolist()
+
+    assert report_cols == ['col_int_a', 'col_int_b', ]
+    assert report_rows == [[3.0, 1.0], [3.0, 2.0]]
 
 
 def test_logs_ecs_format():

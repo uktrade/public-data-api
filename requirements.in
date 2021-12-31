@@ -7,3 +7,4 @@ elastic-apm[flask]
 tidy-json-to-csv
 requests
 sqlite-s3-query
+stream-write-ods
