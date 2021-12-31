@@ -93,13 +93,19 @@ def ensure_csvs(
                 yield csv_writer.writerow(convert_for_csv(val) for val in row).encode()
 
         @contextmanager
+        def to_query_single(query_multi, sql, params=()):
+            for columns, rows in query_multi(sql, params):
+                yield columns, rows
+                break
+
+        @contextmanager
         def rollback(query):
             try:
-                for (_, rows) in query('BEGIN'):
+                with query('BEGIN') as (_, rows):
                     next(rows, None)
                 yield
             finally:
-                for (_, rows) in query('ROLLBACK'):
+                with query('ROLLBACK') as (_, rows):
                     next(rows, None)
 
         url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
@@ -113,21 +119,23 @@ def ensure_csvs(
                 )
         ) as query_multi:
 
+            query = partial(to_query_single, query_multi)
+
             # Find tables
-            for (_, tables) in query_multi('''
+            with query('''
                 SELECT name FROM sqlite_master
                 WHERE
                     type = 'table'
                     AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
                     AND name NOT LIKE '\\_%' ESCAPE '\\'
                 ORDER BY rowid
-            '''):
+            ''') as (_, tables):
 
                 for (table_name,) in tables:
 
                     # Find primary key columns, in correct order
                     table_info_sql = f'PRAGMA table_info({quote_identifier(table_name)})'
-                    for (table_info_cols, table_info_rows) in query_multi(table_info_sql):
+                    with query(table_info_sql) as (table_info_cols, table_info_rows):
                         primary_keys = sorted([
                             (table_info_row_dict['pk'], table_info_row_dict['name'])
                             for table_info_row in table_info_rows
@@ -140,20 +148,20 @@ def ensure_csvs(
                     table_id = table_name.replace('_', '-')
 
                     # Save as CSV, with rows ordered by primary kay columns
-                    for (cols, rows) in query_multi(data_sql):
+                    with query(data_sql) as (cols, rows):
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                     # And save as a single ODS file
-                    for (cols, rows) in query_multi(data_sql):
+                    with query(data_sql) as (cols, rows):
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
                         aws_multipart_upload(signed_s3_request, s3_key,
                                              stream_write_ods(((table_name, cols, rows),)))
 
             # Run all reports and save as CSVs
-            for (_, rows) in query_multi('''
+            with query('''
                 SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_reports'
-            '''):
+            ''') as (_, rows):
                 if not list(rows):
                     return
 
@@ -167,22 +175,22 @@ def ensure_csvs(
                         yield (cols, itertools.chain((row,), rows))
 
             # Load reports into memory to not hold open a SQLite statement which can lock tables
-            for (_, reports_rows) in query_multi('''
+            with query('''
                 SELECT name, script FROM _reports ORDER BY rowid
-            '''):
+            ''') as (_, reports_rows):
                 reports = tuple(reports_rows)
 
             for name, script in reports:
                 report_id = name.replace('_', '-')
 
                 # Save as CSV...
-                with rollback(query_multi):
+                with rollback(query):
                     for (cols, rows) in with_non_zero_rows(query_multi(script)):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                 # ... and as ODS
-                with rollback(query_multi):
+                with rollback(query):
                     for (cols, rows) in with_non_zero_rows(query_multi(script)):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
                         aws_multipart_upload(signed_s3_request, s3_key,
