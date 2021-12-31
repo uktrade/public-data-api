@@ -111,10 +111,10 @@ def ensure_csvs(
                     aws_secret_access_key,
                     None,
                 )
-        ) as query:
+        ) as query_multi:
 
             # Find tables
-            for (_, tables) in query('''
+            for (_, tables) in query_multi('''
                 SELECT name FROM sqlite_master
                 WHERE
                     type = 'table'
@@ -127,7 +127,7 @@ def ensure_csvs(
 
                     # Find primary key columns, in correct order
                     table_info_sql = f'PRAGMA table_info({quote_identifier(table_name)})'
-                    for (table_info_cols, table_info_rows) in query(table_info_sql):
+                    for (table_info_cols, table_info_rows) in query_multi(table_info_sql):
                         primary_keys = sorted([
                             (table_info_row_dict['pk'], table_info_row_dict['name'])
                             for table_info_row in table_info_rows
@@ -140,18 +140,18 @@ def ensure_csvs(
                     table_id = table_name.replace('_', '-')
 
                     # Save as CSV, with rows ordered by primary kay columns
-                    for (cols, rows) in query(data_sql):
+                    for (cols, rows) in query_multi(data_sql):
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                     # And save as a single ODS file
-                    for (cols, rows) in query(data_sql):
+                    for (cols, rows) in query_multi(data_sql):
                         s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
                         aws_multipart_upload(signed_s3_request, s3_key,
                                              stream_write_ods(((table_name, cols, rows),)))
 
             # Run all reports and save as CSVs
-            for (_, rows) in query('''
+            for (_, rows) in query_multi('''
                 SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_reports'
             '''):
                 if not list(rows):
@@ -167,7 +167,7 @@ def ensure_csvs(
                         yield (cols, itertools.chain((row,), rows))
 
             # Load reports into memory to not hold open a SQLite statement which can lock tables
-            for (_, reports_rows) in query('''
+            for (_, reports_rows) in query_multi('''
                 SELECT name, script FROM _reports ORDER BY rowid
             '''):
                 reports = tuple(reports_rows)
@@ -176,14 +176,14 @@ def ensure_csvs(
                 report_id = name.replace('_', '-')
 
                 # Save as CSV...
-                with rollback(query):
-                    for (cols, rows) in with_non_zero_rows(query(script)):
+                with rollback(query_multi):
+                    for (cols, rows) in with_non_zero_rows(query_multi(script)):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                 # ... and as ODS
-                with rollback(query):
-                    for (cols, rows) in with_non_zero_rows(query(script)):
+                with rollback(query_multi):
+                    for (cols, rows) in with_non_zero_rows(query_multi(script)):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
                         aws_multipart_upload(signed_s3_request, s3_key,
                                              stream_write_ods(((name, cols, rows),)))
