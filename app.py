@@ -448,15 +448,17 @@ def proxy_app(
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('json', 'sqlite',))
+    @validate_format(('json', 'sqlite', 'ods',))
     def proxy_data(dataset_id, version):
+        _format = request.args['format']
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
         s3_query = request.args.get('query-s3-select')
         accepted_encodings = request.headers.get('accept-encoding', '').replace(' ', '').split(',')
-        attempt_gzip = 'gzip' in accepted_encodings and s3_query is None
+        attempt_gzip = 'gzip' in accepted_encodings and s3_query is None \
+            and _format in ('json', 'sqlite')
 
-        base_s3_key = f'{dataset_id}/{version}/data.{request.args["format"]}'
+        base_s3_key = f'{dataset_id}/{version}/data.{_format}'
         key_content_encodings = () + \
             (((base_s3_key + '.gz', 'gzip'),) if attempt_gzip else ()) + \
             ((base_s3_key, None),)
@@ -478,9 +480,10 @@ def proxy_app(
             else:
                 raise Exception(f'Unexpected code from S3: {response.status}')
 
-        download_filename = f'{dataset_id}--{version}.{request.args["format"]}'
+        download_filename = f'{dataset_id}--{version}.{_format}'
         content_type = \
-            'application/vnd.sqlite3' if request.args['format'] == 'sqlite' else \
+            'application/vnd.oasis.opendocument.spreadsheet' if _format == 'ods' else \
+            'application/vnd.sqlite3' if _format == 'sqlite' else \
             'application/json'
         return _generate_downstream_response(
             body_generator, response, content_type, download_filename,

@@ -124,6 +124,11 @@ def ensure_csvs(
                         ','.join(quote_identifier(key) for (_, key) in primary_keys)
                     yield table_name, data_sql
 
+        def to_sheets(query, table_names_sqls):
+            for table_name, data_sql in table_names_sqls:
+                with query(data_sql) as (cols, rows):
+                    yield table_name, cols, rows
+
         @contextmanager
         def rollback(query):
             try:
@@ -146,6 +151,11 @@ def ensure_csvs(
         ) as query_multi:
 
             query = partial(to_query_single, query_multi)
+
+            # Convert SQLite to an ODS file
+            s3_key = f'{dataset_id}/{version}/data.ods'
+            aws_multipart_upload(signed_s3_request, s3_key,
+                                 stream_write_ods(to_sheets(query, get_table_sqls(query))))
 
             for table_name, data_sql in get_table_sqls(query):
                 table_id = table_name.replace('_', '-')
