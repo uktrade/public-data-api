@@ -188,7 +188,7 @@ def test_key_that_exists(processes, encoding, compressor, requested_format,
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, requested_format)
 
-    time.sleep(20)
+    time.sleep(40)
 
     url = version_data_public_url(dataset_id, version, requested_format)
     headers = {'accept-encoding': encoding}
@@ -214,6 +214,63 @@ def test_key_that_exists(processes, encoding, compressor, requested_format,
         assert response.headers['content-disposition'] == \
             f'attachment; filename="{dataset_id}--{version}.{requested_format}"'
         assert not response.history
+
+
+def test_sqlite_conversion_to_ods(processes):
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+
+    def get_sqlite_with_multiple_tables():
+        with tempfile.NamedTemporaryFile() as f:
+            with sqlite3.connect(f.name) as con:
+                cur = con.cursor()
+
+                cur.execute('''
+                    CREATE TABLE my_table_a (
+                        col_text TEXT,
+                        col_int INTEGER
+                    )
+                ''')
+                cur.execute('INSERT INTO my_table_a VALUES ("One", 1)')
+                cur.execute('INSERT INTO my_table_a VALUES ("Two", 2)')
+                cur.execute('''
+                    CREATE TABLE my_table_b (
+                        col_text TEXT,
+                        col_int INTEGER
+                    )
+                ''')
+                cur.execute('INSERT INTO my_table_b VALUES ("Three", 3)')
+                cur.execute('INSERT INTO my_table_b VALUES ("Four", 4)')
+
+            return f.read()
+
+    put_version_data(dataset_id, version, get_sqlite_with_multiple_tables(), 'sqlite')
+
+    time.sleep(20)
+
+    url = version_data_public_url_download(dataset_id, version, 'ods')
+    with \
+            requests.Session() as session, \
+            session.get(url) as response:
+        assert response.headers['content-type'] == 'application/vnd.oasis.opendocument.spreadsheet'
+        assert response.headers['content-disposition'] == \
+            f'attachment; filename="{dataset_id}--{version}.ods"'
+        assert not response.history
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(response.content)
+            f.flush()
+            report_a = read_ods(f.name, 'my_table_a')
+            report_a_rows = report_a.values.tolist()
+            report_a_cols = report_a.columns.tolist()
+            report_b = read_ods(f.name, 'my_table_b')
+            report_b_rows = report_b.values.tolist()
+            report_b_cols = report_b.columns.tolist()
+
+    assert report_a_cols == ['col_text', 'col_int', ]
+    assert report_a_rows == [['One', 1.0], ['Two', 2.0]]
+    assert report_b_cols == ['col_text', 'col_int', ]
+    assert report_b_rows == [['Three', 3.0], ['Four', 4.0]]
 
 
 def test_metadata_key_that_exists(processes):
@@ -1160,7 +1217,7 @@ def test_key_that_exists_with_bad_format(processes):
         assert response.status_code == 400
         assert response.content == \
             b'The query string "format" term must be one of ' + \
-            b'"(\'json\', \'sqlite\')"'
+            b'"(\'json\', \'sqlite\', \'ods\')"'
         assert not response.history
 
     with \
