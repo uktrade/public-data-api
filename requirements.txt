@@ -67,7 +67,7 @@ sniffio==1.2.0
     #   httpx
 sqlite-s3-query==0.0.63
     # via -r requirements.in
-stream-write-ods==0.0.18
+stream-write-ods==0.0.21
     # via -r requirements.in
 stream-zip==0.0.46
     # via stream-write-ods
