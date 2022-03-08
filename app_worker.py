@@ -16,6 +16,7 @@ from functools import (
     partial,
 )
 import itertools
+import json
 import logging
 import os
 import signal
@@ -86,6 +87,11 @@ def ensure_csvs(
                 b64encode(value).decode() if isinstance(value, bytes) else \
                 value
 
+        def convert_for_json(value):
+            return \
+                b64encode(value).decode() if isinstance(value, bytes) else \
+                value
+
         def csv_data(columns, rows):
             csv_writer = csv.writer(PseudoBuffer(), quoting=csv.QUOTE_NONNUMERIC)
             yield csv_writer.writerow(columns).encode()
@@ -129,6 +135,29 @@ def ensure_csvs(
                 with query(data_sql) as (cols, rows):
                     yield table_name, cols, rows
 
+        def stream_write_json(sheets):
+            def json_dumps(data):
+                return json.dumps(data, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+            def with_is_first(iterable):
+                is_first = True
+                for val in iterable:
+                    yield is_first, val
+                    is_first = False
+
+            yield b'{'
+            for is_first_table, (table_name, cols, rows) in with_is_first(sheets):
+                if not is_first_table:
+                    yield b','
+                yield json_dumps(table_name) + b':'
+                yield b'['
+                for is_first_row, row in with_is_first(rows):
+                    if not is_first_row:
+                        yield b','
+                    yield json_dumps(dict(zip(cols, (convert_for_json(val) for val in row))))
+                yield b']'
+            yield b'}'
+
         @contextmanager
         def rollback(query):
             try:
@@ -156,6 +185,11 @@ def ensure_csvs(
             s3_key = f'{dataset_id}/{version}/data.ods'
             aws_multipart_upload(signed_s3_request, s3_key,
                                  stream_write_ods(to_sheets(query, get_table_sqls(query))))
+
+            # Convert SQLite to JSON
+            s3_key = f'{dataset_id}/{version}/data.json'
+            aws_multipart_upload(signed_s3_request, s3_key,
+                                 stream_write_json(to_sheets(query, get_table_sqls(query))))
 
             for table_name, data_sql in get_table_sqls(query):
                 table_id = table_name.replace('_', '-')
