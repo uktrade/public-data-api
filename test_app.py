@@ -1656,6 +1656,22 @@ def test_csvs_created_from_sqlite_without_reports(processes):
         b'3,2\r\n' + \
         b'1,3\r\n'
 
+    params = {
+        'query-s3-select': 'SELECT col_text FROM S3Object[*].my_table_no_primary_key[*]'
+    }
+    expected_content = json.dumps({
+        'rows': [
+            {'col_text': 'Some text 🍰'},
+            {'col_text': 'Some text 🍰'},
+        ],
+    }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+    data_url = version_data_public_url(dataset_id, version, 'json')
+    with requests.Session() as session, session.get(data_url, params=params) as response:
+        assert response.status_code == 200
+        assert response.content == expected_content
+        assert not response.history
+
 
 def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
     dataset_id = str(uuid.uuid4())
