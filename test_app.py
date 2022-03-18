@@ -228,11 +228,12 @@ def test_sqlite_conversion_to_ods(processes):
                 cur.execute('''
                     CREATE TABLE my_table_a (
                         col_text TEXT,
-                        col_int INTEGER
+                        col_int INTEGER,
+                        col_date DATE
                     )
                 ''')
-                cur.execute('INSERT INTO my_table_a VALUES ("One", 1)')
-                cur.execute('INSERT INTO my_table_a VALUES ("Two", 2)')
+                cur.execute('INSERT INTO my_table_a VALUES ("One", 1, "2021-01-02")')
+                cur.execute('INSERT INTO my_table_a VALUES ("Two", 2, "2021-01-03")')
                 cur.execute('''
                     CREATE TABLE my_table_b (
                         col_text TEXT,
@@ -267,8 +268,8 @@ def test_sqlite_conversion_to_ods(processes):
             report_b_rows = report_b.values.tolist()
             report_b_cols = report_b.columns.tolist()
 
-    assert report_a_cols == ['col_text', 'col_int', ]
-    assert report_a_rows == [['One', 1.0], ['Two', 2.0]]
+    assert report_a_cols == ['col_text', 'col_int', 'col_date', ]
+    assert report_a_rows == [['One', 1.0, '2021-01-02'], ['Two', 2.0, '2021-01-03']]
     assert report_b_cols == ['col_text', 'col_int', ]
     assert report_b_rows == [['Three', 3.0], ['Four', 4.0]]
 
