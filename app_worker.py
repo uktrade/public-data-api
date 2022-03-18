@@ -12,6 +12,7 @@ from base64 import (
 )
 from contextlib import contextmanager
 import csv
+from datetime import datetime
 from functools import (
     partial,
 )
@@ -130,10 +131,24 @@ def ensure_csvs(
                         ','.join(quote_identifier(key) for (_, key) in primary_keys)
                     yield table_name, data_sql
 
-        def to_sheets(query, table_names_sqls):
+        def fix_ods_types(rows):
+            # SQLite doesn't expose type information of query results in all cases, but we want
+            # to tell ODS if a value is a date. So we attempt to parse every value as a date, and
+            # if it fails, we return it as-is.
+
+            def fix_type(value):
+                try:
+                    return datetime.strptime(value, '%Y-%m-%d').date()
+                except (TypeError, ValueError):
+                    return value
+
+            for row in rows:
+                yield tuple(fix_type(value) for value in row)
+
+        def to_sheets(query, table_names_sqls, row_fixer):
             for table_name, data_sql in table_names_sqls:
                 with query(data_sql) as (cols, rows):
-                    yield table_name, cols, rows
+                    yield table_name, cols, row_fixer(rows)
 
         def stream_write_json(sheets):
             def json_dumps(data):
@@ -183,13 +198,13 @@ def ensure_csvs(
 
             # Convert SQLite to an ODS file
             s3_key = f'{dataset_id}/{version}/data.ods'
-            aws_multipart_upload(signed_s3_request, s3_key,
-                                 stream_write_ods(to_sheets(query, get_table_sqls(query))))
+            ods_sheets = to_sheets(query, get_table_sqls(query), fix_ods_types)
+            aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(ods_sheets))
 
             # Convert SQLite to JSON
             s3_key = f'{dataset_id}/{version}/data.json'
-            aws_multipart_upload(signed_s3_request, s3_key,
-                                 stream_write_json(to_sheets(query, get_table_sqls(query))))
+            json_sheets = to_sheets(query, get_table_sqls(query), lambda r: r)
+            aws_multipart_upload(signed_s3_request, s3_key, stream_write_json(json_sheets))
 
             for table_name, data_sql in get_table_sqls(query):
                 table_id = table_name.replace('_', '-')
@@ -202,8 +217,8 @@ def ensure_csvs(
                 # And save as a single ODS file
                 with query(data_sql) as (cols, rows):
                     s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
-                    aws_multipart_upload(signed_s3_request, s3_key,
-                                         stream_write_ods(((table_name, cols, rows),)))
+                    ods_sheets = ((table_name, cols, fix_ods_types(rows)),)
+                    aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(ods_sheets))
 
             # Run all reports and save as CSVs
             with query('''
