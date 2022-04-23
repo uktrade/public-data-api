@@ -34,7 +34,7 @@ import zlib
 
 from sqlite_s3_query import sqlite_s3_query_multi
 from stream_write_ods import stream_write_ods
-from stream_zip import UncompressedSizeOverflowError
+from stream_zip import ZipOverflowError
 
 from app_aws import (
     aws_s3_request,
@@ -202,7 +202,7 @@ def ensure_csvs(
                 s3_key = f'{dataset_id}/{version}/data.ods'
                 ods_sheets = to_sheets(query, get_table_sqls(query), fix_ods_types)
                 aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(ods_sheets))
-            except UncompressedSizeOverflowError:
+            except ZipOverflowError:
                 logger.exception('ODS of entire SQLite would be too large for LibreOffice')
 
             # Convert SQLite to JSON
@@ -219,10 +219,15 @@ def ensure_csvs(
                     aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                 # And save as a single ODS file
-                with query(data_sql) as (cols, rows):
-                    s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
-                    ods_sheets = ((table_name, cols, fix_ods_types(rows)),)
-                    aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(ods_sheets))
+                try:
+                    with query(data_sql) as (cols, rows):
+                        s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
+                        ods_sheets = ((table_name, cols, fix_ods_types(rows)),)
+                        aws_multipart_upload(signed_s3_request, s3_key,
+                                             stream_write_ods(ods_sheets))
+                except ZipOverflowError:
+                    logger.exception(
+                        f'ODS of SQLite table {table_name} would be too large for LibreOffice')
 
             # Run all reports and save as CSVs
             with query('''
@@ -256,11 +261,15 @@ def ensure_csvs(
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                 # ... and as ODS
-                with rollback(query):
-                    for (cols, rows) in with_non_zero_rows(query_multi(script)):
-                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
-                        aws_multipart_upload(signed_s3_request, s3_key,
-                                             stream_write_ods(((name, cols, rows),)))
+                try:
+                    with rollback(query):
+                        for (cols, rows) in with_non_zero_rows(query_multi(script)):
+                            s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
+                            aws_multipart_upload(signed_s3_request, s3_key,
+                                                 stream_write_ods(((name, cols, rows),)))
+                except ZipOverflowError:
+                    logger.exception(
+                        f'ODS of SQLite report {name} would be too large for LibreOffice')
 
     def save_compressed(s3_key, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):
