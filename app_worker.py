@@ -34,6 +34,7 @@ import zlib
 
 from sqlite_s3_query import sqlite_s3_query_multi
 from stream_write_ods import stream_write_ods
+from stream_zip import UncompressedSizeOverflowError
 
 from app_aws import (
     aws_s3_request,
@@ -196,10 +197,13 @@ def ensure_csvs(
 
             query = partial(to_query_single, query_multi)
 
-            # Convert SQLite to an ODS file
-            s3_key = f'{dataset_id}/{version}/data.ods'
-            ods_sheets = to_sheets(query, get_table_sqls(query), fix_ods_types)
-            aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(ods_sheets))
+            try:
+                # Convert SQLite to an ODS file
+                s3_key = f'{dataset_id}/{version}/data.ods'
+                ods_sheets = to_sheets(query, get_table_sqls(query), fix_ods_types)
+                aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(ods_sheets))
+            except UncompressedSizeOverflowError:
+                logger.exception('ODS of entire SQLite would be too large for LibreOffice')
 
             # Convert SQLite to JSON
             s3_key = f'{dataset_id}/{version}/data.json'
