@@ -13,7 +13,6 @@ blinker==1.4
 certifi==2021.5.30
     # via
     #   elastic-apm
-    #   httpcore
     #   httpx
     #   requests
     #   sentry-sdk
@@ -37,9 +36,9 @@ greenlet==1.1.2
     # via gevent
 h11==0.12.0
     # via httpcore
-httpcore==0.14.3
+httpcore==0.13.7
     # via httpx
-httpx==0.21.1
+httpx==1.0.0b0
     # via sqlite-s3-query
 idna==2.10
     # via
