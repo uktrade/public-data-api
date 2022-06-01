@@ -13,13 +13,12 @@ blinker==1.4
 certifi==2021.5.30
     # via
     #   elastic-apm
+    #   httpcore
     #   httpx
     #   requests
     #   sentry-sdk
 chardet==4.0.0
     # via requests
-charset-normalizer==2.0.9
-    # via httpx
 click==7.0
     # via flask
 ecs-logging==0.5.0
@@ -36,9 +35,9 @@ greenlet==1.1.2
     # via gevent
 h11==0.12.0
     # via httpcore
-httpcore==0.13.7
+httpcore==0.15.0
     # via httpx
-httpx==1.0.0b0
+httpx==0.23.0
     # via sqlite-s3-query
 idna==2.10
     # via

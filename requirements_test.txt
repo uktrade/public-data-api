@@ -33,10 +33,6 @@ chardet==4.0.0
     # via
     #   -r requirements.txt
     #   requests
-charset-normalizer==2.0.9
-    # via
-    #   -r requirements.txt
-    #   httpx
 click==7.0
     # via
     #   -r requirements.txt
@@ -70,11 +66,11 @@ h11==0.12.0
     # via
     #   -r requirements.txt
     #   httpcore
-httpcore==0.14.3
+httpcore==0.15.0
     # via
     #   -r requirements.txt
     #   httpx
-httpx==0.21.1
+httpx==0.23.0
     # via
     #   -r requirements.txt
     #   sqlite-s3-query
@@ -184,8 +180,6 @@ toml==0.10.0
     #   pytest
 tomli==1.2.2
     # via pep517
-typing-extensions==4.0.0
-    # via astroid
 urllib3==1.26.5
     # via
     #   -r requirements.txt
