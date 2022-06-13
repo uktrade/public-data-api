@@ -5,6 +5,7 @@ pre-commit
 pylint
 sentry-sdk[flask]
 elastic-apm[flask]
+odfpy
 pytest
 pip-tools
-pandas_ods_reader
+pandas
