@@ -26,7 +26,7 @@ from xml.etree import (
 )
 import zlib
 
-from pandas_ods_reader import read_ods
+import pandas as pd
 import pytest
 import requests
 
@@ -261,10 +261,10 @@ def test_sqlite_conversion_to_ods(processes):
         with tempfile.NamedTemporaryFile() as f:
             f.write(response.content)
             f.flush()
-            report_a = read_ods(f.name, 'my_table_a')
+            report_a = pd.read_excel(f.name, 'my_table_a')
             report_a_rows = report_a.values.tolist()
             report_a_cols = report_a.columns.tolist()
-            report_b = read_ods(f.name, 'my_table_b')
+            report_b = pd.read_excel(f.name, 'my_table_b')
             report_b_rows = report_b.values.tolist()
             report_b_cols = report_b.columns.tolist()
 
@@ -1726,7 +1726,7 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
         with tempfile.NamedTemporaryFile() as f:
             f.write(response.content)
             f.flush()
-            report = read_ods(f.name, 'my_report')
+            report = pd.read_excel(f.name, 'my_report')
             report_rows = report.values.tolist()
             report_cols = report.columns.tolist()
 
