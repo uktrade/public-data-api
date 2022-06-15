@@ -23,6 +23,7 @@ certifi==2021.5.30
     # via
     #   -r requirements.txt
     #   elastic-apm
+    #   httpcore
     #   httpx
     #   requests
     #   sentry-sdk
@@ -32,10 +33,6 @@ chardet==4.0.0
     # via
     #   -r requirements.txt
     #   requests
-charset-normalizer==2.0.9
-    # via
-    #   -r requirements.txt
-    #   httpx
 click==7.0
     # via
     #   -r requirements.txt
@@ -69,11 +66,11 @@ h11==0.12.0
     # via
     #   -r requirements.txt
     #   httpcore
-httpcore==0.13.7
+httpcore==0.15.0
     # via
     #   -r requirements.txt
     #   httpx
-httpx==1.0.0b0
+httpx==0.23.0
     # via
     #   -r requirements.txt
     #   sqlite-s3-query
@@ -165,7 +162,7 @@ sniffio==1.2.0
     #   anyio
     #   httpcore
     #   httpx
-sqlite-s3-query==0.0.66
+sqlite-s3-query==0.0.67
     # via -r requirements.txt
 stream-write-ods==0.0.22
     # via -r requirements.txt
