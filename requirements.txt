@@ -24,7 +24,7 @@ click==7.0
     # via flask
 ecs-logging==0.5.0
     # via -r requirements.in
-elastic-apm[flask]==6.7.0
+elastic-apm[flask]==6.9.1
     # via -r requirements.in
 flask==1.1.2
     # via
