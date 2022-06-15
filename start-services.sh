@@ -14,10 +14,10 @@ docker run --rm -p 9000:9000 --name s3proxy-minio -d \
 
 docker run --network public-data-api-network --rm -p 9201:9200 -p 9301:9300 --name elasticsearch -d \
   -e "discovery.type=single-node" \
-  docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+  docker.elastic.co/elasticsearch/elasticsearch:8.2.3
 
 docker run --network public-data-api-network --rm -p 8201:8200 --name=apm-server -d \
   --user=apm-server \
-  docker.elastic.co/apm/apm-server:7.8.0 \
+  docker.elastic.co/apm/apm-server:8.2.3 \
   --strict.perms=false -e \
   -E output.elasticsearch.hosts=["elasticsearch:9200"]

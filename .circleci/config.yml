@@ -13,12 +13,12 @@ jobs:
         entrypoint: sh
         command: ['-c', 'mkdir -p /data1 && mkdir -p /data2 && mkdir -p /data3 && mkdir -p /data4 && minio server /data{1...4}']
       - image: redis:3.2.11
-      - image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+      - image: docker.elastic.co/elasticsearch/elasticsearch:8.2.3
         environment:
           xpack.security.enabled: false
           transport.host: localhost
           http.port: 9201
-      - image: docker.elastic.co/apm/apm-server:7.8.0
+      - image: docker.elastic.co/apm/apm-server:8.2.3
         command: ["apm-server", "-e", "-E", "output.elasticsearch.hosts=[\"localhost:9201\"]", "-E", "apm-server.host=localhost:8201"]
     working_directory: ~/repo
     steps:
