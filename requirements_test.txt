@@ -50,6 +50,8 @@ elastic-apm[flask]==6.9.1
     # via
     #   -r requirements.txt
     #   -r requirements_test.in
+exceptiongroup==1.0.0
+    # via pytest
 filelock==3.4.0
     # via virtualenv
 flask==1.1.2
@@ -126,13 +128,11 @@ pluggy==0.13.1
     # via pytest
 pre-commit==2.15.0
     # via -r requirements_test.in
-py==1.10.0
-    # via pytest
 pylint==2.3.1
     # via -r requirements_test.in
 pyparsing==2.4.7
     # via packaging
-pytest==6.1.2
+pytest==7.2.0
     # via -r requirements_test.in
 python-dateutil==2.8.2
     # via pandas
@@ -173,11 +173,13 @@ stream-zip==0.0.46
 tidy-json-to-csv==0.0.13
     # via -r requirements.txt
 toml==0.10.0
-    # via
-    #   pre-commit
-    #   pytest
+    # via pre-commit
 tomli==1.2.2
-    # via pep517
+    # via
+    #   pep517
+    #   pytest
+typing-extensions==4.4.0
+    # via astroid
 urllib3==1.26.5
     # via
     #   -r requirements.txt

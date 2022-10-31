@@ -199,7 +199,7 @@ def test_key_that_exists(processes, encoding, compressor, requested_format,
         assert response.headers['content-length'] == str(len(compressor(content)))
         assert response.headers['content-type'], expected_content_type
         assert response.headers.get('content-encoding') == encoding
-        assert'content-disposition' not in response.headers
+        assert 'content-disposition' not in response.headers
         assert not response.history
 
     url = version_data_public_url_download(dataset_id, version, requested_format)
