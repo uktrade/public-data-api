@@ -10,7 +10,7 @@ blinker==1.4
     # via
     #   elastic-apm
     #   sentry-sdk
-certifi==2021.5.30
+certifi==2022.12.7
     # via
     #   elastic-apm
     #   httpcore
