@@ -186,7 +186,7 @@ werkzeug==0.15.5
     # via
     #   -r requirements.txt
     #   flask
-wheel==0.37.0
+wheel==0.38.1
     # via pip-tools
 wrapt==1.11.2
     # via astroid
