@@ -723,11 +723,11 @@ def proxy_app(
 
     app = Flask('app')
 
-    # If some paths are behing the IP filter, then num_proxies will be higher, because it
+    # If some paths are behind the IP filter, then num_proxies will be higher, because it
     # means requests go through the routing system twice. However, num_proxies is only
     # used for the IP sent to Google Analytics, so we can cope with it being wrong for
     # pre-release datasets
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, num_proxies=3)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=3)
 
     @app.after_request
     def _add_headers(resp):
