@@ -191,7 +191,11 @@ def proxy_app(
             query_string = ((b'?' + request.query_string)
                             if request.query_string else b'').decode('utf-8')
 
-            updated_view_args = {**request.view_args, 'version': latest_matching_version}
+            updated_view_args = {
+                **request.view_args,
+                'version': latest_matching_version,
+                '_external': True
+            }
             return redirect(url_for(request.endpoint, **updated_view_args) + query_string)
 
         return handler_with_validation
