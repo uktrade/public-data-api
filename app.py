@@ -191,7 +191,11 @@ def proxy_app(
             query_string = ((b'?' + request.query_string)
                             if request.query_string else b'').decode('utf-8')
 
-            updated_view_args = {**request.view_args, 'version': latest_matching_version}
+            updated_view_args = {
+                **request.view_args,
+                'version': latest_matching_version,
+                '_external': True
+            }
             return redirect(url_for(request.endpoint, **updated_view_args) + query_string)
 
         return handler_with_validation
@@ -723,11 +727,11 @@ def proxy_app(
 
     app = Flask('app')
 
-    # If some paths are behing the IP filter, then num_proxies will be higher, because it
+    # If some paths are behind the IP filter, then num_proxies will be higher, because it
     # means requests go through the routing system twice. However, num_proxies is only
     # used for the IP sent to Google Analytics, so we can cope with it being wrong for
     # pre-release datasets
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, num_proxies=3)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=3)
 
     @app.after_request
     def _add_headers(resp):
