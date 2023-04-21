@@ -724,6 +724,19 @@ def proxy_app(
             'security_email': os.environ.get('DOCS_SECURITY_EMAIL'),
         }
         return render_template('docs.html', **context)
+    
+    @track_analytics
+    def accessibility_statement():
+        """
+        Documentation homepage
+        """
+        context = {
+            'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
+            'service_name': os.environ.get('DOCS_SERVICE_NAME'),
+            'base_url': request.base_url.rstrip('/')
+           
+        }
+        return render_template('accessibility_statement.html', **context)
 
     app = Flask('app')
 
@@ -809,6 +822,9 @@ def proxy_app(
     )
     app.add_url_rule(
         '/', 'docs', view_func=docs
+    )
+    app.add_url_rule(
+        '/accessibility_statement', view_func=accessibility_statement
     )
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
