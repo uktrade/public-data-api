@@ -7,6 +7,7 @@ import ecs_logging
 from gevent import (
     monkey,
 )
+
 monkey.patch_all()
 import gevent
 import datetime
@@ -64,35 +65,55 @@ from app_aws import (
 
 
 RE_VERSION_FORMAT = re.compile(
-    r'^(?P<version>v(?P<major>\d+)(?:\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?)?|latest)$')
+    r'^(?P<version>v(?P<major>\d+)(?:\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?)?|latest)$'
+)
 
 
 def proxy_app(
-        logger,
-        port,
-        aws_access_key_id,
-        aws_secret_access_key,
-        endpoint_url,
-        region_name,
-        ga_tracking_id,
+    logger,
+    port,
+    aws_access_key_id,
+    aws_secret_access_key,
+    endpoint_url,
+    region_name,
+    ga_tracking_id,
 ):
-
     parsed_endpoint = urllib.parse.urlsplit(endpoint_url)
-    PoolClass = \
-        urllib3.HTTPConnectionPool if parsed_endpoint.scheme == 'http' else \
-        urllib3.HTTPSConnectionPool
+    PoolClass = (
+        urllib3.HTTPConnectionPool
+        if parsed_endpoint.scheme == 'http'
+        else urllib3.HTTPSConnectionPool
+    )
     http = PoolClass(parsed_endpoint.hostname, port=parsed_endpoint.port, maxsize=1000)
 
-    proxied_request_headers = ['range', ]
-    proxied_response_codes = [200, 206, 404, ]
+    proxied_request_headers = [
+        'range',
+    ]
+    proxied_response_codes = [
+        200,
+        206,
+        404,
+    ]
     proxied_response_headers = [
-        'accept-ranges', 'content-length', 'date', 'etag', 'last-modified', 'content-range',
+        'accept-ranges',
+        'content-length',
+        'date',
+        'etag',
+        'last-modified',
+        'content-range',
     ]
 
-    signed_s3_request = partial(aws_s3_request, parsed_endpoint, http,
-                                aws_access_key_id, aws_secret_access_key, region_name)
+    signed_s3_request = partial(
+        aws_s3_request,
+        parsed_endpoint,
+        http,
+        aws_access_key_id,
+        aws_secret_access_key,
+        region_name,
+    )
     html_template_environment = Environment(
-        loader=FileSystemLoader('./templates'), autoescape=True)
+        loader=FileSystemLoader('./templates'), autoescape=True
+    )
 
     def start():
         server.serve_forever()
@@ -107,7 +128,9 @@ def proxy_app(
         def _send(requester_ip, request_url, request_headers):
             logger.info('Sending to Google Analytics %s...', request_url)
             requests.post(
-                os.environ.get('GA_ENDPOINT', 'https://www.google-analytics.com/collect'),
+                os.environ.get(
+                    'GA_ENDPOINT', 'https://www.google-analytics.com/collect'
+                ),
                 data={
                     'v': '1',
                     'tid': ga_tracking_id,
@@ -119,19 +142,15 @@ def proxy_app(
                     'ds': 'public-data-api',
                     'dr': request_headers.get('referer', ''),
                     'ua': request_headers.get('user-agent', ''),
-                }
+                },
             )
 
         @wraps(handler)
         def send(*args, **kwargs):
             if ga_tracking_id:
-                gevent.spawn(
-                    _send,
-                    request.remote_addr,
-                    request.url,
-                    request.headers
-                )
+                gevent.spawn(_send, request.remote_addr, request.url, request.headers)
             return handler(*args, **kwargs)
+
         return send
 
     def validate_and_redirect_version(handler):
@@ -148,26 +167,33 @@ def proxy_app(
 
         If it's a patch version, passes directly through to the underlying function.
         """
+
         @wraps(handler)
         def handler_with_validation(*args, **kwargs):
             match = RE_VERSION_FORMAT.match(request.view_args['version'])
             if not match:
                 abort(404)
 
-            version, major, minor, patch = [match.group(
-                g) for g in ('version', 'major', 'minor', 'patch')]
+            version, major, minor, patch = [
+                match.group(g) for g in ('version', 'major', 'minor', 'patch')
+            ]
 
             if major and minor and patch:
                 return handler(*args, **kwargs)
 
             if version == 'latest':
+
                 def predicate(_):
                     return True
+
             elif major and not minor and not patch:
+
                 def predicate(path):
                     v_major_str, _, _ = path.split('.')
                     return v_major_str[1:] == str(major)
+
             else:
+
                 def predicate(path):
                     v_major_str, minor_str, _ = path.split('.')
                     return v_major_str[1:] == str(major) and minor_str == str(minor)
@@ -176,10 +202,13 @@ def proxy_app(
                 v_major_str, minor_str, patch_str = path.split('.')
                 return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
-            folders = aws_list_folders(signed_s3_request,
-                                       prefix=request.view_args['dataset_id'] + '/')
+            folders = aws_list_folders(
+                signed_s3_request, prefix=request.view_args['dataset_id'] + '/'
+            )
             matching_folders = filter(predicate, folders)
-            latest_matching_version = max(matching_folders, default=None, key=semver_key)
+            latest_matching_version = max(
+                matching_folders, default=None, key=semver_key
+            )
 
             if latest_matching_version is None:
                 return 'Dataset not found', 404
@@ -188,15 +217,18 @@ def proxy_app(
             # has the _exact_ bytes that were received by the server in all cases. If a client
             # sends non-URL-encoded UTF-8 in the query string, the below results (via code in
             # Werkzeug) in returning a redirect to a URL with the equivalent URL-encoded string.
-            query_string = ((b'?' + request.query_string)
-                            if request.query_string else b'').decode('utf-8')
+            query_string = (
+                (b'?' + request.query_string) if request.query_string else b''
+            ).decode('utf-8')
 
             updated_view_args = {
                 **request.view_args,
                 'version': latest_matching_version,
-                '_external': True
+                '_external': True,
             }
-            return redirect(url_for(request.endpoint, **updated_view_args) + query_string)
+            return redirect(
+                url_for(request.endpoint, **updated_view_args) + query_string
+            )
 
         return handler_with_validation
 
@@ -210,57 +242,75 @@ def proxy_app(
                     return 'The query string must have a "format" term', 400
 
                 if _format not in ensure_formats:
-                    return f'The query string "format" term must be one of "{ensure_formats}"', 400
+                    return (
+                        f'The query string "format" term must be one of "{ensure_formats}"',
+                        400,
+                    )
 
                 return handler(*args, **kwargs)
+
             return handler_with_validation
+
         return validate_format_handler
 
     def _proxy(s3_key, query_s3_select, aws_select_parse_result_for_query, headers):
-        method, body, params, parse_response = \
+        method, body, params, parse_response = (
             (
                 'POST',
                 query_s3_select,
                 (('select', ''), ('select-type', '2')),
                 aws_select_parse_result_for_query,
-            ) if query_s3_select is not None else \
-            (
+            )
+            if query_s3_select is not None
+            else (
                 'GET',
                 b'',
                 (),
                 lambda x, _: x,
             )
+        )
 
-        pre_auth_headers = tuple((
-            (key, headers[key])
-            for key in proxied_request_headers if key in headers
-        ))
+        pre_auth_headers = tuple(
+            ((key, headers[key]) for key in proxied_request_headers if key in headers)
+        )
         response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
 
         logger.debug('Response: %s', response)
 
-        return parse_response(response.stream(65536, decode_content=False), 65536), response
+        return (
+            parse_response(response.stream(65536, decode_content=False), 65536),
+            response,
+        )
 
     def _generate_downstream_response(
-            body_generator, response, content_type, download_filename, content_encoding=None
+        body_generator, response, content_type, download_filename, content_encoding=None
     ):
         allow_proxy = response.status in proxied_response_codes
 
         logger.debug('Allowing proxy: %s', allow_proxy)
 
-        response_headers_no_content_type = tuple((
-            (key, response.headers[key])
-            for key in proxied_response_headers if key in response.headers
-        ))
+        response_headers_no_content_type = tuple(
+            (
+                (key, response.headers[key])
+                for key in proxied_response_headers
+                if key in response.headers
+            )
+        )
         download_headers = (
-            ('content-disposition', f'attachment; filename="{download_filename}"'),
-        ) if 'download' in request.args else ()
+            (('content-disposition', f'attachment; filename="{download_filename}"'),)
+            if 'download' in request.args
+            else ()
+        )
         encoding_headers = (
-            ('content-encoding', content_encoding),
-        ) if content_encoding else ()
+            (('content-encoding', content_encoding),) if content_encoding else ()
+        )
 
-        response_headers = response_headers_no_content_type + \
-            (('content-type', content_type),) + download_headers + encoding_headers
+        response_headers = (
+            response_headers_no_content_type
+            + (('content-type', content_type),)
+            + download_headers
+            + encoding_headers
+        )
 
         if not allow_proxy:
             # Make sure we fetch all response bytes, so the connection can be re-used.
@@ -271,7 +321,9 @@ def proxy_app(
             raise Exception(f'Unexpected code from S3: {response.status}')
 
         downstream_response = Response(
-            body_generator, status=response.status, headers=response_headers,
+            body_generator,
+            status=response.status,
+            headers=response_headers,
         )
         downstream_response.call_on_close(response.release_conn)
         return downstream_response
@@ -288,13 +340,16 @@ def proxy_app(
                     '_table_or_report': table['url'].split('/')[0][:-1],
                 }
                 for table in csvw['tables']
-            ]
+            ],
         }
         table_head_status_headers = [
             (
                 table['_html_id'],
-                aws_head(signed_s3_request, f'{dataset_id}/{version}/'
-                         + f'{table["_table_or_report"]}s/{table["_id"]}/data.csv'),
+                aws_head(
+                    signed_s3_request,
+                    f'{dataset_id}/{version}/'
+                    + f'{table["_table_or_report"]}s/{table["_id"]}/data.csv',
+                ),
             )
             for table in csvw_with_id['tables']
         ]
@@ -302,30 +357,47 @@ def proxy_app(
             table_html_id: headers['content-length']
             for table_html_id, (_, headers) in table_head_status_headers
         }
-        filter_urls = {table['_html_id']: url_for(
-            f'filter_{table["_table_or_report"]}_rows',
-            dataset_id=dataset_id, version=version, table=table['_id']
-        ) for table in csvw_with_id['tables']}
+        filter_urls = {
+            table['_html_id']: url_for(
+                f'filter_{table["_table_or_report"]}_rows',
+                dataset_id=dataset_id,
+                version=version,
+                table=table['_id'],
+            )
+            for table in csvw_with_id['tables']
+        }
 
         # Our extension to CSVW supports multiple databases for a dataset, but we only support the
         # one in the API, to make a dataset more self contained in a single file
         databases = csvw.get('dit:databases', [])
-        database_sizes = [
-            aws_head(signed_s3_request, f'{dataset_id}/{version}/data.sqlite')[1]['content-length']
-        ] if databases else []
+        database_sizes = (
+            [
+                aws_head(signed_s3_request, f'{dataset_id}/{version}/data.sqlite')[1][
+                    'content-length'
+                ]
+            ]
+            if databases
+            else []
+        )
 
         return html_template_environment.get_template('metadata.html').render(
             version=version,
-            version_published_at=max((
-                datetime.datetime(*parsedate(headers['last-modified'])[:6])
-                for _, (_, headers) in table_head_status_headers)),
+            version_published_at=max(
+                (
+                    datetime.datetime(*parsedate(headers['last-modified'])[:6])
+                    for _, (_, headers) in table_head_status_headers
+                )
+            ),
             csvw=csvw_with_id,
             databases=databases,
             database_sizes=database_sizes,
             filter_urls=filter_urls,
-            metadata_download_url=url_for('proxy_metadata', dataset_id=dataset_id, version=version)
+            metadata_download_url=url_for(
+                'proxy_metadata', dataset_id=dataset_id, version=version
+            )
             + '?format=csvw&download',
-            table_sizes=table_sizes)
+            table_sizes=table_sizes,
+        )
 
     @track_analytics
     @validate_format(('json',))
@@ -337,7 +409,9 @@ def proxy_app(
             ]
         }
 
-        return Response(json.dumps(versions), headers={'content-type': 'text/json'}, status=200)
+        return Response(
+            json.dumps(versions), headers={'content-type': 'text/json'}, status=200
+        )
 
     @track_analytics
     @validate_format(('data.json',))
@@ -347,8 +421,15 @@ def proxy_app(
             return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
         def relative_to_metadata(version, relative_url):
-            return urllib.parse.urljoin(url_for('proxy_metadata', dataset_id=dataset_id,
-                                                version=version, _external=True), relative_url)
+            return urllib.parse.urljoin(
+                url_for(
+                    'proxy_metadata',
+                    dataset_id=dataset_id,
+                    version=version,
+                    _external=True,
+                ),
+                relative_url,
+            )
 
         def flatten(list_of_lists):
             return [item for sublist in list_of_lists for item in sublist]
@@ -359,15 +440,22 @@ def proxy_app(
             components = key.split('/')
             if len(components) == 2 and components[1] == 'metadata--csvw.json':
                 version = components[0]
-                body_generator, _ = _proxy(dataset_id + '/' + key, None, None, request.headers)
+                body_generator, _ = _proxy(
+                    dataset_id + '/' + key, None, None, request.headers
+                )
                 metadatas[version] = json.loads(b''.join(body_generator))
 
         if not metadatas:
             abort(404)
 
         # Sort metadatas by semver, to have most recent at the start
-        metadatas = dict(sorted(metadatas.items(),
-                                key=lambda key_value: semver_key(key_value[0]), reverse=True))
+        metadatas = dict(
+            sorted(
+                metadatas.items(),
+                key=lambda key_value: semver_key(key_value[0]),
+                reverse=True,
+            )
+        )
 
         # Choose most recent metadata as the one for the title
         metadata_recent = metadatas[next(iter(metadatas.keys()))]
@@ -375,50 +463,61 @@ def proxy_app(
         # Ideally each identifier is an URL with an HTML page, but doesn't have to be. So for now,
         # it's not. It's also deliberately not a URL to a specific version of this API, since even
         # in later versions, this identifier must be the same
-        identifier_root = urllib.parse.urlunsplit(urllib.parse.urlsplit(
-            request.base_url)._replace(path='/', query=''))
+        identifier_root = urllib.parse.urlunsplit(
+            urllib.parse.urlsplit(request.base_url)._replace(path='/', query='')
+        )
 
-        return Response(json.dumps({
-            'dataset': [
+        return Response(
+            json.dumps(
                 {
-
-                    'identifier': f'{identifier_root}datasets/{dataset_id}',
-                    'title': metadata_recent['dc:title'],
-                    'description': metadata_recent['dc:description'],
-                    'license': metadata_recent['dc:license'],
-                    'publisher': {
-                        'name': metadata_recent['dc:creator'],
-                    },
-                    'distribution': flatten(
-                        [
-                            {
-                                'title': f'{version} - Metadata',
-                                'format': 'HTML',
-                                'downloadURL': relative_to_metadata(version,
-                                                                    'metadata?format=html'),
-                            }
-                        ]
-                        + [
-                            {
-                                'title': f'{version} - {database["dc:title"]}',
-                                'format': 'SQLite',
-                                'downloadURL': relative_to_metadata(version, database['url'])
-                            }
-                            for database in metadata.get('dit:databases', [])
-                        ]
-                        + [
-                            {
-                                'title': f'{version} - {table["dc:title"]}',
-                                'format': 'CSV',
-                                'downloadURL': relative_to_metadata(version, table['url']),
-                            }
-                            for table in metadata['tables']
-                        ]
-                        for (version, metadata) in metadatas.items()
-                    )
+                    'dataset': [
+                        {
+                            'identifier': f'{identifier_root}datasets/{dataset_id}',
+                            'title': metadata_recent['dc:title'],
+                            'description': metadata_recent['dc:description'],
+                            'license': metadata_recent['dc:license'],
+                            'publisher': {
+                                'name': metadata_recent['dc:creator'],
+                            },
+                            'distribution': flatten(
+                                [
+                                    {
+                                        'title': f'{version} - Metadata',
+                                        'format': 'HTML',
+                                        'downloadURL': relative_to_metadata(
+                                            version, 'metadata?format=html'
+                                        ),
+                                    }
+                                ]
+                                + [
+                                    {
+                                        'title': f'{version} - {database["dc:title"]}',
+                                        'format': 'SQLite',
+                                        'downloadURL': relative_to_metadata(
+                                            version, database['url']
+                                        ),
+                                    }
+                                    for database in metadata.get('dit:databases', [])
+                                ]
+                                + [
+                                    {
+                                        'title': f'{version} - {table["dc:title"]}',
+                                        'format': 'CSV',
+                                        'downloadURL': relative_to_metadata(
+                                            version, table['url']
+                                        ),
+                                    }
+                                    for table in metadata['tables']
+                                ]
+                                for (version, metadata) in metadatas.items()
+                            ),
+                        }
+                    ]
                 }
-            ]
-        }), headers={'content-type': 'text/json'}, status=200)
+            ),
+            headers={'content-type': 'text/json'},
+            status=200,
+        )
 
     @track_analytics
     @validate_format(('json',))
@@ -431,49 +530,74 @@ def proxy_app(
         sorted_versions = sorted(folders, key=semver_key, reverse=True)
         versions = {'versions': [{'id': version} for version in sorted_versions]}
 
-        return Response(json.dumps(versions), headers={'content-type': 'text/json'}, status=200)
+        return Response(
+            json.dumps(versions), headers={'content-type': 'text/json'}, status=200
+        )
 
     @track_analytics
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_tables_for_dataset_version(dataset_id, version):
-        folders = aws_list_folders(signed_s3_request, prefix=f'{dataset_id}/{version}/tables/')
+        folders = aws_list_folders(
+            signed_s3_request, prefix=f'{dataset_id}/{version}/tables/'
+        )
         tables = {'tables': [{'id': table} for table in folders]}
 
-        return Response(json.dumps(tables), headers={'content-type': 'text/json'}, status=200)
+        return Response(
+            json.dumps(tables), headers={'content-type': 'text/json'}, status=200
+        )
 
     @track_analytics
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_reports_for_dataset_version(dataset_id, version):
-        folders = aws_list_folders(signed_s3_request, prefix=f'{dataset_id}/{version}/reports/')
+        folders = aws_list_folders(
+            signed_s3_request, prefix=f'{dataset_id}/{version}/reports/'
+        )
         reports = {'reports': [{'id': report} for report in folders]}
-        return Response(json.dumps(reports), headers={'content-type': 'text/json'}, status=200)
+        return Response(
+            json.dumps(reports), headers={'content-type': 'text/json'}, status=200
+        )
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('json', 'sqlite', 'ods',))
+    @validate_format(
+        (
+            'json',
+            'sqlite',
+            'ods',
+        )
+    )
     def proxy_data(dataset_id, version):
         _format = request.args['format']
         logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
 
         s3_query = request.args.get('query-s3-select')
-        accepted_encodings = request.headers.get('accept-encoding', '').replace(' ', '').split(',')
-        attempt_gzip = 'gzip' in accepted_encodings and s3_query is None \
+        accepted_encodings = (
+            request.headers.get('accept-encoding', '').replace(' ', '').split(',')
+        )
+        attempt_gzip = (
+            'gzip' in accepted_encodings
+            and s3_query is None
             and _format in ('json', 'sqlite')
+        )
 
         base_s3_key = f'{dataset_id}/{version}/data.{_format}'
-        key_content_encodings = () + \
-            (((base_s3_key + '.gz', 'gzip'),) if attempt_gzip else ()) + \
-            ((base_s3_key, None),)
+        key_content_encodings = (
+            ()
+            + (((base_s3_key + '.gz', 'gzip'),) if attempt_gzip else ())
+            + ((base_s3_key, None),)
+        )
 
         for s3_key, content_encoding in key_content_encodings:
             body_generator, response = _proxy(
                 s3_key,
                 aws_select_post_body_json(s3_query) if s3_query is not None else None,
-                partial(aws_select_parse_result,
-                        aws_select_convert_records_to_json) if s3_query is not None else None,
-                request.headers)
+                partial(aws_select_parse_result, aws_select_convert_records_to_json)
+                if s3_query is not None
+                else None,
+                request.headers,
+            )
             if response.status in (200, 206):
                 break
             for _ in response.stream(65536, decode_content=False):
@@ -485,48 +609,85 @@ def proxy_app(
                 raise Exception(f'Unexpected code from S3: {response.status}')
 
         download_filename = f'{dataset_id}--{version}.{_format}'
-        content_type = \
-            'application/vnd.oasis.opendocument.spreadsheet' if _format == 'ods' else \
-            'application/vnd.sqlite3' if _format == 'sqlite' else \
-            'application/json'
+        content_type = (
+            'application/vnd.oasis.opendocument.spreadsheet'
+            if _format == 'ods'
+            else 'application/vnd.sqlite3'
+            if _format == 'sqlite'
+            else 'application/json'
+        )
         return _generate_downstream_response(
-            body_generator, response, content_type, download_filename,
-            content_encoding=content_encoding)
+            body_generator,
+            response,
+            content_type,
+            download_filename,
+            content_encoding=content_encoding,
+        )
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('csv', 'ods',))
+    @validate_format(
+        (
+            'csv',
+            'ods',
+        )
+    )
     def proxy_table(dataset_id, version, table):
-        return proxy_table_or_report('table', dataset_id, version, table, request.args['format'])
+        return proxy_table_or_report(
+            'table', dataset_id, version, table, request.args['format']
+        )
 
     @track_analytics
     @validate_and_redirect_version
-    @validate_format(('csv', 'ods',))
+    @validate_format(
+        (
+            'csv',
+            'ods',
+        )
+    )
     def proxy_report(dataset_id, version, table):
-        return proxy_table_or_report('report', dataset_id, version, table, request.args['format'])
+        return proxy_table_or_report(
+            'report', dataset_id, version, table, request.args['format']
+        )
 
     def proxy_table_or_report(table_or_report, dataset_id, version, table, _format):
-        logger.debug('Attempt to proxy: %s %s %s %s %s %s', table_or_report,
-                     request, dataset_id, version, table, format)
+        logger.debug(
+            'Attempt to proxy: %s %s %s %s %s %s',
+            table_or_report,
+            request,
+            dataset_id,
+            version,
+            table,
+            format,
+        )
         header_row = None
         s3_key = f'{dataset_id}/{version}/{table_or_report}s/{table}/data.{_format}'
 
         if 'query-simple' in request.args:
             _, columns, filterable_columns = _get_table_metadata(
-                dataset_id, version, table)
-            filters = (
-                {c.name: request.args.get(c.name)
-                 for c in filterable_columns if request.args.get(c.name)}
+                dataset_id, version, table
             )
+            filters = {
+                c.name: request.args.get(c.name)
+                for c in filterable_columns
+                if request.args.get(c.name)
+            }
 
-            select_columns = request.args.getlist('_columns') or [c.name for c in columns]
+            select_columns = request.args.getlist('_columns') or [
+                c.name for c in columns
+            ]
             select_clause = ','.join([f's.{c}' for c in select_columns])
 
             join_term = "','"
-            where_clause = ' and '.join(
-                [f"s.{name} in ('{join_term.join(value.split(','))}')" for name,
-                 value in filters.items()]
-            ) or None
+            where_clause = (
+                ' and '.join(
+                    [
+                        f"s.{name} in ('{join_term.join(value.split(','))}')"
+                        for name, value in filters.items()
+                    ]
+                )
+                or None
+            )
             s3_query = f'SELECT {select_clause} FROM s3object s'
             if where_clause:
                 s3_query += f' WHERE {where_clause}'
@@ -534,17 +695,22 @@ def proxy_app(
         else:
             s3_query = request.args.get('query-s3-select')
 
-        gzip_encode = 'accept-encoding' in request.headers and 'gzip' in request.headers.get(
-            'accept-encoding', '').replace(' ', '').split(',') and \
-            s3_query is None and _format == 'csv'
+        gzip_encode = (
+            'accept-encoding' in request.headers
+            and 'gzip'
+            in request.headers.get('accept-encoding', '').replace(' ', '').split(',')
+            and s3_query is None
+            and _format == 'csv'
+        )
         content_encoding = 'gzip' if gzip_encode else None
 
         body_generator, response = _proxy(
             s3_key + ('.gz' if gzip_encode else ''),
             aws_select_post_body_csv(s3_query) if s3_query is not None else None,
-            partial(aws_select_parse_result,
-                    aws_select_convert_records_to_csv) if s3_query is not None else None,
-            request.headers
+            partial(aws_select_parse_result, aws_select_convert_records_to_csv)
+            if s3_query is not None
+            else None,
+            request.headers,
         )
 
         if response.status == 404 and gzip_encode:
@@ -553,25 +719,33 @@ def proxy_app(
             body_generator, response = _proxy(
                 s3_key,
                 aws_select_post_body_csv(s3_query) if s3_query is not None else None,
-                partial(aws_select_parse_result,
-                        aws_select_convert_records_to_csv) if s3_query is not None else None,
-                request.headers
+                partial(aws_select_parse_result, aws_select_convert_records_to_csv)
+                if s3_query is not None
+                else None,
+                request.headers,
             )
             content_encoding = None
 
         if header_row:
             body_generator = chain(header_row, body_generator)
 
-        download_filename = \
-            f'{dataset_id}--{version}--{table}.{_format}' if table_or_report == 'table' else \
-            f'{dataset_id}--{version}--report--{table}.{_format}'
-        content_type = \
-            'text/csv' if _format == 'csv' else \
-            'application/vnd.oasis.opendocument.spreadsheet'
+        download_filename = (
+            f'{dataset_id}--{version}--{table}.{_format}'
+            if table_or_report == 'table'
+            else f'{dataset_id}--{version}--report--{table}.{_format}'
+        )
+        content_type = (
+            'text/csv'
+            if _format == 'csv'
+            else 'application/vnd.oasis.opendocument.spreadsheet'
+        )
 
         return _generate_downstream_response(
-            body_generator, response, content_type, download_filename,
-            content_encoding=content_encoding
+            body_generator,
+            response,
+            content_type,
+            download_filename,
+            content_encoding=content_encoding,
         )
 
     Column = namedtuple('Column', ['name', 'description', 'filterable'])
@@ -581,10 +755,13 @@ def proxy_app(
         body_generator, _ = _proxy(s3_key, None, None, request.headers)
 
         metadata_tables = json.loads(b''.join(body_generator))['tables']
-        metadata_table = next(filter(lambda x: x['url'].split(
-            '/')[1] == table, metadata_tables), None)
-        columns = [Column(x['name'], x['dc:description'], x['dit:filterable'])
-                   for x in metadata_table['tableSchema']['columns']]
+        metadata_table = next(
+            filter(lambda x: x['url'].split('/')[1] == table, metadata_tables), None
+        )
+        columns = [
+            Column(x['name'], x['dc:description'], x['dit:filterable'])
+            for x in metadata_table['tableSchema']['columns']
+        ]
         filterable_columns = [c for c in columns if c.filterable]
         return metadata_table, columns, filterable_columns
 
@@ -599,17 +776,28 @@ def proxy_app(
         return filter_table_or_report_rows('report', dataset_id, version, table)
 
     def filter_table_or_report_rows(table_or_report, dataset_id, version, table):
-        metadata_table, _, filterable_columns = _get_table_metadata(dataset_id, version, table)
-        filters = (
-            {c.name: request.args.get(c.name)
-             for c in filterable_columns if request.args.get(c.name)}
+        metadata_table, _, filterable_columns = _get_table_metadata(
+            dataset_id, version, table
         )
+        filters = {
+            c.name: request.args.get(c.name)
+            for c in filterable_columns
+            if request.args.get(c.name)
+        }
 
         return html_template_environment.get_template('filter_rows.html').render(
-            reset_url=url_for(f'filter_{table_or_report}_rows', dataset_id=dataset_id,
-                              version=version, table=table),
-            submit_url=url_for(f'filter_{table_or_report}_columns', dataset_id=dataset_id,
-                               version=version, table=table),
+            reset_url=url_for(
+                f'filter_{table_or_report}_rows',
+                dataset_id=dataset_id,
+                version=version,
+                table=table,
+            ),
+            submit_url=url_for(
+                f'filter_{table_or_report}_columns',
+                dataset_id=dataset_id,
+                version=version,
+                table=table,
+            ),
             filterable_columns=filterable_columns,
             filters=filters,
             table_name=metadata_table['dc:title'],
@@ -627,17 +815,28 @@ def proxy_app(
 
     def filter_table_or_report_columns(table_or_report, dataset_id, version, table):
         metadata_table, columns, filterable_columns = _get_table_metadata(
-            dataset_id, version, table)
-        filters = (
-            {c.name: request.args.get(c.name)
-             for c in filterable_columns if request.args.get(c.name)}
+            dataset_id, version, table
         )
+        filters = {
+            c.name: request.args.get(c.name)
+            for c in filterable_columns
+            if request.args.get(c.name)
+        }
 
         return html_template_environment.get_template('filter_columns.html').render(
-            back_url=url_for(f'filter_{table_or_report}_rows', dataset_id=dataset_id,
-                             version=version, table=table, **filters),
-            submit_url=url_for(f'proxy_{table_or_report}', dataset_id=dataset_id,
-                               version=version, table=table),
+            back_url=url_for(
+                f'filter_{table_or_report}_rows',
+                dataset_id=dataset_id,
+                version=version,
+                table=table,
+                **filters,
+            ),
+            submit_url=url_for(
+                f'proxy_{table_or_report}',
+                dataset_id=dataset_id,
+                version=version,
+                table=table,
+            ),
             filters=filters,
             columns=columns,
             table_name=metadata_table['dc:title'],
@@ -655,15 +854,19 @@ def proxy_app(
         def _csvw():
             download_filename = f'{dataset_id}--{version}--metadata--csvw.json'
             content_type = 'application/csvm+json'
-            return _generate_downstream_response(body_generator, response,
-                                                 content_type, download_filename)
+            return _generate_downstream_response(
+                body_generator, response, content_type, download_filename
+            )
 
         def _html():
             download_filename = f'{dataset_id}--{version}--metadata.html'
             content_type = 'text/html'
             return _generate_downstream_response(
-                _convert_csvw_to_html(dataset_id, version, body_generator), response,
-                content_type, download_filename)
+                _convert_csvw_to_html(dataset_id, version, body_generator),
+                response,
+                content_type,
+                download_filename,
+            )
 
         return _csvw() if request.args['format'] == 'csvw' else _html()
 
@@ -690,10 +893,14 @@ def proxy_app(
                 <status>OK</status>
             </pingdom_http_custom_check>\n"""
 
-            return Response(pingdom_xml, headers={
-                'content-type': 'text/xml',
-                'cache-control': 'no-cache, no-store, must-revalidate'
-            }, status=200)
+            return Response(
+                pingdom_xml,
+                headers={
+                    'content-type': 'text/xml',
+                    'cache-control': 'no-cache, no-store, must-revalidate',
+                },
+                status=200,
+            )
 
         return Response(status=503)
 
@@ -712,19 +919,23 @@ def proxy_app(
             'latest_version': os.environ.get('DOCS_SAMPLE_LATEST_VERSION', 'v2.1.2'),
             'table_name': os.environ.get('DOCS_SAMPLE_TABLE_NAME', 'commodities'),
             'sample_dataset_with_report': (
-                os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_DATASET_ID', 'uk-trade-quotas')
+                os.environ.get(
+                    'DOCS_SAMPLE_DATASET_WITH_REPORT_DATASET_ID', 'uk-trade-quotas'
+                )
             ),
             'sample_dataset_with_report_version': (
                 os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_VERSION', 'v1.0.0')
             ),
             'sample_dataset_with_report_report_name': (
-                os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_REPORT_ID',
-                               'quotas-including-current-volumes')
+                os.environ.get(
+                    'DOCS_SAMPLE_DATASET_WITH_REPORT_REPORT_ID',
+                    'quotas-including-current-volumes',
+                )
             ),
             'security_email': os.environ.get('DOCS_SECURITY_EMAIL'),
         }
         return render_template('docs.html', **context)
-    
+
     @track_analytics
     def accessibility_statement():
         """
@@ -733,8 +944,7 @@ def proxy_app(
         context = {
             'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
             'service_name': os.environ.get('DOCS_SERVICE_NAME'),
-            'base_url': request.base_url.rstrip('/')
-           
+            'base_url': request.base_url.rstrip('/'),
         }
         return render_template('accessibility_statement.html', **context)
 
@@ -762,77 +972,67 @@ def proxy_app(
         server_timeout=os.environ.get('APM_SERVER_TIMEOUT', None),
     )
 
-    app.add_url_rule(
-        '/v1/datasets',
-        view_func=list_all_datasets
-    )
+    app.add_url_rule('/v1/datasets', view_func=list_all_datasets)
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/metadata',
         view_func=get_metadata_for_dataset,
     )
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions',
-        view_func=list_versions_for_dataset
+        '/v1/datasets/<string:dataset_id>/versions', view_func=list_versions_for_dataset
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables',
-        view_func=list_tables_for_dataset_version
+        view_func=list_tables_for_dataset_version,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports',
-        view_func=list_reports_for_dataset_version
+        view_func=list_reports_for_dataset_version,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>/data',
-        view_func=proxy_table
+        view_func=proxy_table,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports/<string:table>/data',
-        view_func=proxy_report
+        view_func=proxy_report,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
         '/filter/rows',
-        view_func=filter_table_rows
+        view_func=filter_table_rows,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports/<string:table>'
         '/filter/rows',
-        view_func=filter_report_rows
+        view_func=filter_report_rows,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/tables/<string:table>'
         '/filter/columns',
-        view_func=filter_table_columns
+        view_func=filter_table_columns,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/reports/<string:table>'
         '/filter/columns',
-        view_func=filter_report_columns
+        view_func=filter_report_columns,
     )
     app.add_url_rule(
-        '/v1/datasets/<string:dataset_id>/versions/<string:version>/data', view_func=proxy_data
+        '/v1/datasets/<string:dataset_id>/versions/<string:version>/data',
+        view_func=proxy_data,
     )
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/versions/<string:version>/metadata',
-        view_func=proxy_metadata
+        view_func=proxy_metadata,
     )
-    app.add_url_rule(
-        '/healthcheck', 'healthcheck', view_func=healthcheck
-    )
-    app.add_url_rule(
-        '/', 'docs', view_func=docs
-    )
-    app.add_url_rule(
-        '/accessibility_statement', view_func=accessibility_statement
-    )
+    app.add_url_rule('/healthcheck', 'healthcheck', view_func=healthcheck)
+    app.add_url_rule('/', 'docs', view_func=docs)
+    app.add_url_rule('/accessibility_statement', view_func=accessibility_statement)
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
 
 
 def main():
-
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
@@ -846,7 +1046,7 @@ def main():
         os.environ['READONLY_AWS_SECRET_ACCESS_KEY'],
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
-        os.environ.get('GA_TRACKING_ID')
+        os.environ.get('GA_TRACKING_ID'),
     )
 
     if os.environ.get('SENTRY_DSN'):
