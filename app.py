@@ -283,7 +283,7 @@ def proxy_app(
         )
 
     def _generate_downstream_response(
-        body_generator, response, content_type, download_filename, content_encoding=None
+            body_generator, response, content_type, download_filename, content_encoding=None
     ):
         allow_proxy = response.status in proxied_response_codes
 
