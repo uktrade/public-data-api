@@ -70,13 +70,13 @@ RE_VERSION_FORMAT = re.compile(
 
 
 def proxy_app(
-    logger,
-    port,
-    aws_access_key_id,
-    aws_secret_access_key,
-    endpoint_url,
-    region_name,
-    ga_tracking_id,
+        logger,
+        port,
+        aws_access_key_id,
+        aws_secret_access_key,
+        endpoint_url,
+        region_name,
+        ga_tracking_id,
 ):
     parsed_endpoint = urllib.parse.urlsplit(endpoint_url)
     PoolClass = (
