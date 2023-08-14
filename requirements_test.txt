@@ -20,7 +20,7 @@ blinker==1.6.2
     #   elastic-apm
     #   flask
     #   sentry-sdk
-certifi==2022.12.7
+certifi==2023.07.22
     # via
     #   -r requirements.txt
     #   elastic-apm
