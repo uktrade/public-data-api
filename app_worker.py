@@ -263,18 +263,28 @@ def ensure_csvs(
                 # ... and as ODS
                 ods_report_part_1 = list()
                 ods_report_part_2 = list()
+                ods_report_part_3 = list()
+                ods_report_part_4 = list()
                 first_part_count = 0
+                second_part_count = 0
+                third_part_count = 0
                 try:
                     with rollback(query):
                         for (cols, rows) in with_non_zero_rows(query_multi(script)):
                             s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
                             if report_id.startswith('measures-on-declarable-commodities-'):
-                                if first_part_count <= 11:
+                                if first_part_count <= 5:
                                     ods_report_part_1.append(
                                         (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
                                     first_part_count += 1
-                                else:
+                                elif second_part_count <= 5:
                                     ods_report_part_2.append(
+                                        (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
+                                elif third_part_count <= 5:
+                                    ods_report_part_3.append(
+                                        (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
+                                else:
+                                    ods_report_part_4.append(
                                         (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
                             else:
                                 aws_multipart_upload(signed_s3_request, s3_key,
@@ -284,6 +294,10 @@ def ensure_csvs(
                                                  stream_write_ods(tuple(ods_report_part_1)))
                             aws_multipart_upload(signed_s3_request, s3_key,
                                                  stream_write_ods(tuple(ods_report_part_2)))
+                            aws_multipart_upload(signed_s3_request, s3_key,
+                                                 stream_write_ods(tuple(ods_report_part_3)))
+                            aws_multipart_upload(signed_s3_request, s3_key,
+                                                 stream_write_ods(tuple(ods_report_part_4)))
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
