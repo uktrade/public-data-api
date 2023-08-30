@@ -274,7 +274,7 @@ def ensure_csvs(
                                                      stream_write_ods(((name, cols, rows),)))
                         if ods_report_by_section:
                             aws_multipart_upload(signed_s3_request, s3_key,
-                                                 stream_write_ods(ods_report_by_section))
+                                                 stream_write_ods(tuple(ods_report_by_section)))
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
