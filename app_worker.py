@@ -261,20 +261,29 @@ def ensure_csvs(
                         aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
 
                 # ... and as ODS
-                ods_report_by_section = list()
+                ods_report_part_1 = list()
+                ods_report_part_2 = list()
+                first_part_count = 0
                 try:
                     with rollback(query):
                         for (cols, rows) in with_non_zero_rows(query_multi(script)):
                             s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
                             if report_id.startswith('measures-on-declarable-commodities-'):
-                                ods_report_by_section.append(
-                                    (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
+                                if first_part_count <= 11:
+                                    ods_report_part_1.append(
+                                        (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
+                                    first_part_count += 1
+                                else:
+                                    ods_report_part_2.append(
+                                        (report_id.split('measures-on-declarable-commodities-')[-1], cols, rows))
                             else:
                                 aws_multipart_upload(signed_s3_request, s3_key,
                                                      stream_write_ods(((name, cols, rows),)))
-                        if ods_report_by_section:
+                        if ods_report_part_1:
                             aws_multipart_upload(signed_s3_request, s3_key,
-                                                 stream_write_ods(tuple(ods_report_by_section)))
+                                                 stream_write_ods(tuple(ods_report_part_1)))
+                            aws_multipart_upload(signed_s3_request, s3_key,
+                                                 stream_write_ods(tuple(ods_report_part_2)))
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
