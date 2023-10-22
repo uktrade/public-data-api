@@ -1046,7 +1046,7 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
     with \
             requests.Session() as session, \
             session.get(version_data_public_url(dataset_id, version, 'json'),
-                        stream=True) as response:
+                        stream=True, headers={'Connection': 'close'}) as response:
         assert response.headers['content-length'] == str(len(content))
         assert response.headers['content-type'] == 'application/json'
 
@@ -1745,7 +1745,9 @@ def test_logs_ecs_format():
         put_version_data(dataset_id, version, content, 'json')
         url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
         with requests.Session() as session, \
-                session.get(version_data_public_url(dataset_id, version, 'json')) as response:
+                session.get(version_data_public_url(dataset_id, version, 'json'),
+                            headers={'Connection': 'close'}
+                            ) as response:
             assert response.status_code == 200
 
     web_output, web_error = outputs['web']
