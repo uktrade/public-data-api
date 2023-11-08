@@ -1719,7 +1719,9 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
     with \
             requests.Session() as session, \
             session.get(report_url) as response:
-        assert response.content == b'"col_int_a","col_int_b"\r\n3,1\r\n3,2\r\n'
+        assert response.content == \
+            b'"col_int_a","col_int_b"' + \
+            b'\r\n2,2\r\n1,3\r\n3,2\r\n3,1\r\n3,1\r\n3,2\r\n'
 
     report_url = version_public_url_download('report', dataset_id, version, 'my-report', 'ods')
     with \
@@ -1729,12 +1731,26 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
         with tempfile.NamedTemporaryFile() as f:
             f.write(response.content)
             f.flush()
-            report = pd.read_excel(f.name, 'my_report')
-            report_rows = report.values.tolist()
-            report_cols = report.columns.tolist()
+            report_1 = pd.read_excel(f.name, 'my_report - 1')
+            report_1_rows = report_1.values.tolist()
+            report_1_cols = report_1.columns.tolist()
+            report_2 = pd.read_excel(f.name, 'my_report - 2')
+            report_2_rows = report_2.values.tolist()
+            report_2_cols = report_2.columns.tolist()
 
-    assert report_cols == ['col_int_a', 'col_int_b', ]
-    assert report_rows == [[3.0, 1.0], [3.0, 2.0]]
+    assert report_1_cols == ['col_int_a', 'col_int_b', ]
+    assert report_1_rows == [
+        [2.0, 2.0],
+        [1.0, 3.0],
+        [3.0, 2.0],
+        [3.0, 1.0],
+    ]
+
+    assert report_2_cols == ['col_int_a', 'col_int_b', ]
+    assert report_2_rows == [
+        [3.0, 1.0],
+        [3.0, 2.0],
+    ]
 
 
 def test_logs_ecs_format():
