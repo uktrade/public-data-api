@@ -279,11 +279,11 @@ def ensure_csvs(
                 # ... and as ODS with the results of each statement as a separate sheet
                 try:
                     with rollback(query):
-                        sheets.append((
+                        sheets.append(
                             (name.split("-", 4)[-1] + (f' - {i+1}' if num_statements > 1 else ''), cols, rows)
                             for i, (cols, rows) in enumerate(
                                 with_non_zero_rows(query_multi(script)))
-                        ))
+                        )
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
