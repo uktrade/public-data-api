@@ -94,9 +94,10 @@ def ensure_csvs(
                 b64encode(value).decode() if isinstance(value, bytes) else \
                 value
 
-        def csv_data(columns, rows):
+        def csv_data(columns, rows, with_header):
             csv_writer = csv.writer(PseudoBuffer(), quoting=csv.QUOTE_NONNUMERIC)
-            yield csv_writer.writerow(columns).encode()
+            if with_header:
+                yield csv_writer.writerow(columns).encode()
             for row in rows:
                 yield csv_writer.writerow(convert_for_csv(val) for val in row).encode()
 
@@ -216,7 +217,8 @@ def ensure_csvs(
                 # Save as CSV, with rows ordered by primary kay columns
                 with query(data_sql) as (cols, rows):
                     s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
-                    aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+                    aws_multipart_upload(signed_s3_request, s3_key,
+                                         csv_data(cols, rows, with_header=True))
 
                 # And save as a single ODS file
                 try:
@@ -245,6 +247,9 @@ def ensure_csvs(
                     for row in rows:
                         yield (cols, itertools.chain((row,), rows))
 
+            def get_num_statements_with_rows(query_multi, script):
+                return sum(1 for _ in with_non_zero_rows(query_multi(script)))
+
             # Load reports into memory to not hold open a SQLite statement which can lock tables
             with query('''
                 SELECT name, script FROM _reports ORDER BY rowid
@@ -254,19 +259,30 @@ def ensure_csvs(
             for name, script in reports:
                 report_id = name.replace('_', '-')
 
-                # Save as CSV...
+                # Is this multi-statement query?
                 with rollback(query):
-                    for (cols, rows) in with_non_zero_rows(query_multi(script)):
-                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
-                        aws_multipart_upload(signed_s3_request, s3_key, csv_data(cols, rows))
+                    num_statements = get_num_statements_with_rows(query_multi, script)
 
-                # ... and as ODS
+                # Save as CSV with the results of all statements concatanated together ...
+                with rollback(query):
+                    s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
+                    csv_lines = (
+                        line
+                        for i, (cols, rows) in enumerate(with_non_zero_rows(query_multi(script)))
+                        for line in csv_data(cols, rows, with_header=i == 0)
+                    )
+                    aws_multipart_upload(signed_s3_request, s3_key, csv_lines)
+
+                # ... and as ODS with the results of each statement as a separate sheet
                 try:
                     with rollback(query):
-                        for (cols, rows) in with_non_zero_rows(query_multi(script)):
-                            s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
-                            aws_multipart_upload(signed_s3_request, s3_key,
-                                                 stream_write_ods(((name, cols, rows),)))
+                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
+                        sheets = (
+                            (name + (f' - {i+1}' if num_statements > 1 else ''), cols, rows)
+                            for i, (cols, rows) in enumerate(
+                                with_non_zero_rows(query_multi(script)))
+                        )
+                        aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(sheets))
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
