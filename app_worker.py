@@ -256,6 +256,9 @@ def ensure_csvs(
             ''') as (_, reports_rows):
                 reports = tuple(reports_rows)
 
+            sheets = []
+            s3_key = f'{dataset_id}/{version}/reports/measures-on-declarable-commodities/data.ods'
+
             for name, script in reports:
                 report_id = name.replace('_', '-')
 
@@ -276,16 +279,16 @@ def ensure_csvs(
                 # ... and as ODS with the results of each statement as a separate sheet
                 try:
                     with rollback(query):
-                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
-                        sheets = (
-                            (name + (f' - {i+1}' if num_statements > 1 else ''), cols, rows)
+                        sheets.append((
+                            (name.split("-", 4)[-1] + (f' - {i+1}' if num_statements > 1 else ''), cols, rows)
                             for i, (cols, rows) in enumerate(
                                 with_non_zero_rows(query_multi(script)))
-                        )
-                        aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(sheets))
+                        ))
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
+
+            aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(sheets))
 
     def save_compressed(s3_key, chunks):
         def yield_compressed_bytes(_uncompressed_bytes):
