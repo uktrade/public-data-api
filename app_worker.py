@@ -278,7 +278,7 @@ def ensure_csvs(
                     with rollback(query):
                         s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
                         sheets = (
-                            (name + (f' - {i+1}' if num_statements > 1 else ''), cols, rows)
+                            (f'section - {i+1}' if num_statements > 1 else ''), cols, rows
                             for i, (cols, rows) in enumerate(
                                 with_non_zero_rows(query_multi(script)))
                         )
