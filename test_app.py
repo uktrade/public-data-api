@@ -1731,10 +1731,11 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
         with tempfile.NamedTemporaryFile() as f:
             f.write(response.content)
             f.flush()
-            report_1 = pd.read_excel(f.name, 'my_report - 1')
+
+            report_1 = pd.read_excel(f.name, 'Section 1')
             report_1_rows = report_1.values.tolist()
             report_1_cols = report_1.columns.tolist()
-            report_2 = pd.read_excel(f.name, 'my_report - 2')
+            report_2 = pd.read_excel(f.name, 'Section 2')
             report_2_rows = report_2.values.tolist()
             report_2_cols = report_2.columns.tolist()
 
