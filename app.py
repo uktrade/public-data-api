@@ -914,6 +914,7 @@ def proxy_app(
             'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
             'service_name': os.environ.get('DOCS_SERVICE_NAME'),
             'base_url': request.base_url.rstrip('/'),
+            'cookie_consent': request.cookies.get('cookie_consent'),
         }
         return render_template('pages/accessibility_statement.html', **context)
 
@@ -925,6 +926,7 @@ def proxy_app(
             'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
             'service_name': os.environ.get('DOCS_SERVICE_NAME'),
             'base_url': request.base_url.rstrip('/'),
+            'cookie_consent': request.cookies.get('cookie_consent'),
         }
         return render_template('pages/cookies.html', **context)
 
