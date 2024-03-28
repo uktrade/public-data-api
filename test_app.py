@@ -82,7 +82,6 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 'ENVIRONMENT': 'test',
                 'SENTRY_DSN': 'http://foo@localhost:9001/1',
                 'GA_ENDPOINT': 'http://localhost:9002/collect',
-                'GA_TRACKING_ID': 'XX-XXXXX-X',
             }
         )
         for name, args in process_definitions.items()
@@ -196,19 +195,22 @@ def test_key_that_exists(processes, encoding, compressor, requested_format,
             requests.Session() as session, \
             session.get(url, headers=headers) as response:
         assert response.content == content
-        assert response.headers['content-length'] == str(len(compressor(content)))
+        assert response.headers['content-length'] == str(
+            len(compressor(content)))
         assert response.headers['content-type'], expected_content_type
         assert response.headers.get('content-encoding') == encoding
         assert 'content-disposition' not in response.headers
         assert not response.history
 
-    url = version_data_public_url_download(dataset_id, version, requested_format)
+    url = version_data_public_url_download(
+        dataset_id, version, requested_format)
     headers = {'accept-encoding': encoding}
     with \
             requests.Session() as session, \
             session.get(url, headers=headers) as response:
         assert response.content == content
-        assert response.headers['content-length'] == str(len(compressor(content)))
+        assert response.headers['content-length'] == str(
+            len(compressor(content)))
         assert response.headers['content-type'] == expected_content_type
         assert response.headers.get('content-encoding') == encoding
         assert response.headers['content-disposition'] == \
@@ -232,8 +234,10 @@ def test_sqlite_conversion_to_ods(processes):
                         col_date DATE
                     )
                 ''')
-                cur.execute('INSERT INTO my_table_a VALUES ("One", 1, "2021-01-02")')
-                cur.execute('INSERT INTO my_table_a VALUES ("Two", 2, "2021-01-03")')
+                cur.execute(
+                    'INSERT INTO my_table_a VALUES ("One", 1, "2021-01-02")')
+                cur.execute(
+                    'INSERT INTO my_table_a VALUES ("Two", 2, "2021-01-03")')
                 cur.execute('''
                     CREATE TABLE my_table_b (
                         col_text TEXT,
@@ -245,7 +249,8 @@ def test_sqlite_conversion_to_ods(processes):
 
             return f.read()
 
-    put_version_data(dataset_id, version, get_sqlite_with_multiple_tables(), 'sqlite')
+    put_version_data(dataset_id, version,
+                     get_sqlite_with_multiple_tables(), 'sqlite')
 
     time.sleep(20)
 
@@ -539,7 +544,8 @@ def test_table_gzipped(processes, table_or_report, expected_filename_format):
                         headers={'accept-encoding': 'gzip'}
                         ) as response:
         assert response.content == content
-        assert response.headers['content-length'] == str(len(gzip.compress(content)))
+        assert response.headers['content-length'] == str(
+            len(gzip.compress(content)))
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-encoding'] == 'gzip'
         assert response.headers['content-disposition'] == \
@@ -587,7 +593,8 @@ def test_table_serves_uncompressed_if_s3_select_query_provided(processes):
                         params=params, headers={'accept-encoding': 'gzip'}
                         ) as response:
         assert response.content == \
-            'c🍰é\ne\n&>' '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8')
+            'c🍰é\ne\n&>' '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode(
+                'utf-8')
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
             f'attachment; filename="{dataset_id}--{version}--{table}.csv"'
@@ -616,7 +623,8 @@ def test_table_s3_select(processes):
             session.get(version_public_url_download('table', dataset_id, version, table, 'csv'),
                         params=params) as response:
         assert response.content == \
-            'c🍰é\ne\n&>' '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode('utf-8')
+            'c🍰é\ne\n&>' '\n"Ah, a comma"\n"A quote "" "\n\\u00f8C\n'.encode(
+                'utf-8')
         assert response.headers['content-type'] == 'text/csv'
         assert response.headers['content-disposition'] == \
             f'attachment; filename="{dataset_id}--{version}--{table}.csv"'
@@ -653,7 +661,8 @@ def test_filter_rows(processes, table_or_report):
     }).encode('utf-8')
     version = 'v0.0.1'
     contents = b'id_field,name_field\n' + b'1,test\n'
-    put_version(table_or_report, dataset_id, version, 'the-first-table', contents)
+    put_version(table_or_report, dataset_id,
+                version, 'the-first-table', contents)
     put_version_metadata(dataset_id, version, content)
 
     with \
@@ -702,7 +711,8 @@ def test_filter_columns(processes, table_or_report, expected_filename_format):
     contents = b'id_field,name_field\n' + b'1,foo\n' + b'2,bar\n'
     expected_filename = expected_filename_format.format(
         dataset_id=dataset_id, version=version, table='the-first-table')
-    put_version(table_or_report, dataset_id, version, 'the-first-table', contents)
+    put_version(table_or_report, dataset_id,
+                version, 'the-first-table', contents)
     put_version_metadata(dataset_id, version, content)
 
     with \
@@ -904,7 +914,8 @@ def test_list_datasets_no_healthcheck(processes):
     dataset_id = 'my-dataset'
     content = str(uuid.uuid4()).encode() * 100
     put_version_data(dataset_id, 'v0.0.1', content, 'json')
-    put_version_data('healthcheck', 'v0.0.1', b'header\n' + b'value\n' * 10, 'json')
+    put_version_data('healthcheck', 'v0.0.1',
+                     b'header\n' + b'value\n' * 10, 'json')
     with \
             requests.Session() as session, \
             session.get(list_datasets_public_url()) as response:
@@ -960,15 +971,18 @@ def test_list_tables_for_dataset_version_no_tables(processes):
 ))
 def test_list_tables_for_dataset_version(processes, table_or_report):
     dataset_id = str(uuid.uuid4())
-    put_version(table_or_report, dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
+    put_version(table_or_report, dataset_id, 'v0.0.1',
+                'foo', b'header\n' + b'value\n' * 10000)
     url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
             session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
-        assert response.content == b'{"' + table_or_report.encode() + b's": [{"id": "foo"}]}'
+        assert response.content == b'{"' + \
+            table_or_report.encode() + b's": [{"id": "foo"}]}'
 
-    put_version(table_or_report, dataset_id, 'v0.0.1', 'bar', b'header\n' + b'value\n' * 1000000)
+    put_version(table_or_report, dataset_id, 'v0.0.1',
+                'bar', b'header\n' + b'value\n' * 1000000)
     url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
@@ -977,7 +991,8 @@ def test_list_tables_for_dataset_version(processes, table_or_report):
         assert response.content == b'{"' + table_or_report.encode() + \
             b's": [{"id": "bar"}, {"id": "foo"}]}'
 
-    put_version(table_or_report, dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    put_version(table_or_report, dataset_id, 'v0.0.2',
+                'baz', b'header\n' + b'value\n' * 10000)
     url = list_dataset_public_url(table_or_report, dataset_id, 'v0.0.1')
     with \
             requests.Session() as session, \
@@ -991,14 +1006,18 @@ def test_list_tables_for_dataset_version(processes, table_or_report):
             requests.Session() as session, \
             session.get(url) as response:
         assert response.headers['content-type'] == 'text/json'
-        assert response.content == b'{"' + table_or_report.encode() + b's": [{"id": "baz"}]}'
+        assert response.content == b'{"' + \
+            table_or_report.encode() + b's": [{"id": "baz"}]}'
 
 
 def test_list_tables_for_dataset__latest_version(processes):
     dataset_id = str(uuid.uuid4())
-    put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
-    put_version('table', dataset_id, 'v0.0.2', 'bar', b'header\n' + b'value\n' * 10000)
-    put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.1', 'foo',
+                b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.2', 'bar',
+                b'header\n' + b'value\n' * 10000)
+    put_version('table', dataset_id, 'v0.0.2', 'baz',
+                b'header\n' + b'value\n' * 10000)
     with \
             requests.Session() as session, \
             session.get(list_dataset_public_url('table', dataset_id, 'latest')) as response:
@@ -1054,7 +1073,8 @@ def test_key_that_exists_during_shutdown_completes_but_new_connection_rejected(p
         time.sleep(1.0)
 
         with pytest.raises(requests.exceptions.ConnectionError):
-            session.get(version_data_public_url(dataset_id, version, 'json'), stream=True)
+            session.get(version_data_public_url(
+                dataset_id, version, 'json'), stream=True)
 
         for chunk in response.iter_content(chunk_size=16384):
             chunks.append(chunk)
@@ -1195,7 +1215,8 @@ def test_table_key_that_exists_without_format(processes):
     table = 'table'
     put_version('table', dataset_id, version, table, content)
 
-    table_url = version_public_url_no_format('table', dataset_id, version, table)
+    table_url = version_public_url_no_format(
+        'table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 400
         assert response.content == b'The query string must have a "format" term'
@@ -1240,7 +1261,8 @@ def test_table_key_that_exists_with_bad_format(processes):
     table = 'table'
     put_version('table', dataset_id, version, table, content)
 
-    table_url = version_public_url_bad_format('table', dataset_id, version, table)
+    table_url = version_public_url_bad_format(
+        'table', dataset_id, version, table)
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 400
         assert response.content == \
@@ -1417,7 +1439,8 @@ def test_no_latest_version(processes):
         assert response.content == b'Dataset not found'
         assert not response.history
 
-    table_url = version_public_url('table', dataset_id, 'latest', 'does-not-exist', 'csv')
+    table_url = version_public_url(
+        'table', dataset_id, 'latest', 'does-not-exist', 'csv')
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 404
         assert response.content == b'Dataset not found'
@@ -1578,7 +1601,8 @@ def test_redirect_with_utf_8_in_query_string(processes):
         full_response += response
     sock.close()
 
-    cake_url_encoded = urllib.parse.quote_from_bytes('🍰'.encode('utf-8')).encode('ascii')
+    cake_url_encoded = urllib.parse.quote_from_bytes(
+        '🍰'.encode('utf-8')).encode('ascii')
     assert b'&something=' + cake_url_encoded in full_response
 
 
@@ -1637,22 +1661,28 @@ def test_csvs_created_from_sqlite_without_reports(processes):
                     PRIMARY KEY (col_int_b, col_int_a)
                 )
             ''')
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
 
         put_version_data(dataset_id, version, f.read(), 'sqlite')
 
     time.sleep(12)
 
-    table_bytes, _ = get_csv_data(dataset_id, version, 'my-table-no-primary-key')
+    table_bytes, _ = get_csv_data(
+        dataset_id, version, 'my-table-no-primary-key')
     assert table_bytes == \
         b'"col_int","col_real","col_text","col_blob"\r\n' + \
         b'1,1.5,"Some text ' + '🍰'.encode('utf-8') + b'","' + b64encode(b'\0\1\2') + b'"\r\n' + \
         b'1,"#NA","Some text ' + '🍰'.encode('utf-8') + b'","#NA"\r\n'
 
-    table_bytes, _ = get_csv_data(dataset_id, version, 'my-table-with-primary-key')
+    table_bytes, _ = get_csv_data(
+        dataset_id, version, 'my-table-with-primary-key')
     assert table_bytes == \
         b'"col_int_a","col_int_b"\r\n' + \
         b'3,1\r\n' + \
@@ -1692,10 +1722,14 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
                     PRIMARY KEY (col_int_b, col_int_a)
                 )
             ''')
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
-            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
+            cur.execute(
+                'INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
 
             cur.execute('''
                 CREATE TABLE _reports (
@@ -1715,7 +1749,8 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
 
     time.sleep(12)
 
-    report_url = version_public_url_download('report', dataset_id, version, 'my-report', 'csv')
+    report_url = version_public_url_download(
+        'report', dataset_id, version, 'my-report', 'csv')
     with \
             requests.Session() as session, \
             session.get(report_url) as response:
@@ -1723,7 +1758,8 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
             b'"col_int_a","col_int_b"' + \
             b'\r\n2,2\r\n1,3\r\n3,2\r\n3,1\r\n3,1\r\n3,2\r\n'
 
-    report_url = version_public_url_download('report', dataset_id, version, 'my-report', 'ods')
+    report_url = version_public_url_download(
+        'report', dataset_id, version, 'my-report', 'ods')
     with \
             requests.Session() as session, \
             session.get(report_url) as response:
@@ -1771,7 +1807,8 @@ def test_logs_ecs_format():
     assert web_error == b''
     web_output_logs = web_output.decode().split('\n')
     assert len(web_output_logs) >= 1
-    web_api_call_log = [json.loads(log) for log in web_output_logs if url in log]
+    web_api_call_log = [json.loads(log)
+                        for log in web_output_logs if url in log]
     assert len(web_api_call_log) == 2
     assert 'ecs' in web_api_call_log[0]
     assert b'Shut down gracefully' in web_output
@@ -1802,7 +1839,8 @@ def test_elastic_apm(processes):
             response = requests.get(
                 url='http://localhost:9201/apm-7.8.0-transaction/_search',
                 data=query,
-                headers={'Accept': 'application/json', 'Content-type': 'application/json'}
+                headers={'Accept': 'application/json',
+                         'Content-type': 'application/json'}
             )
             res = json.loads(response.text)
             if retry > 0 and 'hits' in res and res['hits']['total']['value']:
@@ -1892,9 +1930,12 @@ def test_google_analytics_integration_on_api(processes):
     put_version_data(dataset_id, version, content, 'json')
     with requests.Session() as session:
         session.get(version_data_public_url(dataset_id, version, 'json'))
-        session.get(version_data_public_url_download(dataset_id, version, 'json'))
-        session.get(version_public_url('table', dataset_id, version, 'table', 'csv'))
-        session.get(version_public_url_download('table', dataset_id, version, 'table', 'csv'))
+        session.get(version_data_public_url_download(
+            dataset_id, version, 'json'))
+        session.get(version_public_url(
+            'table', dataset_id, version, 'table', 'csv'))
+        session.get(version_public_url_download(
+            'table', dataset_id, version, 'table', 'csv'))
 
         time.sleep(1)
         response = session.post('http://127.0.0.1:9002/calls')
@@ -1934,7 +1975,8 @@ def put_version(table_or_report, dataset_id, version, table, contents):
 
 def put_version_gzipped(table_or_report, dataset_id, version, table, contents):
     return put_object(
-        f'{dataset_id}/{version}/{table_or_report}s/{table}/data.csv.gz', gzip.compress(contents)
+        f'{dataset_id}/{version}/{table_or_report}s/{table}/data.csv.gz', gzip.compress(
+            contents)
     )
 
 
@@ -2147,11 +2189,14 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
         def canonical_request():
             canonical_uri = urllib.parse.quote(path, safe='/~')
             quoted_params = sorted(
-                (urllib.parse.quote(key, safe='~'), urllib.parse.quote(value, safe='~'))
+                (urllib.parse.quote(key, safe='~'),
+                 urllib.parse.quote(value, safe='~'))
                 for key, value in params
             )
-            canonical_querystring = '&'.join(f'{key}={value}' for key, value in quoted_params)
-            canonical_headers = ''.join(f'{key}:{value}\n' for key, value in headers)
+            canonical_querystring = '&'.join(
+                f'{key}={value}' for key, value in quoted_params)
+            canonical_headers = ''.join(
+                f'{key}:{value}\n' for key, value in headers)
 
             return f'{method}\n{canonical_uri}\n{canonical_querystring}\n' + \
                    f'{canonical_headers}\n{signed_headers}\n{body_hash}'
@@ -2160,9 +2205,11 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
             return hmac.new(key, msg.encode('ascii'), hashlib.sha256).digest()
 
         string_to_sign = f'{algorithm}\n{amzdate}\n{credential_scope}\n' + \
-                         hashlib.sha256(canonical_request().encode('ascii')).hexdigest()
+                         hashlib.sha256(
+                             canonical_request().encode('ascii')).hexdigest()
 
-        date_key = sign(('AWS4' + secret_access_key).encode('ascii'), datestamp)
+        date_key = sign(
+            ('AWS4' + secret_access_key).encode('ascii'), datestamp)
         region_key = sign(date_key, region)
         service_key = sign(region_key, service)
         request_key = sign(service_key, 'aws4_request')
