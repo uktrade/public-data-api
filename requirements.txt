@@ -40,7 +40,7 @@ httpcore==0.15.0
     # via httpx
 httpx==0.23.0
     # via sqlite-s3-query
-idna==2.10
+idna==3.7
     # via
     #   anyio
     #   requests
@@ -60,9 +60,7 @@ markupsafe==2.1.2
 requests==2.31.0
     # via -r requirements.in
 rfc3986[idna2008]==1.5.0
-    # via
-    #   httpx
-    #   rfc3986
+    # via httpx
 sentry-sdk[flask]==1.19.1
     # via -r requirements.in
 sniffio==1.2.0
