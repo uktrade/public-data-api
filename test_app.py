@@ -42,7 +42,7 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
         </VersioningConfiguration>
     '''.encode(), params=(('versioning', ''),))
     delete_all_objects()
-    with open('Procfile', 'r') as file:
+    with open('Procfile', 'r', encoding='utf-8') as file:
         lines = file.read().splitlines()
 
     process_definitions = {

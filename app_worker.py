@@ -370,8 +370,8 @@ def ensure_csvs(
         with signed_s3_request('PUT', s3_key=etag_key) as response:
             put_response_body = response.read()
             if response.status != 200:
-                raise Exception('Error saving etag object {} {} {}'.format(
-                    etag_key, response.status, put_response_body))
+                raise Exception(
+                    f'Error saving etag object {etag_key,} {response.status} {put_response_body}')
 
         logger.info('Saved as CSV %s %s', dataset_id, version)
 

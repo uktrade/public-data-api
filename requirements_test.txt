@@ -129,12 +129,14 @@ pep517==0.12.0
 pip-tools==6.4.0
     # via -r requirements_test.in
 platformdirs==2.4.0
-    # via virtualenv
+    # via
+    #   pylint
+    #   virtualenv
 pluggy==0.13.1
     # via pytest
 pre-commit==2.15.0
     # via -r requirements_test.in
-pylint==2.3.1
+pylint==2.11.1
     # via -r requirements_test.in
 pyparsing==2.4.7
     # via packaging
@@ -144,7 +146,7 @@ python-dateutil==2.8.2
     # via pandas
 pytz==2021.3
     # via pandas
-pyyaml==5.4
+pyyaml==6.0.1
     # via pre-commit
 requests==2.31.0
     # via -r requirements.txt
@@ -179,13 +181,17 @@ stream-zip==0.0.46
 tidy-json-to-csv==0.0.13
     # via -r requirements.txt
 toml==0.10.0
-    # via pre-commit
+    # via
+    #   pre-commit
+    #   pylint
 tomli==1.2.2
     # via
     #   pep517
     #   pytest
 typing-extensions==4.8.0
-    # via astroid
+    # via
+    #   astroid
+    #   pylint
 urllib3==2.0.7
     # via
     #   -r requirements.txt
