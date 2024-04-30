@@ -1,4 +1,3 @@
-ecs-logging
 Flask
 gevent
 urllib3
