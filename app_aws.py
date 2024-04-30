@@ -445,8 +445,7 @@ def aws_multipart_upload(
         with signed_s3_request('POST', key, params=(('uploads', ''),)) as response:
             response_body = response.read()
             if response.status != 200:
-                raise Exception('Unable to start upload {} {} {}'.format(
-                    key, response.status, response_body))
+                raise Exception(f'Unable to start upload {key} {response.status} {response_body}')
             return re.search(b'<UploadId>(.*)</UploadId>', response_body)[1].decode('utf-8')
 
     def upload(upload_id, part_number, part):
@@ -454,8 +453,7 @@ def aws_multipart_upload(
         with signed_s3_request('PUT', key, params=params, body=part) as response:
             response_body = response.read()
             if response.status != 200:
-                raise Exception('Unable to upload part {} {} {}'.format(
-                    upload_id, part_number, response_body))
+                raise Exception(f'Unable to upload part {upload_id} {part_number} {response_body}')
             return part_number, response.headers['etag']
 
     def complete(upload_id, part_numbers_etags):
@@ -469,8 +467,7 @@ def aws_multipart_upload(
         with signed_s3_request('POST', key, params=params, body=body) as response:
             response_body = response.read()
             if response.status != 200:
-                raise Exception('Upload to complete upload {} {} {}'.format(
-                    upload_id, key, response_body))
+                raise Exception(f'Upload to complete upload {upload_id} {key} {response_body}')
 
     # Upload in multiple threads so the iteration over incoming chunks is less likely to stall.
     # We also limit the ThreadPoolExecutor so we block iteration over incoming chunks so we don't
