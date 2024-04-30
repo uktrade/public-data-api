@@ -1754,7 +1754,7 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
     ]
 
 
-def test_logs_ecs_format():
+def test_logs_asim_format():
     with application() as (_, outputs):
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
@@ -1773,7 +1773,7 @@ def test_logs_ecs_format():
     assert len(web_output_logs) >= 1
     web_api_call_log = [json.loads(log) for log in web_output_logs if url in log]
     assert len(web_api_call_log) == 2
-    assert 'ecs' in web_api_call_log[0]
+    assert 'EventMessage' in web_api_call_log[0]
     assert b'Shut down gracefully' in web_output
 
     worker_output, worker_error = outputs['worker']

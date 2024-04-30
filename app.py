@@ -3,7 +3,6 @@ import re
 from collections import namedtuple
 from itertools import chain
 
-import ecs_logging
 from gevent import (
     monkey,
 )
@@ -61,6 +60,9 @@ from app_aws import (
     aws_select_parse_result,
     aws_list_folders,
     aws_list_keys,
+)
+from app_logging import (
+    ASIMFormatter,
 )
 
 
@@ -1036,7 +1038,7 @@ def main():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ecs_logging.StdlibFormatter())
+    handler.setFormatter(ASIMFormatter())
     logger.addHandler(handler)
 
     start, stop = proxy_app(

@@ -5,8 +5,6 @@ from gevent import (
 )
 monkey.patch_all()
 
-import ecs_logging
-
 from base64 import (
     b64encode,
 )
@@ -41,6 +39,9 @@ from app_aws import (
     aws_list_folders,
     aws_head,
     aws_multipart_upload,
+)
+from app_logging import (
+    ASIMFormatter,
 )
 
 
@@ -380,7 +381,7 @@ def main():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ecs_logging.StdlibFormatter())
+    handler.setFormatter(ASIMFormatter())
     logger.addHandler(handler)
 
     if os.environ.get('SENTRY_DSN'):
