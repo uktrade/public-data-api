@@ -1823,7 +1823,7 @@ def test_healthcheck_ok(processes):
 
     with \
             requests.Session() as session, \
-            session.get('http://127.0.0.1:8080/healthcheck') as response:
+            session.get('http://127.0.0.1:8080/pingdom/ping.xml') as response:
         assert response.status_code == 200
         assert '<status>OK</status>' in str(response.content)
         assert response.headers['content-type'] == 'text/xml'
@@ -1839,7 +1839,7 @@ def test_healthcheck_fail(processes):
 
     with \
             requests.Session() as session, \
-            session.get('http://127.0.0.1:8080/healthcheck') as response:
+            session.get('http://127.0.0.1:8080/pingdom/ping.xml') as response:
         assert response.status_code == 503
 
 
