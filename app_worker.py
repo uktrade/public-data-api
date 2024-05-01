@@ -429,11 +429,11 @@ def main():
     thread.start()
 
     logger.info('Starting heartbeat')
-    heartbeat_thread = threading.Thread(target=heartbeat, kwargs=dict(
-        logger=logger,
-        shut_down_heartbeat=shut_down_heartbeat,
-        thread=thread,
-    ))
+    heartbeat_thread = threading.Thread(target=heartbeat, kwargs={
+        'logger': logger,
+        'shut_down_heartbeat': shut_down_heartbeat,
+        'thread': thread,
+    })
     heartbeat_thread.start()
 
     thread.join()
