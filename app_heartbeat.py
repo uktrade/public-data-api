@@ -1,3 +1,4 @@
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -17,3 +18,16 @@ def heartbeat(logger, shut_down_heartbeat, thread):
             logger.info('Heartbeat: is not alive')
 
     HEARTBEAT_FILE.unlink(missing_ok=True)
+
+
+def check_heartbeat():
+    now = datetime.now().timestamp()
+
+    exists = HEARTBEAT_FILE.exists()
+    recent = exists and (now - float(HEARTBEAT_FILE.read_text(encoding='utf-8'))) < 60
+    exit_code = 0 if recent else 1
+    sys.exit(exit_code)
+
+
+if __name__ == '__main__':
+    check_heartbeat()

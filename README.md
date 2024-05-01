@@ -86,3 +86,14 @@ If the AWS user has the ListBucket permission, 404s are proxied through to the u
 ## Shutdown
 
 On SIGTERM any in-progress requests will complete before the process exits. At the time of writing PaaS will then forcibly kill the process with SIGKILL if it has not exited within 10 seconds.
+
+
+## Worker health
+
+A basic CLI is included to check the health of the backend worker that converts between data formats.
+
+```bash
+python -m app_heartbeat
+```
+
+A zero exit codes means the worker is healthy, otherwise the worker is not healthy.

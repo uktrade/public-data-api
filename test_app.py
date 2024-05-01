@@ -1798,6 +1798,20 @@ def test_heartbeat():
     assert not hearbeat_file.exists()
 
 
+def test_check_heartbeat():
+    result = subprocess.run(['python', '-m', 'app_heartbeat'], check=False)
+    assert result.returncode == 1
+
+    with application():
+        time.sleep(2)
+
+        result = subprocess.run(['python', '-m', 'app_heartbeat'], check=False)
+        assert result.returncode == 0
+
+    result = subprocess.run(['python', '-m', 'app_heartbeat'], check=False)
+    assert result.returncode == 1
+
+
 def test_elastic_apm(processes):
     dataset_id = str(uuid.uuid4())
     content = str(uuid.uuid4()).encode() * 100000
