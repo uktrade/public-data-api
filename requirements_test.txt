@@ -107,6 +107,7 @@ markupsafe==2.1.2
     # via
     #   -r requirements.txt
     #   jinja2
+    #   sentry-sdk
     #   werkzeug
 mccabe==0.6.1
     # via pylint
@@ -150,7 +151,7 @@ rfc3986[idna2008]==1.5.0
     # via
     #   -r requirements.txt
     #   httpx
-sentry-sdk[flask]==1.19.1
+sentry-sdk[flask]==2.0.1
     # via
     #   -r requirements.txt
     #   -r requirements_test.in

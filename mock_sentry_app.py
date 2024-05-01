@@ -36,20 +36,19 @@ def sentry_app():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 
     app.add_url_rule(
-        '/api/1/store/', methods=['POST'], view_func=_store
+        '/api/1/envelope/', methods=['POST'], view_func=_store
     )
 
     app.add_url_rule(
         '/api/1/errors/', methods=['GET'], view_func=_errors
     )
 
-    server = WSGIServer(('0.0.0.0', 9001), app, log=app.logger)
+    server = WSGIServer(('0.0.0.0', 9001), app)
 
     return start, stop
 
 
 def main():
-
     start, stop = sentry_app()
 
     gevent.signal_handler(signal.SIGTERM, stop)
