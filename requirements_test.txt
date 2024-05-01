@@ -4,23 +4,21 @@
 #
 #    pip-compile requirements_test.in
 #
-anyio==3.4.0
+anyio==4.3.0
     # via
     #   -r requirements.txt
-    #   httpcore
+    #   httpx
 astroid==3.1.0
     # via pylint
-attrs==20.2.0
-    # via pytest
-backports-entry-points-selectable==1.1.1
-    # via virtualenv
-blinker==1.6.2
+blinker==1.8.1
     # via
     #   -r requirements.txt
     #   elastic-apm
     #   flask
     #   sentry-sdk
-certifi==2023.7.22
+build==1.2.1
+    # via pip-tools
+certifi==2024.2.2
     # via
     #   -r requirements.txt
     #   elastic-apm
@@ -28,13 +26,13 @@ certifi==2023.7.22
     #   httpx
     #   requests
     #   sentry-sdk
-cfgv==2.0.1
+cfgv==3.4.0
     # via pre-commit
-charset-normalizer==3.1.0
+charset-normalizer==3.3.2
     # via
     #   -r requirements.txt
     #   requests
-click==8.1.3
+click==8.1.7
     # via
     #   -r requirements.txt
     #   flask
@@ -45,7 +43,7 @@ defusedxml==0.7.1
     # via odfpy
 dill==0.3.8
     # via pylint
-distlib==0.3.3
+distlib==0.3.8
     # via virtualenv
 ecs-logging==2.1.0
     # via
@@ -55,47 +53,47 @@ elastic-apm[flask]==6.22.0
     # via
     #   -r requirements.txt
     #   -r requirements_test.in
-filelock==3.4.0
+filelock==3.14.0
     # via virtualenv
-flask==2.3.2
+flask==3.0.3
     # via
     #   -r requirements.txt
     #   sentry-sdk
-gevent==23.9.1
+gevent==24.2.1
     # via -r requirements.txt
-greenlet==3.0.0
+greenlet==3.0.3
     # via
     #   -r requirements.txt
     #   gevent
-h11==0.12.0
+h11==0.14.0
     # via
     #   -r requirements.txt
     #   httpcore
-httpcore==0.15.0
+httpcore==1.0.5
     # via
     #   -r requirements.txt
     #   httpx
-httpx==0.23.0
+httpx==0.27.0
     # via
     #   -r requirements.txt
     #   sqlite-s3-query
-identify==1.4.5
+identify==2.5.36
     # via pre-commit
 idna==3.7
     # via
     #   -r requirements.txt
     #   anyio
+    #   httpx
     #   requests
-    #   rfc3986
-ijson==3.1.2.post0
+ijson==3.2.3
     # via
     #   -r requirements.txt
     #   tidy-json-to-csv
-iniconfig==1.1.1
+iniconfig==2.0.0
     # via pytest
-isort==4.3.21
+isort==5.13.2
     # via pylint
-itsdangerous==2.1.2
+itsdangerous==2.2.0
     # via
     #   -r requirements.txt
     #   flask
@@ -103,111 +101,104 @@ jinja2==3.1.3
     # via
     #   -r requirements.txt
     #   flask
-markupsafe==2.1.2
+markupsafe==2.1.5
     # via
     #   -r requirements.txt
     #   jinja2
     #   sentry-sdk
     #   werkzeug
-mccabe==0.6.1
+mccabe==0.7.0
     # via pylint
-nodeenv==1.3.3
+nodeenv==1.8.0
     # via pre-commit
 numpy==1.26.4
     # via pandas
 odfpy==1.4.1
     # via -r requirements_test.in
-packaging==20.4
-    # via pytest
+packaging==24.0
+    # via
+    #   build
+    #   pytest
 pandas==2.2.2
     # via -r requirements_test.in
-pep517==0.12.0
-    # via pip-tools
-pip-tools==6.4.0
+pip-tools==7.4.1
     # via -r requirements_test.in
-platformdirs==2.4.0
+platformdirs==4.2.1
     # via
     #   pylint
     #   virtualenv
-pluggy==0.13.1
+pluggy==1.5.0
     # via pytest
-pre-commit==2.15.0
+pre-commit==3.7.0
     # via -r requirements_test.in
+pycryptodome==3.20.0
+    # via
+    #   -r requirements.txt
+    #   stream-zip
 pylint==3.1.0
     # via -r requirements_test.in
-pyparsing==2.4.7
-    # via packaging
-pytest==7.2.0
+pyproject-hooks==1.1.0
+    # via
+    #   build
+    #   pip-tools
+pytest==8.2.0
     # via -r requirements_test.in
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
     # via pandas
-pytz==2021.3
+pytz==2024.1
     # via pandas
 pyyaml==6.0.1
     # via pre-commit
 requests==2.31.0
     # via -r requirements.txt
-rfc3986[idna2008]==1.5.0
-    # via
-    #   -r requirements.txt
-    #   httpx
 sentry-sdk[flask]==2.0.1
     # via
     #   -r requirements.txt
     #   -r requirements_test.in
-six==1.12.0
-    # via
-    #   cfgv
-    #   packaging
-    #   python-dateutil
-    #   virtualenv
-sniffio==1.2.0
+six==1.16.0
+    # via python-dateutil
+sniffio==1.3.1
     # via
     #   -r requirements.txt
     #   anyio
-    #   httpcore
     #   httpx
 sqlite-s3-query==0.0.67
     # via -r requirements.txt
-stream-write-ods==0.0.22
+stream-write-ods==0.0.24
     # via -r requirements.txt
-stream-zip==0.0.46
+stream-zip==0.0.71
     # via
     #   -r requirements.txt
     #   stream-write-ods
 tidy-json-to-csv==0.0.13
     # via -r requirements.txt
-toml==0.10.0
-    # via pre-commit
-tomli==1.2.2
-    # via pep517
 tomlkit==0.12.4
     # via pylint
 tzdata==2024.1
     # via pandas
-urllib3==2.0.7
+urllib3==2.2.1
     # via
     #   -r requirements.txt
     #   elastic-apm
     #   requests
     #   sentry-sdk
-virtualenv==20.10.0
+virtualenv==20.26.1
     # via pre-commit
-werkzeug==3.0.1
+werkzeug==3.0.2
     # via
     #   -r requirements.txt
     #   flask
-wheel==0.38.1
+wheel==0.43.0
     # via pip-tools
 wrapt==1.14.1
     # via
     #   -r requirements.txt
     #   elastic-apm
-zope-event==4.4
+zope-event==5.0
     # via
     #   -r requirements.txt
     #   gevent
-zope-interface==5.1.0
+zope-interface==6.3
     # via
     #   -r requirements.txt
     #   gevent
