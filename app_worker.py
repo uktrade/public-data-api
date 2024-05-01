@@ -20,10 +20,8 @@ import logging
 import os
 import signal
 import sys
-import tempfile
 import threading
 import urllib.parse
-from pathlib import Path
 
 import sentry_sdk
 from tidy_json_to_csv import (
@@ -42,12 +40,12 @@ from app_aws import (
     aws_head,
     aws_multipart_upload,
 )
+from app_heartbeat import (
+    heartbeat,
+)
 from app_logging import (
     ASIMFormatter,
 )
-
-
-HEARTBEAT_FILE = Path(f'{tempfile.gettempdir()}/public_data_api_worker_heartbeat')
 
 
 def ensure_csvs(
@@ -426,24 +424,16 @@ def main():
     def stop(_, __):
         shut_down.set()
 
-    def heartbeat(thread):
-        while True:
-            if shut_down_heartbeat.wait(timeout=1.0):
-                break
-
-            if thread.is_alive():
-                HEARTBEAT_FILE.write_text(str(datetime.now().timestamp()), encoding='utf-8')
-            else:
-                logger.info('Heartbeat: is not alive')
-
-        HEARTBEAT_FILE.unlink(missing_ok=True)
-
     signal.signal(signal.SIGTERM, stop)
     thread = threading.Thread(target=run)
     thread.start()
 
     logger.info('Starting heartbeat')
-    heartbeat_thread = threading.Thread(target=heartbeat, kwargs=dict(thread=thread))
+    heartbeat_thread = threading.Thread(target=heartbeat, kwargs=dict(
+        logger=logger,
+        shut_down_heartbeat=shut_down_heartbeat,
+        thread=thread,
+    ))
     heartbeat_thread.start()
 
     thread.join()
