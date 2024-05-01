@@ -26,10 +26,11 @@ repos:
       types: [python]
       args:
         - --disable=broad-except
+        - --disable=broad-exception-raised
         - --disable=duplicate-code
         - --disable=invalid-name
         - --disable=missing-docstring
-        - --disable=no-self-use
+        - --disable=missing-timeout
         - --disable=protected-access
         - --disable=too-few-public-methods
         - --disable=too-many-arguments
@@ -39,6 +40,7 @@ repos:
         - --disable=too-many-public-methods
         - --disable=too-many-statements
         - --disable=ungrouped-imports
+        - --disable=use-yield-from
         - --disable=wrong-import-order
         - --disable=wrong-import-position
         - --include-naming-hint=yes
