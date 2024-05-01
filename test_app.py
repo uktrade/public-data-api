@@ -21,6 +21,7 @@ import socket
 import subprocess
 import urllib.parse
 import uuid
+from pathlib import Path
 from xml.etree import (
     ElementTree as ET,
 )
@@ -1779,6 +1780,22 @@ def test_logs_asim_format():
     worker_output, worker_error = outputs['worker']
     assert worker_error == b''
     assert b'Shut down gracefully' in worker_output
+
+
+def test_heartbeat():
+    hearbeat_file = Path(f'{tempfile.gettempdir()}/public_data_api_worker_heartbeat')
+
+    with application() as (_, outputs):
+        time.sleep(2)
+        assert hearbeat_file.exists()
+        heartbeat_timestamp = float(hearbeat_file.read_text(encoding='utf-8'))
+        current_timestamp = datetime.now().timestamp()
+        assert current_timestamp - heartbeat_timestamp < 10
+
+    worker_output, worker_error = outputs['worker']
+    assert worker_error == b''
+    assert b'Shut down heartbeat' in worker_output
+    assert not hearbeat_file.exists()
 
 
 def test_elastic_apm(processes):

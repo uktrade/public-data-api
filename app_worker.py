@@ -20,8 +20,10 @@ import logging
 import os
 import signal
 import sys
+import tempfile
 import threading
 import urllib.parse
+from pathlib import Path
 
 import sentry_sdk
 from tidy_json_to_csv import (
@@ -43,6 +45,9 @@ from app_aws import (
 from app_logging import (
     ASIMFormatter,
 )
+
+
+HEARTBEAT_FILE = Path(f'{tempfile.gettempdir()}/public_data_api_worker_heartbeat')
 
 
 def ensure_csvs(
@@ -399,6 +404,7 @@ def main():
     aws_s3_region = os.environ['AWS_S3_REGION']
 
     shut_down = threading.Event()
+    shut_down_heartbeat = threading.Event()
 
     def run():
         with PoolClass(parsed_endpoint.hostname, port=parsed_endpoint.port, maxsize=1000) as http:
@@ -420,10 +426,33 @@ def main():
     def stop(_, __):
         shut_down.set()
 
+    def heartbeat(thread):
+        while True:
+            if shut_down_heartbeat.wait(timeout=1.0):
+                break
+
+            if thread.is_alive():
+                HEARTBEAT_FILE.write_text(str(datetime.now().timestamp()), encoding='utf-8')
+            else:
+                logger.info('Heartbeat: is not alive')
+
+        HEARTBEAT_FILE.unlink(missing_ok=True)
+
     signal.signal(signal.SIGTERM, stop)
     thread = threading.Thread(target=run)
     thread.start()
+
+    logger.info('Starting heartbeat')
+    heartbeat_thread = threading.Thread(target=heartbeat, kwargs=dict(thread=thread))
+    heartbeat_thread.start()
+
     thread.join()
+
+    logger.info('Shutting down heartbeat')
+    shut_down_heartbeat.set()
+    heartbeat_thread.join()
+    logger.info('Shut down heartbeat')
+
     logger.info('Shut down gracefully')
 
 
