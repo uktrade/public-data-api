@@ -1027,6 +1027,7 @@ def proxy_app(
         view_func=proxy_metadata,
     )
     app.add_url_rule('/healthcheck', 'healthcheck', view_func=healthcheck)
+    app.add_url_rule('/pingdom/ping.xml', 'healthcheck', view_func=healthcheck)
     app.add_url_rule('/', 'docs', view_func=docs)
     app.add_url_rule('/accessibility_statement', view_func=accessibility_statement)
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
