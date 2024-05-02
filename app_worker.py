@@ -179,16 +179,6 @@ def ensure_csvs(
                 yield b']'
             yield b'}'
 
-        @contextmanager
-        def rollback(query):
-            try:
-                with query('BEGIN') as (_, rows):
-                    next(rows, None)
-                yield
-            finally:
-                with query('ROLLBACK') as (_, rows):
-                    next(rows, None)
-
         url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
         with sqlite_s3_query_multi(
                 url=url,
@@ -264,29 +254,26 @@ def ensure_csvs(
                 report_id = name.replace('_', '-')
 
                 # Is this multi-statement query?
-                with rollback(query):
-                    num_statements = get_num_statements_with_rows(query_multi, script)
+                num_statements = get_num_statements_with_rows(query_multi, script)
 
                 # Save as CSV with the results of all statements concatanated together ...
-                with rollback(query):
-                    s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
-                    csv_lines = (
-                        line
-                        for i, (cols, rows) in enumerate(with_non_zero_rows(query_multi(script)))
-                        for line in csv_data(cols, rows, with_header=i == 0)
-                    )
-                    aws_multipart_upload(signed_s3_request, s3_key, csv_lines)
+                s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.csv'
+                csv_lines = (
+                    line
+                    for i, (cols, rows) in enumerate(with_non_zero_rows(query_multi(script)))
+                    for line in csv_data(cols, rows, with_header=i == 0)
+                )
+                aws_multipart_upload(signed_s3_request, s3_key, csv_lines)
 
                 # ... and as ODS with the results of each statement as a separate sheet
                 try:
-                    with rollback(query):
-                        s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
-                        sheets = (
-                            (f'Section {i+1}' if num_statements > 1 else name, cols, rows)
-                            for i, (cols, rows) in enumerate(
-                                with_non_zero_rows(query_multi(script)))
-                        )
-                        aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(sheets))
+                    s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
+                    sheets = (
+                        (f'Section {i+1}' if num_statements > 1 else name, cols, rows)
+                        for i, (cols, rows) in enumerate(
+                            with_non_zero_rows(query_multi(script)))
+                    )
+                    aws_multipart_upload(signed_s3_request, s3_key, stream_write_ods(sheets))
                 except ZipOverflowError:
                     logger.exception(
                         f'ODS of SQLite report {name} would be too large for LibreOffice')
