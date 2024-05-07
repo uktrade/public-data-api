@@ -1,4 +1,4 @@
-# public-data-api [![CircleCI](https://circleci.com/gh/uktrade/public-data-api.svg?style=shield)](https://circleci.com/gh/uktrade/public-data-api) [![Test Coverage](https://api.codeclimate.com/v1/badges/68ec48283132a5273abc/test_coverage)](https://codeclimate.com/github/uktrade/public-data-api/test_coverage)
+# public-data-api [![Test suite](https://img.shields.io/github/actions/workflow/status/uktrade/public-data-api/test.yml?label=Test%20suite)](https://github.com/uktrade/public-data-api/actions/workflows/test.yml) [![Code coverage](https://img.shields.io/codecov/c/github/uktrade/public-data-api?label=Code%20coverage)](https://app.codecov.io/gh/uktrade/public-data-api)
 
 Exposes datasets stored in S3-compatible object storage with a light-touch API.
 

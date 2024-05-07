@@ -1,0 +1,32 @@
+name: Test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.11"
+      - name: "Install Python dependencies"
+        run: |
+          pip install -r requirements_test.txt
+      - name: "Install and run pre-commit hooks"
+        run: |
+           pre-commit install --install-hooks
+           pre-commit run --all-files
+      - name: "Start services"
+        run: |
+           ./start-services.sh
+      - name: "Test"
+        run: |
+          ./test_app.sh
+      - uses: codecov/codecov-action@v3
