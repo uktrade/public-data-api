@@ -80,7 +80,7 @@ urllib3==2.2.1
     #   elastic-apm
     #   requests
     #   sentry-sdk
-werkzeug==3.0.2
+werkzeug==3.0.3
     # via flask
 wrapt==1.14.1
     # via elastic-apm
