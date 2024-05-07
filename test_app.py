@@ -189,10 +189,24 @@ def test_key_that_exists(processes, encoding, compressor, requested_format,
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, requested_format)
 
-    time.sleep(40)
-
     url = version_data_public_url(dataset_id, version, requested_format)
     headers = {'accept-encoding': encoding}
+
+    # Wait for the backend to convert/compress the data if necessary
+    for _ in range(0, 24):
+        with \
+                requests.Session() as session, \
+                session.get(url, headers=headers) as response:
+
+            if (
+                response.status_code != 200
+                or response.headers.get('content-type') != expected_content_type
+                or response.headers.get('content-encoding') != encoding
+            ):
+                time.sleep(10)
+            else:
+                break
+
     with \
             requests.Session() as session, \
             session.get(url, headers=headers) as response:
