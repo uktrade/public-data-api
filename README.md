@@ -2,7 +2,6 @@
 
 Exposes datasets stored in S3-compatible object storage with a light-touch API.
 
-- Is easily hosted on [GOV.UK PaaS](https://www.cloud.service.gov.uk/)
 - Does not use a database
 - Data can be published via [data.gov.uk](https://data.gov.uk/)
 - Data can be accessed by an API, or downloaded
@@ -71,7 +70,7 @@ Environment variables used for serving API documentation.
 | DOCS_GITHUB_REPO_URL    | The URL for this github repository<hr>`https://github.com/uktrade/public-data-api` |
 | DOCS_SECURITY_EMAIL     | The email address security vulnerabilities should be reported to<hr>`security@example.com`|
 
-The below environment variables are also required, but typically populated by PaaS.
+The below environment variables are also required, but typically populated by the hosting environment.
 
 | Variable        | Description and examples |
 | :--             | :--                      |
@@ -85,7 +84,7 @@ If the AWS user has the ListBucket permission, 404s are proxied through to the u
 
 ## Shutdown
 
-On SIGTERM any in-progress requests will complete before the process exits. At the time of writing PaaS will then forcibly kill the process with SIGKILL if it has not exited within 10 seconds.
+On SIGTERM any in-progress requests will complete before the process exits.
 
 
 ## Worker health
