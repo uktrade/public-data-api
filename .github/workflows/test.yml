@@ -35,3 +35,4 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           use_oidc: true
+          directory: .
