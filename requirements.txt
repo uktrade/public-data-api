@@ -58,7 +58,7 @@ markupsafe==2.1.5
     #   werkzeug
 pycryptodome==3.20.0
     # via stream-zip
-requests==2.31.0
+requests==2.32.0
     # via -r requirements.in
 sentry-sdk[flask]==2.0.1
     # via -r requirements.in
