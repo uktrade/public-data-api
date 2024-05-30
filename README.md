@@ -57,9 +57,11 @@ DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
 | READ_AND_WRITE_AWS_SECRET_ACCESS_KEY | The secret part of the read+write AWS access key |
 | APM_SECRET_TOKEN      | A secret token to authorize requests to the APM Server. |
 | APM_SERVER_URL        | The URL of the APM server<hr>`https://apm.elk.uktrade.digital`|
+| APM_SERVER_TIMEOUT    | The maximum amount of time to wait for connections to the APM server<hr>`20s`|
 | ENVIRONMENT           | The current environment where the application is running<hr>`develop` |
 | GA_ENDPOINT           | The endpoint to send analytics info to |
 | GA_TRACKING_ID        | The unique identifier for the google analytics property |
+| SENTRY_DSN            | The DSN of the Sentry server to report exceptions to |
 
 Environment variables used for serving API documentation.
 
@@ -70,11 +72,12 @@ Environment variables used for serving API documentation.
 | DOCS_GITHUB_REPO_URL    | The URL for this github repository<hr>`https://github.com/uktrade/public-data-api` |
 | DOCS_SECURITY_EMAIL     | The email address security vulnerabilities should be reported to<hr>`security@example.com`|
 
-The below environment variables are also required, but typically populated by the hosting environment.
+The below environment variables are also used, but typically populated by the hosting environment.
 
 | Variable        | Description and examples |
 | :--             | :--                      |
 | PORT          | The port for the application to listen on<hr>`8080`|
+| GIT_COMMIT    | The git commit ID to show what version of the code is running<hr>`c79c3d630152b42b98e97b73552e0bdc7b54ae51` |
 
 
 ## Permissions and 404s
