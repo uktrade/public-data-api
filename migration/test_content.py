@@ -9,6 +9,8 @@ import hashlib
 import httpx
 import pytest
 
+# Run again real prod and one that is in DBT platform so we can use this both for pre and
+# post migration tests
 bases = (
     'https://data.api.trade.gov.uk',
     'https://data-api.prod.uktrade.digital',
