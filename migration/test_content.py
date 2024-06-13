@@ -11,6 +11,7 @@ import pytest
 
 bases = (
     'https://data.api.trade.gov.uk',
+    'https://data-api.prod.uktrade.digital',
 )
 
 @pytest.mark.parametrize(
