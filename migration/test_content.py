@@ -104,3 +104,23 @@ def test_non_200_codes(base, path, expected_code):
         status_code = r.status_code
 
     assert status_code == expected_code
+
+
+@pytest.mark.parametrize(
+    'url, expected_text', (
+    # Checking UAT which is a suitable test for pre-live
+    # It's behind an IP filter - hence commented out for now
+    # (
+    #     'https://market-access-publicfe-uat.london.cloudapps.digital/barriers/Q5OYBD/?resolved=0&location=ar',
+    #     'Public ID: PID-Q5OYBD',
+    # ),
+    # Checking prod which is a suitable test for post-live
+    (
+        'https://www.check-international-trade-barriers.service.gov.uk/barriers/GEOPR9/?resolved=0&location=ar',
+        'Public ID: PID-GEOPR9',
+    ),
+))
+def test_citb(url, expected_text):
+    r = httpx.get(url)
+    r.raise_for_status
+    assert expected_text in r.text
