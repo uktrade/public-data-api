@@ -53,6 +53,11 @@ import pytest
         'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/data?format=sqlite&download',
         '71d543ac5b51f115b651e776e2011a6bbe04b0bed77c4a1175873dc9418807e3',
     ),
+    # Filtering on latest version
+    (
+        'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.246/tables/measures-on-declarable-commodities/data?query-simple=&download=&format=csv&commodity__code=0101210000&_columns=commodity__code&_columns=measure__type__id&_columns=measure__type__description',
+        '486d6465597ee143f637be71f84c2fbffafb68000b7e844943ada8f65c69481e',
+    ),
 ))
 def test(url, expected_digest):
     m = hashlib.sha256()
