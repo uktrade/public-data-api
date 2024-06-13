@@ -78,3 +78,29 @@ def test_content_on_public_data_api(base, path, expected_digest):
             m.update(chunk)
 
     assert m.hexdigest() == expected_digest
+
+@pytest.mark.parametrize(
+    'base',
+    bases,
+)
+@pytest.mark.parametrize(
+    'path, expected_code', (
+    (
+        '/does-not-exist',
+        404,
+    ),
+    (
+        '/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/data?format=somethingelse',
+        400,
+    ),
+    (
+        '/v1/datasets/uk-tariff-2021-01-01/versions/latest/metadata?format=html',
+        302,
+    ),
+))
+def test_non_200_codes(base, path, expected_code):
+    m = hashlib.sha256()
+    with httpx.stream('GET', base + path) as r:
+        status_code = r.status_code
+
+    assert status_code == expected_code
