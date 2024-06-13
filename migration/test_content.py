@@ -9,7 +9,14 @@ import hashlib
 import httpx
 import pytest
 
+bases = (
+    'https://data.api.trade.gov.uk',
+)
 
+@pytest.mark.parametrize(
+    'base',
+    bases,
+)
 @pytest.mark.parametrize(
     'path, expected_digest', (
     # Latest version of UK Tariff at the time
@@ -60,9 +67,9 @@ import pytest
         '486d6465597ee143f637be71f84c2fbffafb68000b7e844943ada8f65c69481e',
     ),
 ))
-def test(path, expected_digest):
+def test(base, path, expected_digest):
     m = hashlib.sha256()
-    with httpx.stream('GET', 'https://data.api.trade.gov.uk' + path) as r:
+    with httpx.stream('GET', base + path) as r:
         for chunk in r.iter_bytes():
             m.update(chunk)
 
