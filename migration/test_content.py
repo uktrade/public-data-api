@@ -73,6 +73,7 @@ bases = (
 def test_content_on_public_data_api(base, path, expected_digest):
     m = hashlib.sha256()
     with httpx.stream('GET', base + path) as r:
+        r.raise_for_status()
         for chunk in r.iter_bytes():
             m.update(chunk)
 
