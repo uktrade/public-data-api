@@ -11,7 +11,7 @@ import pytest
 
 @pytest.mark.parametrize(
     'url, expected_digest', (
-    # Latest version of UK Tariff
+    # Latest version of UK Tariff at the time
     (
         'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.246/metadata?format=html',
         'b64952629acf8178a4c16c136466d6f38c5ee7026a9c438ad2221381e55bf28e',
@@ -31,6 +31,27 @@ import pytest
     (
         'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.246/data?format=sqlite&download',
         '874f3ad4522e250b2fb55acc43fc7d4205a002dea239d7154a3c99ee59b65fe9',
+    ),
+    # Earliest version with links on https://www.data.gov.uk/dataset/3bee9a8a-e69c-400e-add5-3345a87a8e25/tariffs-to-trade-with-the-uk-from-1-january-2021
+    (
+        'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/metadata?format=html',
+        '3f82f7f34659ed12672dba106604a05193c39c3a50250bfa88be610c4a723adb',
+    ),
+    (
+        'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/tables/commodities-report/data?format=ods&download',
+        'b2eaf3a2536da2912cdd62d8fc3fab388315a0cf59256932ef38a91803c1e99b',
+    ),
+    (
+        'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/tables/measures-as-defined/data?format=ods&download',
+        '10dcfcf90d0a2e6740669a643c7958d5dbc2d07268520bae7587b415b2786c04',
+    ),
+    (
+        'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/reports/measures-on-declarable-commodities/data?format=ods&download',
+        '15d9cd233b5f1e6571a95388e2b8bc8890ce51a2827b9e3ae4bd97416a0f51db',
+    ),
+    (
+        'https://data.api.trade.gov.uk/v1/datasets/uk-tariff-2021-01-01/versions/v4.0.0/data?format=sqlite&download',
+        '71d543ac5b51f115b651e776e2011a6bbe04b0bed77c4a1175873dc9418807e3',
     ),
 ))
 def test(url, expected_digest):
