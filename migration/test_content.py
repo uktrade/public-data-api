@@ -70,7 +70,7 @@ bases = (
         '486d6465597ee143f637be71f84c2fbffafb68000b7e844943ada8f65c69481e',
     ),
 ))
-def test(base, path, expected_digest):
+def test_content_on_public_data_api(base, path, expected_digest):
     m = hashlib.sha256()
     with httpx.stream('GET', base + path) as r:
         for chunk in r.iter_bytes():
