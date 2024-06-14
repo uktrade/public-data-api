@@ -409,6 +409,7 @@ def main():
     if os.environ.get('SENTRY_DSN'):
         sentry_sdk.init(  # pylint: disable=abstract-class-instantiated
             dsn=os.environ['SENTRY_DSN'],
+            enable_tracing=True,
         )
 
     parsed_endpoint = urllib.parse.urlsplit(os.environ['AWS_S3_ENDPOINT'])
@@ -462,6 +463,9 @@ def main():
     heartbeat_thread.join()
     logger.info('Shut down heartbeat')
 
+    sentry_client = sentry_sdk.Hub.current.client
+    if sentry_client is not None:
+        sentry_client.close(timeout=2.0)
     logger.info('Shut down gracefully')
 
 

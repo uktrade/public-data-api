@@ -2,7 +2,6 @@ Flask
 gevent
 urllib3
 sentry-sdk[flask]
-elastic-apm[flask]
 tidy-json-to-csv
 requests
 sqlite-s3-query

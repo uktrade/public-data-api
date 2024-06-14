@@ -78,8 +78,6 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                     'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
                 ),
                 'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
-                'APM_SECRET_TOKEN': 'secret_token',
-                'APM_SERVER_URL': 'http://localhost:8201',
                 'ENVIRONMENT': 'test',
                 'SENTRY_DSN': 'http://foo@localhost:9001/1',
                 'GA_ENDPOINT': 'http://localhost:9002/collect',
@@ -100,7 +98,7 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
         for _, process in processes.items():
             process.terminate()
         for _, process in processes.items():
-            process.wait(timeout=10)
+            process.wait(timeout=20)
         output_errors = {
             name: (read_and_close(stdout), read_and_close(stderr))
             for name, (stdout, stderr) in process_outs.items()
@@ -1824,39 +1822,6 @@ def test_check_heartbeat():
 
     result = subprocess.run(['python', '-m', 'app_heartbeat'], check=False)
     assert result.returncode == 1
-
-
-def test_elastic_apm(processes):
-    dataset_id = str(uuid.uuid4())
-    content = str(uuid.uuid4()).encode() * 100000
-    version = 'v0.0.1'
-    put_version_data(dataset_id, version, content, 'json')
-    url = f'/v1/datasets/{dataset_id}/versions/{version}/data'
-    query = json.dumps({
-        'query': {
-            'match': {
-                'url.path': url
-            }
-        }
-    })
-    with requests.Session() as session:
-        retry = 0
-        while retry < 20:
-            session.get(version_data_public_url(dataset_id, version, 'json'))
-            time.sleep(1)
-            response = requests.get(
-                url='http://localhost:9201/apm-7.8.0-transaction/_search',
-                data=query,
-                headers={'Accept': 'application/json', 'Content-type': 'application/json'}
-            )
-            res = json.loads(response.text)
-            if retry > 0 and 'hits' in res and res['hits']['total']['value']:
-                break
-            time.sleep(3)
-            retry += 1
-
-    assert 'hits' in res, f'Unexpected Elastic Search api response: {str(res)}'
-    assert res['hits']['total']['value'] >= 1, 'No hits found'
 
 
 def test_healthcheck_ok(processes):

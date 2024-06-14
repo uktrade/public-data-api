@@ -26,7 +26,6 @@ import uuid
 
 import requests
 
-from elasticapm.contrib.flask import ElasticAPM
 from flask import (
     Flask,
     Response,
@@ -122,7 +121,6 @@ def proxy_app(
 
     def stop():
         server.stop()
-        apm.client.close()
 
     def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
@@ -965,15 +963,6 @@ def proxy_app(
             resp.headers['x-robots-tag'] = 'no-index, no-follow'
         return resp
 
-    apm = ElasticAPM(
-        app,
-        service_name='public-data-api',
-        secret_token=os.environ['APM_SECRET_TOKEN'],
-        server_url=os.environ['APM_SERVER_URL'],
-        environment=os.environ['ENVIRONMENT'],
-        server_timeout=os.environ.get('APM_SERVER_TIMEOUT', None),
-    )
-
     app.add_url_rule('/v1/datasets', view_func=list_all_datasets)
     app.add_url_rule(
         '/v1/datasets/<string:dataset_id>/metadata',
@@ -1058,10 +1047,16 @@ def main():
             # Session tracking makes graceful shutdown difficult since it starts a thread but there
             # is no quick way to kill it
             auto_session_tracking=False,
+            enable_tracing=True,
         )
 
     gevent.signal_handler(signal.SIGTERM, stop)
+
     start()
+
+    sentry_client = sentry_sdk.Hub.current.client
+    if sentry_client is not None:
+        sentry_client.close(timeout=2.0)
     gevent.get_hub().join()
     logger.info('Shut down gracefully')
 
