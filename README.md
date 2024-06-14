@@ -55,9 +55,6 @@ DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
 | READONLY_AWS_SECRET_ACCESS_KEY | The secret part of the readonly AWS access key |
 | READ_AND_WRITE_AWS_ACCESS_KEY_ID     | The AWS access key ID that has write permissions on the S3 bucket (for the csv-generating worker) |
 | READ_AND_WRITE_AWS_SECRET_ACCESS_KEY | The secret part of the read+write AWS access key |
-| APM_SECRET_TOKEN      | A secret token to authorize requests to the APM Server. |
-| APM_SERVER_URL        | The URL of the APM server<hr>`https://apm.elk.uktrade.digital`|
-| APM_SERVER_TIMEOUT    | The maximum amount of time to wait for connections to the APM server<hr>`20s`|
 | ENVIRONMENT           | The current environment where the application is running<hr>`develop` |
 | GA_ENDPOINT           | The endpoint to send analytics info to |
 | GA_TRACKING_ID        | The unique identifier for the google analytics property |

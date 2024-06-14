@@ -8,12 +8,10 @@ anyio==4.3.0
     # via httpx
 blinker==1.8.1
     # via
-    #   elastic-apm
     #   flask
     #   sentry-sdk
 certifi==2024.2.2
     # via
-    #   elastic-apm
     #   httpcore
     #   httpx
     #   requests
@@ -22,10 +20,6 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via flask
-ecs-logging==2.1.0
-    # via elastic-apm
-elastic-apm[flask]==6.22.0
-    # via -r requirements.in
 flask==3.0.3
     # via
     #   -r requirements.in
@@ -77,13 +71,10 @@ tidy-json-to-csv==0.0.13
 urllib3==2.2.1
     # via
     #   -r requirements.in
-    #   elastic-apm
     #   requests
     #   sentry-sdk
 werkzeug==3.0.3
     # via flask
-wrapt==1.14.1
-    # via elastic-apm
 zope-event==5.0
     # via gevent
 zope-interface==6.3

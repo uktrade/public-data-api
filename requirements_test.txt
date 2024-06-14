@@ -46,13 +46,9 @@ dill==0.3.8
 distlib==0.3.8
     # via virtualenv
 ecs-logging==2.1.0
-    # via
-    #   -r requirements.txt
-    #   elastic-apm
+    # via elastic-apm
 elastic-apm[flask]==6.22.0
-    # via
-    #   -r requirements.txt
-    #   -r requirements_test.in
+    # via -r requirements_test.in
 filelock==3.14.0
     # via virtualenv
 flask==3.0.3
@@ -191,9 +187,7 @@ werkzeug==3.0.3
 wheel==0.43.0
     # via pip-tools
 wrapt==1.14.1
-    # via
-    #   -r requirements.txt
-    #   elastic-apm
+    # via elastic-apm
 zope-event==5.0
     # via
     #   -r requirements.txt
