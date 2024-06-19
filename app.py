@@ -1040,7 +1040,7 @@ def main():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
-    # handler.setFormatter(ASIMFormatter())
+    handler.setFormatter(ASIMFormatter())
     logger.addHandler(handler)
 
     start, stop = proxy_app(
