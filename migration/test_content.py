@@ -13,7 +13,7 @@ import pytest
 # post migration tests
 bases = (
     'https://data.api.trade.gov.uk',
-    'https://data-api.prod.uktrade.digital',
+    'https://public-data-api.prod.uktrade.digital',
 )
 
 @pytest.mark.parametrize(
