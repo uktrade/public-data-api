@@ -1,54 +1,6 @@
-import json
-import re
-from collections import namedtuple
-from itertools import chain
-
-from gevent import (
-    monkey,
+from app_logging import (
+    ASIMFormatter,
 )
-
-monkey.patch_all()
-import gevent
-import datetime
-from email.utils import (
-    parsedate,
-)
-from functools import (
-    partial,
-    wraps,
-)
-import logging
-import os
-import signal
-import sys
-import urllib.parse
-import uuid
-
-import requests
-
-from flask import (
-    Flask,
-    Response,
-    abort,
-    redirect,
-    render_template,
-    request,
-    url_for,
-)
-from gevent.pywsgi import (
-    WSGIServer,
-)
-from jinja2 import (
-    Environment,
-    FileSystemLoader,
-)
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
-import urllib3
-from werkzeug.middleware.proxy_fix import (
-    ProxyFix,
-)
-
 from app_aws import (
     aws_head,
     aws_s3_request,
@@ -60,9 +12,54 @@ from app_aws import (
     aws_list_folders,
     aws_list_keys,
 )
-from app_logging import (
-    ASIMFormatter,
+from werkzeug.middleware.proxy_fix import (
+    ProxyFix,
 )
+import urllib3
+from sentry_sdk.integrations.flask import FlaskIntegration
+import sentry_sdk
+from jinja2 import (
+    Environment,
+    FileSystemLoader,
+)
+from gevent.pywsgi import (
+    WSGIServer,
+)
+from flask import (
+    Flask,
+    Response,
+    abort,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+import requests
+import uuid
+import urllib.parse
+import sys
+import signal
+import os
+import logging
+from functools import (
+    partial,
+    wraps,
+)
+from email.utils import (
+    parsedate,
+)
+import datetime
+import gevent
+import json
+import re
+from collections import namedtuple
+from itertools import chain
+
+from gevent import (
+    monkey,
+)
+
+monkey.patch_all()
 
 
 RE_VERSION_FORMAT = re.compile(
@@ -85,7 +82,8 @@ def proxy_app(
         if parsed_endpoint.scheme == 'http'
         else urllib3.HTTPSConnectionPool
     )
-    http = PoolClass(parsed_endpoint.hostname, port=parsed_endpoint.port, maxsize=1000)
+    http = PoolClass(parsed_endpoint.hostname,
+                     port=parsed_endpoint.port, maxsize=1000)
 
     proxied_request_headers = [
         'range',
@@ -121,8 +119,6 @@ def proxy_app(
 
     def stop():
         server.stop()
-
-    def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
 
         def _send(requester_ip, request_url, request_headers):
@@ -148,7 +144,8 @@ def proxy_app(
         @wraps(handler)
         def send(*args, **kwargs):
             if ga_tracking_id:
-                gevent.spawn(_send, request.remote_addr, request.url, request.headers)
+                gevent.spawn(_send, request.remote_addr,
+                             request.url, request.headers)
             return handler(*args, **kwargs)
 
         return send
@@ -271,14 +268,17 @@ def proxy_app(
         )
 
         pre_auth_headers = tuple(
-            ((key, headers[key]) for key in proxied_request_headers if key in headers)
+            ((key, headers[key])
+             for key in proxied_request_headers if key in headers)
         )
-        response = signed_s3_request(method, s3_key, pre_auth_headers, params, body)
+        response = signed_s3_request(
+            method, s3_key, pre_auth_headers, params, body)
 
         logger.debug('Response: %s', response)
 
         return (
-            parse_response(response.stream(65536, decode_content=False), 65536),
+            parse_response(response.stream(
+                65536, decode_content=False), 65536),
             response,
         )
 
@@ -297,7 +297,8 @@ def proxy_app(
             )
         )
         download_headers = (
-            (('content-disposition', f'attachment; filename="{download_filename}"'),)
+            (('content-disposition',
+             f'attachment; filename="{download_filename}"'),)
             if 'download' in request.args
             else ()
         )
@@ -399,7 +400,6 @@ def proxy_app(
             table_sizes=table_sizes,
         )
 
-    @track_analytics
     @validate_format(('json',))
     def list_all_datasets():
         folders = aws_list_folders(signed_s3_request)
@@ -413,7 +413,6 @@ def proxy_app(
             json.dumps(versions), headers={'content-type': 'text/json'}, status=200
         )
 
-    @track_analytics
     @validate_format(('data.json',))
     def get_metadata_for_dataset(dataset_id):
         def semver_key(path):
@@ -464,7 +463,8 @@ def proxy_app(
         # it's not. It's also deliberately not a URL to a specific version of this API, since even
         # in later versions, this identifier must be the same
         identifier_root = urllib.parse.urlunsplit(
-            urllib.parse.urlsplit(request.base_url)._replace(path='/', query='')
+            urllib.parse.urlsplit(request.base_url)._replace(
+                path='/', query='')
         )
 
         return Response(
@@ -519,7 +519,6 @@ def proxy_app(
             status=200,
         )
 
-    @track_analytics
     @validate_format(('json',))
     def list_versions_for_dataset(dataset_id):
         def semver_key(path):
@@ -528,13 +527,13 @@ def proxy_app(
 
         folders = aws_list_folders(signed_s3_request, prefix=dataset_id + '/')
         sorted_versions = sorted(folders, key=semver_key, reverse=True)
-        versions = {'versions': [{'id': version} for version in sorted_versions]}
+        versions = {'versions': [{'id': version}
+                                 for version in sorted_versions]}
 
         return Response(
             json.dumps(versions), headers={'content-type': 'text/json'}, status=200
         )
 
-    @track_analytics
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_tables_for_dataset_version(dataset_id, version):
@@ -547,7 +546,6 @@ def proxy_app(
             json.dumps(tables), headers={'content-type': 'text/json'}, status=200
         )
 
-    @track_analytics
     @validate_and_redirect_version
     @validate_format(('json',))
     def list_reports_for_dataset_version(dataset_id, version):
@@ -559,7 +557,6 @@ def proxy_app(
             json.dumps(reports), headers={'content-type': 'text/json'}, status=200
         )
 
-    @track_analytics
     @validate_and_redirect_version
     @validate_format(
         (
@@ -570,11 +567,13 @@ def proxy_app(
     )
     def proxy_data(dataset_id, version):
         _format = request.args['format']
-        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
+        logger.debug('Attempt to proxy: %s %s %s',
+                     request, dataset_id, version)
 
         s3_query = request.args.get('query-s3-select')
         accepted_encodings = (
-            request.headers.get('accept-encoding', '').replace(' ', '').split(',')
+            request.headers.get('accept-encoding',
+                                '').replace(' ', '').split(',')
         )
         attempt_gzip = (
             'gzip' in accepted_encodings
@@ -592,8 +591,10 @@ def proxy_app(
         for s3_key, content_encoding in key_content_encodings:
             body_generator, response = _proxy(
                 s3_key,
-                aws_select_post_body_json(s3_query) if s3_query is not None else None,
-                partial(aws_select_parse_result, aws_select_convert_records_to_json)
+                aws_select_post_body_json(
+                    s3_query) if s3_query is not None else None,
+                partial(aws_select_parse_result,
+                        aws_select_convert_records_to_json)
                 if s3_query is not None
                 else None,
                 request.headers,
@@ -624,7 +625,6 @@ def proxy_app(
             content_encoding=content_encoding,
         )
 
-    @track_analytics
     @validate_and_redirect_version
     @validate_format(
         (
@@ -637,7 +637,6 @@ def proxy_app(
             'table', dataset_id, version, table, request.args['format']
         )
 
-    @track_analytics
     @validate_and_redirect_version
     @validate_format(
         (
@@ -706,7 +705,8 @@ def proxy_app(
 
         body_generator, response = _proxy(
             s3_key + ('.gz' if gzip_encode else ''),
-            aws_select_post_body_csv(s3_query) if s3_query is not None else None,
+            aws_select_post_body_csv(
+                s3_query) if s3_query is not None else None,
             partial(aws_select_parse_result, aws_select_convert_records_to_csv)
             if s3_query is not None
             else None,
@@ -718,8 +718,10 @@ def proxy_app(
                 pass
             body_generator, response = _proxy(
                 s3_key,
-                aws_select_post_body_csv(s3_query) if s3_query is not None else None,
-                partial(aws_select_parse_result, aws_select_convert_records_to_csv)
+                aws_select_post_body_csv(
+                    s3_query) if s3_query is not None else None,
+                partial(aws_select_parse_result,
+                        aws_select_convert_records_to_csv)
                 if s3_query is not None
                 else None,
                 request.headers,
@@ -756,7 +758,8 @@ def proxy_app(
 
         metadata_tables = json.loads(b''.join(body_generator))['tables']
         metadata_table = next(
-            filter(lambda x: x['url'].split('/')[1] == table, metadata_tables), None
+            filter(lambda x: x['url'].split('/')[1]
+                   == table, metadata_tables), None
         )
         columns = [
             Column(x['name'], x['dc:description'], x['dit:filterable'])
@@ -765,12 +768,10 @@ def proxy_app(
         filterable_columns = [c for c in columns if c.filterable]
         return metadata_table, columns, filterable_columns
 
-    @track_analytics
     @validate_and_redirect_version
     def filter_table_rows(dataset_id, version, table):
         return filter_table_or_report_rows('table', dataset_id, version, table)
 
-    @track_analytics
     @validate_and_redirect_version
     def filter_report_rows(dataset_id, version, table):
         return filter_table_or_report_rows('report', dataset_id, version, table)
@@ -803,12 +804,10 @@ def proxy_app(
             table_name=metadata_table['dc:title'],
         )
 
-    @track_analytics
     @validate_and_redirect_version
     def filter_table_columns(dataset_id, version, table):
         return filter_table_or_report_columns('table', dataset_id, version, table)
 
-    @track_analytics
     @validate_and_redirect_version
     def filter_report_columns(dataset_id, version, table):
         return filter_table_or_report_columns('report', dataset_id, version, table)
@@ -842,11 +841,11 @@ def proxy_app(
             table_name=metadata_table['dc:title'],
         )
 
-    @track_analytics
     @validate_and_redirect_version
     @validate_format(('csvw', 'html'))
     def proxy_metadata(dataset_id, version):
-        logger.debug('Attempt to proxy: %s %s %s', request, dataset_id, version)
+        logger.debug('Attempt to proxy: %s %s %s',
+                     request, dataset_id, version)
 
         s3_key = f'{dataset_id}/{version}/metadata--csvw.json'
         body_generator, response = _proxy(s3_key, None, None, request.headers)
@@ -876,7 +875,8 @@ def proxy_app(
         containing json string {'status': 'OK'}
         """
         s3_key = 'healthcheck/v0.0.1/data.json'
-        body_generator, s3_response = _proxy(s3_key, None, None, request.headers)
+        body_generator, s3_response = _proxy(
+            s3_key, None, None, request.headers)
         body_bytes = b''.join(chunk for chunk in body_generator)
         body_json = json.loads(body_bytes.decode('utf-8'))
 
@@ -904,7 +904,6 @@ def proxy_app(
 
         return Response(status=503)
 
-    @track_analytics
     def docs():
         """
         Documentation homepage
@@ -924,7 +923,8 @@ def proxy_app(
                 )
             ),
             'sample_dataset_with_report_version': (
-                os.environ.get('DOCS_SAMPLE_DATASET_WITH_REPORT_VERSION', 'v1.0.0')
+                os.environ.get(
+                    'DOCS_SAMPLE_DATASET_WITH_REPORT_VERSION', 'v1.0.0')
             ),
             'sample_dataset_with_report_report_name': (
                 os.environ.get(
@@ -933,10 +933,20 @@ def proxy_app(
                 )
             ),
             'security_email': os.environ.get('DOCS_SECURITY_EMAIL'),
+            'cookie_consent': request.cookies.get('cookie_consent'),
         }
-        return render_template('docs.html', **context)
+        return render_template('index.html', **context)
 
-    @track_analytics
+    def cookies_info():
+        context = {
+            'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
+            'service_name': os.environ.get('DOCS_SERVICE_NAME'),
+            'base_url': request.base_url.rstrip('/'),
+            'cookie_consent': request.cookies.get('cookie_consent'),
+        }
+
+        return render_template('pages/cookies.html', **context)
+
     def accessibility_statement():
         """
         Documentation homepage
@@ -945,8 +955,9 @@ def proxy_app(
             'department_name': os.environ.get('DOCS_DEPARTMENT_NAME'),
             'service_name': os.environ.get('DOCS_SERVICE_NAME'),
             'base_url': request.base_url.rstrip('/'),
+            'cookie_consent': request.cookies.get('cookie_consent'),
         }
-        return render_template('accessibility_statement.html', **context)
+        return render_template('pages/accessibility_statement.html', **context)
 
     app = Flask('app')
 
@@ -1017,7 +1028,9 @@ def proxy_app(
     )
     app.add_url_rule('/pingdom/ping.xml', 'healthcheck', view_func=healthcheck)
     app.add_url_rule('/', 'docs', view_func=docs)
-    app.add_url_rule('/accessibility_statement', view_func=accessibility_statement)
+    app.add_url_rule('/cookies', 'cookies', view_func=cookies_info)
+    app.add_url_rule('/accessibility_statement',
+                     view_func=accessibility_statement)
     server = WSGIServer(('0.0.0.0', port), app, log=app.logger)
 
     return start, stop
@@ -1027,7 +1040,7 @@ def main():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ASIMFormatter())
+    # handler.setFormatter(ASIMFormatter())
     logger.addHandler(handler)
 
     start, stop = proxy_app(

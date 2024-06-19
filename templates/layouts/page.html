@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" class="govuk-template no-js">
+<head>
+    {% if cookie_consent %}
+        {% include 'partials/ga.html' %}
+    {% endif %}
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{{ service_name }} - {{ department_name }}</title>
+    <meta name="description"
+        content="The {{ department_name }} {{ service_name }} supplies datasets via HTTPS without authentication">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ service_name }} - {{ department_name }}">
+    <meta name="twitter:url" content="{{ url_for('docs', _external=True) }}">
+    <meta property="og:site_name" content="{{ service_name }}">
+    <meta property="og:title" content="{{ service_name }} - {{ department_name }}">
+    <meta property="og:type" content="object">
+    <meta property="og:url" content="{{ url_for('docs', _external=True) }}">
+
+    <link href="{{ url_for('static', filename='images/favicon.png') }}" rel="shortcut icon" type="image/png">
+    <link rel="canonical" href="{{ url_for('docs', _external=True) }}">
+    <link href="{{ url_for('static', filename='govuk-frontend-5.3.0.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='docs.css') }}" rel="stylesheet">
+</head>
+<body class="govuk-template__body">
+    <script>document.body.className = ((document.body.className) ? document.body.className + ' js-enabled' : 'js-enabled');</script>
+    {% if cookie_consent %}
+        {% include 'partials/ga-no-script.html' %}
+    {% endif %}
+    {% if not cookie_consent %}
+        {% include 'partials/cookie-banner.html' %}
+    {% endif %}
+    {% include "partials/header.html" %}
+    <main id="content" class="technical-documentation" data-module="anchored-headings">
+        {% block content %}{% endblock %}
+    </main>
+    {% include "partials/footer.html" %}
+    <script src="{{ url_for('static', filename='docs.js') }}"></script>
+    <script src="{{ url_for('static', filename='cookie-banner.js') }}"></script>
+</body>
+</html>
