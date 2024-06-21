@@ -56,9 +56,10 @@ DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
 | READ_AND_WRITE_AWS_ACCESS_KEY_ID     | The AWS access key ID that has write permissions on the S3 bucket (for the csv-generating worker) |
 | READ_AND_WRITE_AWS_SECRET_ACCESS_KEY | The secret part of the read+write AWS access key |
 | ENVIRONMENT           | The current environment where the application is running<hr>`develop` |
-| GA_ENDPOINT           | The endpoint to send analytics info to |
-| GA_TRACKING_ID        | The unique identifier for the google analytics property |
-| SENTRY_DSN            | The DSN of the Sentry server to report exceptions to |
+| GA_ENDPOINT (deprecated)          | The endpoint to send analytics info to |
+| GA_TRACKING_ID (deprecated)       | The unique identifier for the google analytics property |
+| GA4_API_SECRET        | The API secret for Google Analytics 4 (GA4) |
+| GA4_MEASUREMENT_ID    | The measurement ID for Google Analytics 4 (GA4) |
 
 Environment variables used for serving API documentation.
 

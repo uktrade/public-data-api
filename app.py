@@ -78,6 +78,8 @@ def proxy_app(
         endpoint_url,
         region_name,
         ga_tracking_id,
+        ga4_api_secret,
+        ga4_measurement_id,
 ):
     parsed_endpoint = urllib.parse.urlsplit(endpoint_url)
     PoolClass = (
@@ -125,8 +127,8 @@ def proxy_app(
     def track_analytics(handler):
         """Decorator to send analytics data to google in the background."""
 
-        def _send(requester_ip, request_url, request_headers):
-            logger.info('Sending to Google Analytics %s...', request_url)
+        def _send_to_ua(requester_ip, request_url, request_headers):
+            logger.info('Sending to Google Analytics (UA) %s...', request_url)
             requests.post(
                 os.environ.get(
                     'GA_ENDPOINT', 'https://www.google-analytics.com/collect'
@@ -145,10 +147,36 @@ def proxy_app(
                 },
             )
 
+        def _send_to_ga4(request_url, request_headers):
+            logger.info('Sending to Google Analytics 4 (GA4) %s...', request_url)
+            requests.post(
+                'https://www.google-analytics.com/mp/collect',
+                params={
+                    'api_secret': ga4_api_secret,
+                    'measurement_id': ga4_measurement_id,
+                },
+                json={
+                    'client_id': str(uuid.uuid4()),
+                    'events': [{
+                        'name': 'page_view',
+                        'params': {
+                            'session_id': str(uuid.uuid4()),
+                            'engagement_time_msec': '100',
+                            'page_location': request_url,
+                            'page_title': 'Data API',
+                            'user_agent': request_headers.get('user-agent', ''),
+                            'referrer': request_headers.get('referer', ''),
+                        }
+                    }],
+                },
+            )
+
         @wraps(handler)
         def send(*args, **kwargs):
             if ga_tracking_id:
-                gevent.spawn(_send, request.remote_addr, request.url, request.headers)
+                gevent.spawn(_send_to_ua, request.remote_addr, request.url, request.headers)
+            if ga4_api_secret and ga4_measurement_id:
+                gevent.spawn(_send_to_ga4, request.url, request.headers)
             return handler(*args, **kwargs)
 
         return send
@@ -1038,6 +1066,8 @@ def main():
         os.environ['AWS_S3_ENDPOINT'],
         os.environ['AWS_S3_REGION'],
         os.environ.get('GA_TRACKING_ID'),
+        os.environ.get('GA4_API_SECRET'),
+        os.environ.get('GA4_MEASUREMENT_ID'),
     )
 
     if os.environ.get('SENTRY_DSN'):
