@@ -230,10 +230,18 @@ def proxy_app(
                 v_major_str, minor_str, patch_str = path.split('.')
                 return (int(v_major_str[1:]), int(minor_str), int(patch_str))
 
-            folders = aws_list_folders(
+            # Find the latest matching version of the dataset that has been processed by the
+            # the backend worker. This works since once a dataset is processed, then a "marker"
+            # object is added that has __CSV_VERSION_ in its name.
+            keys = aws_list_keys(
                 signed_s3_request, prefix=request.view_args['dataset_id'] + '/'
             )
-            matching_folders = filter(predicate, folders)
+            folders_with_processed_datasets = set(
+                key.partition('/')[0]
+                for key in keys
+                if '__CSV_VERSION_' in key
+            )
+            matching_folders = filter(predicate, folders_with_processed_datasets)
             latest_matching_version = max(
                 matching_folders, default=None, key=semver_key
             )
