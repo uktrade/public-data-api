@@ -97,8 +97,12 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
         time.sleep(0.10)  # Sentry needs some extra time to log any errors
         for _, process in processes.items():
             process.terminate()
-        for _, process in processes.items():
-            process.wait(timeout=20)
+        try:
+            for _, process in processes.items():
+                process.wait(timeout=20)
+        finally:
+            for _, process in processes.items():
+                process.kill()
         output_errors = {
             name: (read_and_close(stdout), read_and_close(stderr))
             for name, (stdout, stderr) in process_outs.items()
@@ -1012,6 +1016,9 @@ def test_list_tables_for_dataset__latest_version(processes):
     put_version('table', dataset_id, 'v0.0.1', 'foo', b'header\n' + b'value\n' * 10000)
     put_version('table', dataset_id, 'v0.0.2', 'bar', b'header\n' + b'value\n' * 10000)
     put_version('table', dataset_id, 'v0.0.2', 'baz', b'header\n' + b'value\n' * 10000)
+
+    time.sleep(12)
+
     with \
             requests.Session() as session, \
             session.get(list_dataset_public_url('table', dataset_id, 'latest')) as response:
@@ -1430,6 +1437,8 @@ def test_no_latest_version(processes):
         assert response.content == b'Dataset not found'
         assert not response.history
 
+    time.sleep(12)
+
     table_url = version_public_url('table', dataset_id, 'latest', 'does-not-exist', 'csv')
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 404
@@ -1449,6 +1458,8 @@ def test_redirect_to_latest_version(processes):
         version = f'v{major}.{minor}.{patch}'
         put_version_data(dataset_id, version, content, 'json')
         put_version('table', dataset_id, version, table, content)
+
+    time.sleep(40)
 
     with \
             requests.Session() as session, \
@@ -1495,6 +1506,8 @@ def test_table_redirect_to_latest_version(processes):
         content = str(uuid.uuid4()).encode() * 10
         version = f'v{major}.{minor}.{patch}'
         put_version('table', dataset_id, version, table, content)
+
+    time.sleep(40)
 
     with \
             requests.Session() as session, \
@@ -1547,6 +1560,8 @@ def test_redirect_to_latest_version_query(processes):
     version_2 = 'v10.0.0'
     put_version_data(dataset_id, version_2, content_2, 'json')
 
+    time.sleep(12)
+
     params = {
         'query-s3-select': "SELECT * FROM S3Object[*].top_level[*] row WHERE row.a = 'y'"
     }
@@ -1570,6 +1585,9 @@ def test_redirect_with_utf_8_in_query_string(processes):
     content = b'{"some":"content"}'
     version = 'v0.0.1'
     put_version_data(dataset_id, version, content, 'json')
+
+    time.sleep(12)
+
     url = version_data_public_url(dataset_id, 'latest', 'json')
     url_parsed = urllib.parse.urlsplit(url)
 
