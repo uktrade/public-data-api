@@ -68,7 +68,7 @@ stream-zip==0.0.71
     # via stream-write-ods
 tidy-json-to-csv==0.0.13
     # via -r requirements.in
-urllib3==2.2.1
+urllib3==2.2.2
     # via
     #   -r requirements.in
     #   requests
