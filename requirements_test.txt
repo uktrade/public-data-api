@@ -18,7 +18,7 @@ blinker==1.8.1
     #   sentry-sdk
 build==1.2.1
     # via pip-tools
-certifi==2024.2.2
+certifi==2024.7.4
     # via
     #   -r requirements.txt
     #   elastic-apm
