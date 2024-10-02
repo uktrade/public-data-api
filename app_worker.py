@@ -383,6 +383,112 @@ def ensure_csvs(
             logger.info('Data has changed since starting to generate CSVs')
             continue
 
+        # Create data.json metadata file
+        # def semver_key(path):
+        #     v_major_str, minor_str, patch_str = path.split('.')
+        #     return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+        # def relative_to_metadata(version, relative_url):
+        #     return urllib.parse.urljoin(
+        #         url_for(
+        #             'proxy_metadata',
+        #             dataset_id=dataset_id,
+        #             version=version,
+        #             _external=True,
+        #         ),
+        #         relative_url,
+        #     )
+
+        # def flatten(list_of_lists):
+        #     return [item for sublist in list_of_lists for item in sublist]
+
+        # # Fetch all metadata files
+        # metadatas = {}
+        # for key in aws_list_keys(signed_s3_request, dataset_id + '/'):
+        #     components = key.split('/')
+        #     if len(components) == 2 and components[1] == 'metadata--csvw.json':
+        #         version = components[0]
+        #         body_generator, _ = _proxy(
+        #             dataset_id + '/' + key, None, None, request.headers
+        #         )
+        #         metadatas[version] = json.loads(b''.join(body_generator))
+
+        # if not metadatas:
+        #     abort(404)
+
+        # # Sort metadatas by semver, to have most recent at the start
+        # metadatas = dict(
+        #     sorted(
+        #         metadatas.items(),
+        #         key=lambda key_value: semver_key(key_value[0]),
+        #         reverse=True,
+        #     )
+        # )
+
+        # # Choose most recent metadata as the one for the title
+        # metadata_recent = metadatas[next(iter(metadatas.keys()))]
+
+        # # Ideally each identifier is an URL with an HTML page, but doesn't have to be. So for
+        # now,
+        # # it's not. It's also deliberately not a URL to a specific version of this API, since
+        # even
+        # # in later versions, this identifier must be the same
+        # identifier_root = urllib.parse.urlunsplit(
+        #     urllib.parse.urlsplit(request.base_url)._replace(path='/', query='')
+        # )
+
+        # return Response(
+        #     json.dumps(
+        #         {
+        #             'dataset': [
+        #                 {
+        #                     'identifier': f'{identifier_root}datasets/{dataset_id}',
+        #                     'title': metadata_recent['dc:title'],
+        #                     'description': metadata_recent['dc:description'],
+        #                     'license': metadata_recent['dc:license'],
+        #                     'publisher': {
+        #                         'name': metadata_recent['dc:creator'],
+        #                     },
+        #                     'distribution': flatten(
+        #                         [
+        #                             {
+        #                                 'title': f'{version} - Metadata',
+        #                                 'format': 'HTML',
+        #                                 'downloadURL': relative_to_metadata(
+        #                                     version, 'metadata?format=html'
+        #                                 ),
+        #                             }
+        #                         ]
+        #                         + [
+        #                             {
+        #                                 'title': f'{version} - {database["dc:title"]}',
+        #                                 'format': 'SQLite',
+        #                                 'downloadURL': relative_to_metadata(
+        #                                     version, database['url']
+        #                                 ),
+        #                             }
+        #                             for database in metadata.get('dit:databases', [])
+        #                         ]
+        #                         + [
+        #                             {
+        #                                 'title': f'{version} - {table["dc:title"]}',
+        #                                 'format': 'CSV',
+        #                                 'downloadURL': relative_to_metadata(
+        #                                     version, table['url']
+        #                                 ),
+        #                             }
+        #                             for table in metadata['tables']
+        #                         ]
+        #                         for (version, metadata) in metadatas.items()
+        #                     ),
+        #                 }
+        #             ]
+        #         }
+        #     ),
+        #     headers={'content-type': 'text/json'},
+        #     status=200,
+        # )
+
         # ... and don't re-create the CSVs if it has not since changed
         logger.info('Putting %s %s etag key at %s', dataset_id, version, etag_key)
         with signed_s3_request('PUT', s3_key=etag_key) as response:
