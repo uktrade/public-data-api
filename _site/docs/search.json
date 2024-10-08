@@ -1,0 +1,127 @@
+[  {
+    "title": "Accessibility Page",
+"description": "Accessibility description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "department business trade digital team committed making sure our online services are accessible all users comply with level aa web content accessibility guidelines wcag 2.1 line public sector bodies websites mobile applications 2 regulations 2018 order help us achieve maintain objective have commissioned centre dac carry out technical compliance audits that also include extensive manual testing anticipate outcome tests complete by 16th december 2023 what cannot access parts this website need information different format email kathy.gribbin@trade.gov.uk problem accessing any pages site can contact data workspace@uktrade.zendesk.com get back within 5 working days reporting problems always looking improve find think meeting requirements please tell contacting",
+    "url": "/accessibility/"
+  },  {
+    "title": "API Endpoints",
+"description": "API Endpoints Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "api endpoints content get list datasets   all available data can accessed using this endpoint versions dataset each tables version reports metadata  all table single report",
+    "url": "/endpoints/"
+  },  {
+    "title": "Base URL",
+"description": "Base URL Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "all requests this api should prefixed with following url https: data.api.trade.gov.uk",
+    "url": "/baseurl/"
+  },  {
+    "title": "Data API",
+"description": "The Department for Business and Trade Data API supplies datasets via ***[HTTPS](https://en.wikipedia.org/wiki/HTTPS)*** without authentication.",    "layout": "product",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "datasets are versioned each dataset version immutable one more tables zero reports report contains filtered aggregated table data metadata available html csvw csv web can using s3 select query language supplied sqlite json ods opendocument spreadsheet source code api its github repository base url description versioning common parameters endpoints security support accessibility page contribute project public welcome contributions from anyone view this",
+    "url": "/"
+  },  {
+    "title": "Common Parameters",
+"description": "Parameters Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "several url parameters are applicable multiple api endpoints name description dataset_id human readable identifier dataset e.g uk tariff 2021 01 version_id version format vx.y.z where x.y.z semver 2.0 v2.1.0 vx.y this case http 302 redirect returned requested with equal latest major minor components matching vx component literal table_id table commodities report_id report quotas including current volumes",
+    "url": "/paramenters/"
+  },  {
+    "title": "Reports",
+"description": "Report Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "datasets can contain reports are similar tables except that data generated from dataset available satisfy common use cases filtered aggregated views sqlite using sql _reports table file",
+    "url": "/reports/"
+  },  {
+    "title": "Security",
+"description": "Security Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "report security vulnerability please contact us pentest@trade.gov.uk",
+    "url": "/security/"
+  },  {
+    "title": "Start page",
+"description": "Start page","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "any tool that can make https requests access data api examples are curl postman web browser currently using example https: data.api.trade.gov.uk v1 datasets format=json will return list",
+    "url": "/start/"
+  },  {
+    "title": "Support",
+"description": "Support Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "help with data api please create issue its github issues page",
+    "url": "/support/"
+  },  {
+    "title": "Versioning",
+"description": "Version Description","section": "Home",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "datasets are versioned according subset semver 2.0 specification each version form x.y.z where x major y minor z patch release dataset increments following rules patch: incremented when data added changed structure same minor: new fields tables existing ones unchanged major: removed change type",
+    "url": "/versioning/"
+  },  {
+    "title": "GET list of datasets",
+"description": "The list of all datasets available in the Data API can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets query string parameters syntax required description format yes requested output all cases this must json example request curl https : data.api.trade.gov.uk \\ data urlencode &quot format=json&quot response status 200 ok { datasets&quot id&quot market barriers&quot } uk tariff 2021 01 01&quot",
+    "url": "/endpoints/get-datasets/"
+  },  {
+    "title": "GET list of versions of a dataset",
+"description": "The list of versions of each dataset can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions query string parameters syntax required description format yes requested output all cases this must json example request curl https : data.api.trade.gov.uk uk tariff 2021 01 \\ data urlencode &quot format=json&quot response status 200 ok { versions&quot id&quot v2.1.2&quot } v2.1.0&quot",
+    "url": "/endpoints/get-version-dataset/"
+  },  {
+    "title": "GET list of tables in a version",
+"description": "The list of tables of each dataset version can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions {version_id} tables query string parameters syntax required description format yes requested output all cases this must json example request curl https : data.api.trade.gov.uk uk tariff 2021 01 v2.1.0 \\ data urlencode &quot format=json&quot response status 200 ok { tables&quot id&quot commodities&quot } measures defined&quot declarable",
+    "url": "/endpoints/get-table-version/"
+  },  {
+    "title": "GET list of reports in a version",
+"description": "The list of reports of each dataset version can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions {version_id} reports query string parameters syntax required description format yes requested output all cases this must json example request curl https : data.api.trade.gov.uk uk trade quotas v1.0.0 \\ data urlencode &quot format=json&quot response status 200 ok { reports&quot id&quot including current volumes&quot }",
+    "url": "/endpoints/get-reports-versions/"
+  },  {
+    "title": "GET metadata of a version",
+"description": "The metadata of a dataset version can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions {version_id} metadata query string parameters syntax required description format yes requested output this must csvw html download presence parameter results content disposition header that browsers attempt rather than display inline example requesting request curl https : data.api.trade.gov.uk uk tariff 2021 01 v2.1.0 \\ data urlencode &quot format=csvw&quot response excerpt status 200 ok { @context&quot http: www.w3.org ns csvw&quot dit&quot } dc:title&quot tariffs trade with from 1 january 2021&quot .. tables&quot id&quot commodities&quot tableschema&quot columns&quot name&quot",
+    "url": "/endpoints/get-meta-data-version/"
+  },  {
+    "title": "GET data in a version",
+"description": "All of the data of a dataset version can be accessed using this endpoint","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions {version_id} data query string parameters syntax required description format yes requested output this must sqlite json ods s3 select\t using select language e.g * from s3object response object with results under rows key .e {&quot rows&quot : ... } requires that parameter download presence content disposition header browsers attempt rather than display inline range requests specified http can passed byte dataset see more details example without request curl https data.api.trade.gov.uk uk tariff 2021 01 v2.1.0 \\ urlencode &quot format=json&quot excerpt status 200 ok { commodities&quot id&quot 1&quot commodity__code&quot 0100000000&quot .. select= c.commodity__code c.commodity__suffix c.commodity__description .commodities c where = &#x27 0101210000&#x27 limit 1 0101210000&quot commodity__suffix&quot 10&quot commodity__description&quot horses&quot",
+    "url": "/endpoints/get-data-version/"
+  },  {
+    "title": "GET data in a table",
+"description": "The data of single table in a dataset version can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions {version_id} tables {table_id} data query string parameters syntax required description format yes requested output this must sqlite json ods s3 select\t using select language e.g * from s3object simple\t enables simple mode specify columns retrieve filter rows exact matching value each _columns parameter single column include output.this can passed multiple times filtering then performed by passing key pairs column=value includes only those where equals download presence results content disposition header that browsers attempt rather than display inline range requests are specified http byte table see more details example without request curl https : data.api.trade.gov.uk uk tariff 2021 01 v2.1.0 commodities \\ urlencode &quot format=csv&quot response status 200 ok id&quot commodity__sid&quot commodity__code&quot commodity__suffix&quot commodity__description&quot commodity__validity_start&quot commodity__validity_end&quot parent__sid&quot parent__code&quot parent__suffix&quot 1&quot 27623&quot 0100000000&quot 80&quot live animals&quot 1971 12 31&quot #na&quot 2&quot 27624&quot 0101000000&quot horses asses mules hinnies&quot 1972 01&quot 3&quot 93797&quot 0101210000&quot 10&quot horses&quot 2012 } with select= c.commodity__code c.commodity__suffix c.commodity__description c = &#x27 0101210000&#x27 limit 1 0101210000 10 simple&quot commodity__code=0101210000&quot _columns=commodity__code&quot _columns=commodity__suffix&quot _columns=commodity__description&quot commodity__code commodity__suffix commodity__description 80 pure bred breeding animals",
+    "url": "/endpoints/get-data-table/"
+  },  {
+    "title": "GET data in a report",
+"description": "The data of a single report in a dataset version can be accessed using this endpoint.","section": "API Endpoints",    "layout": "sub-navigation",
+    "hasFrontmatterDate": false,
+    "date": "7 October 2024",
+    "templateContent": "get v1 datasets {dataset_id} versions {version_id} reports {report_id} data query string parameters syntax required description format yes requested output this must csv ods s3 select\t using select language e.g * from s3object simple\t enables simple mode specify columns retrieve filter rows exact matching value each _columns parameter single column include output.this can passed multiple times filtering then performed by passing key pairs column=value includes only those where equals download presence results content disposition header that browsers attempt rather than display inline range requests are specified http byte report see more details example without request curl https: data.api.trade.gov.uk uk trade quotas v1.0.0 including current volumes \\ urlencode &quot format=csv&quot response excerpt status : 200 ok quota_definition__sid&quot quota__order_number&quot quota__geographical_areas&quot quota__headings&quot quota__commodities&quot quota__measurement_unit&quot quota__monetary_unit&quot quota_definition__description&quot quota_definition__validity_start_date&quot quota_definition__validity_end_date&quot quota_definition__suspension_periods&quot quota_definition__blocking_periods&quot quota_definition__status&quot quota_definition__last_allocation_date&quot quota_definition__initial_volume&quot quota_definition__balance&quot quota_definition__fill_rate&quot 20815 50006 erga omnes&quot 0302 fish fresh chilled excluding fillets other meat heading|0304|0303 frozen heading 0304|0304 whether minced frozen&quot 0302410000|0303510000|0304595000|0304599010|0304992300&quot kilogram kg #na&quot 2021 01 01&quot 02 14&quot closed&quot 28&quot 2022900 2022900.0 0.0 20814 06 16&quot 2022 open&quot 2112000 2112000.0 with select= q.quota__order_number q.quota_definition__validity_start_date q.quota_definition__status q.quota_definition__initial_volume q.quota_definition__balance q q.quota__commodities like &#x27 %0203195900%&#x27 50123 exhausted 2000 07 open 1349000 1349000.0 51921 1632000 1632000.0 51944 critical 167000 147000.0 57220 494000 494000.0 59282 4838000 4838000.0 simple&quot quota__order_number=50123&quot _columns=quota__order_number&quot _columns=quota_definition__validity_start_date&quot _columns=quota_definition__status&quot _columns=quota_definition__initial_volume&quot _columns=quota_definition__balance&quot quota__order_number quota_definition__validity_start_date quota_definition__status quota_definition__initial_volume quota_definition__balance",
+    "url": "/endpoints/get-data-report/"
+  }]
