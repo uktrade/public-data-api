@@ -212,12 +212,65 @@ def ensure_csvs(
             for table_name, data_sql in get_table_sqls(query):
                 table_id = table_name.replace('_', '-')
 
+                
+
+                
+                
+                # 
+                with query(data_sql) as (cols, rows):
+                    s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.parquet'
+                    logger.info('Converting %s %s SQLite table %s to PARQUET in %s', dataset_id,
+                                    version, table_name, s3_key)
+                    # we need to convert the columns and rows into and iterable of bytes of a parquet file
+                    # pass the chunks of the bytes to the aws fucntions below
+                    
+                    # created a parquet from the incoming rows and cols. Save it to disk, then pass it to the aws_miltipartupload
+                    path = './data.parquet'
+                    
+                    # save the parquet file to disk
+                    import pandas as pd
+                    import pyarrow as pa
+                    import pyarrow.parquet as pq
+                    
+                    df = pd.DataFrame(rows, columns=cols)
+                    
+                    table = pa.Table.from_pandas(df)
+
+                    # Get schema of the table do i need to?
+                    schema = table.schema
+                    
+                    df.to_parquet(path, engine='pyarrow')
+                    
+                    def parquet_data(columns, rows, with_header, schema):
+                        par_writer = pq.ParquetWriter(PseudoBuffer(), schema)
+                        if with_header:
+                            yield par_writer.writerow(columns).encode()
+                        for row in rows:
+                            yield par_writer.writerow('#NA' if val is None else \
+                            b64encode(val).decode() if isinstance(val, bytes) else \
+                            val for val in row).encode()
+                    
+                    # with pq.ParquetWriter(path, schema) as writer:
+                    #     aws_multipart_upload(signed_s3_request, s3_key, (f.read(),))
+                    
+                    #aws_multipart_upload(signed_s3_request, s3_key, (b'hello',))
+                    
+                    aws_multipart_upload(signed_s3_request, s3_key, 
+                                         parquet_data(cols, rows, with_header=True, schema=schema))
+                    
+                
+                
+                
+                # 
+                
+                
+            
                 # Save as CSV, with rows ordered by primary kay columns
                 with query(data_sql) as (cols, rows):
                     s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.csv'
                     logger.info('Converting %s %s SQLite table %s to CSV in %s', dataset_id,
                                 version, table_name, s3_key)
-                    aws_multipart_upload(signed_s3_request, s3_key,
+                    aws_multipart_upload(signed_s3_request, s3_key, 
                                          csv_data(cols, rows, with_header=True))
 
                 # And save as a single ODS file

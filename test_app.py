@@ -63,8 +63,8 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
     processes = {
         name: subprocess.Popen(
             args,
-            stdout=process_outs[name][0],
-            stderr=process_outs[name][1],
+            # stdout=process_outs[name][0],
+            # stderr=process_outs[name][1],
             env={
                 **os.environ,
                 'PORT': str(port),
@@ -1623,7 +1623,7 @@ def test_csvs_created_from_sqlite_without_reports(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
 
-    with tempfile.NamedTemporaryFile() as f:
+    with tempfile.NamedTemporaryFile(delete=False) as f:
         with sqlite3.connect(f.name) as con:
             cur = con.cursor()
 
@@ -1688,7 +1688,137 @@ def test_csvs_created_from_sqlite_without_reports(processes):
         assert response.status_code == 200
         assert response.content == expected_content
         assert not response.history
+        
+        
+# =============================================================================
 
+def get_parquet_data(dataset_id, version, table):
+    return get_parquet_object(f'{dataset_id}/{version}/tables/{table}/data.parquet')
+
+def put_version_parquet(dataset_id, version, table, content):
+    return put_parquet_object(f'{dataset_id}/{version}/tables/{table}/data.parquet', content)
+    
+def get_parquet_object(key):
+    url = f'http://127.0.0.1:9000/my-bucket/{key}'
+    body_hash = hashlib.sha256(b'').hexdigest()
+    parsed_url = urllib.parse.urlsplit(url)
+
+    headers = aws_sigv4_headers(
+        'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        (), 's3', 'us-east-1', parsed_url.netloc, 'GET', parsed_url.path, (), body_hash,
+    )
+    with requests.get(url, headers=dict(headers)) as response:
+        response.raise_for_status()
+        return response.content, response.headers
+    
+def put_parquet_object(key, contents, params=()):
+    url = f'http://127.0.0.1:9000/my-bucket/{key}'
+    body_hash = hashlib.sha256(contents).hexdigest()
+    parsed_url = urllib.parse.urlsplit(url)
+
+    headers = aws_sigv4_headers(
+        'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, params, body_hash,
+    )
+    with requests.put(url, params=params, data=contents, headers=dict(headers)) as response:
+        response.raise_for_status()
+    
+def test_parquet_created(processes):
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+    content = b'{"top":[{"id":1,"key":"value","nested":[{"key_2":"value_2"}]}]}'
+    put_version_parquet(dataset_id, version, 'top', content)
+
+    time.sleep(12)
+
+    top_bytes, top_headers = get_parquet_data(dataset_id, version, 'top')
+    assert top_bytes == content
+
+    nested_bytes, _ = get_parquet_data(dataset_id, version, 'top--nested')
+    assert nested_bytes == b'"top__id","key_2"\r\n1,"value_2"\r\n'
+
+    # top_bytes, top_headers = get_csv_data_gzipped(dataset_id, version, 'top')
+    # assert gzip.decompress(top_bytes) == b'"id","key"\r\n1,"value"\r\n'
+
+    time.sleep(12)
+
+    # Ensure that we haven't unnecessarily recreated the CSVs
+    _, top_headers_2 = get_parquet_data(dataset_id, version, 'top')
+    assert top_headers['last-modified'] == top_headers_2['last-modified']
+
+
+def test_parquet_created_from_sqlite_without_reports(processes):
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        with sqlite3.connect(f.name) as con:
+            cur = con.cursor()
+
+            # There are only 5 datatypes in SQLite: INTEGER, REAL, TEXT, BLOB, and NULL
+            cur.execute('''
+                CREATE TABLE my_table_no_primary_key (
+                    col_int int,
+                    col_real real,
+                    col_text text,
+                    col_blob blob
+                )
+            ''')
+            cur.execute('INSERT INTO my_table_no_primary_key VALUES (?,?,?,?)',
+                        (1, 1.5, 'Some text 🍰', b'\0\1\2'))
+            cur.execute('INSERT INTO my_table_no_primary_key VALUES (?,?,?,?)',
+                        (1, None, 'Some text 🍰', None))
+
+            # Ensure we order by primary key when there is one, including when it's multi-column,
+            # and when the columns are not ordered in the same order as they are in the table
+            cur.execute('''
+                CREATE TABLE my_table_with_primary_key (
+                    col_int_a int,
+                    col_int_b int,
+                    PRIMARY KEY (col_int_b, col_int_a)
+                )
+            ''')
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
+
+        put_version_data(dataset_id, version, f.read(), 'sqlite')
+
+    time.sleep(12)
+
+    table_bytes, _ = get_parquet_data(dataset_id, version, 'my-table-no-primary-key')
+    # assert table_bytes == \
+    #     b'"col_int","col_real","col_text","col_blob"\r\n' + \
+    #     b'1,1.5,"Some text ' + '🍰'.encode('utf-8') + b'","' + b64encode(b'\0\1\2') + b'"\r\n' + \
+    #     b'1,"#NA","Some text ' + '🍰'.encode('utf-8') + b'","#NA"\r\n'
+
+    # table_bytes, _ = get_parquet_data(dataset_id, version, 'my-table-with-primary-key')
+    # assert table_bytes == \
+    #     b'"col_int_a","col_int_b"\r\n' + \
+    #     b'3,1\r\n' + \
+    #     b'2,2\r\n' + \
+    #     b'3,2\r\n' + \
+    #     b'1,3\r\n'
+
+    # params = {
+    #     'query-s3-select': 'SELECT col_text FROM S3Object[*].my_table_no_primary_key[*]'
+    # }
+    # expected_content = json.dumps({
+    #     'rows': [
+    #         {'col_text': 'Some text 🍰'},
+    #         {'col_text': 'Some text 🍰'},
+    #     ],
+    # }, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+    # data_url = version_data_public_url(dataset_id, version, 'json')
+    # with requests.Session() as session, session.get(data_url, params=params) as response:
+    #     assert response.status_code == 200
+    #     assert response.content == expected_content
+    #     assert not response.history
+
+
+# =============================================================================
 
 def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
     dataset_id = str(uuid.uuid4())
