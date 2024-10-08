@@ -2,7 +2,7 @@
 <html lang="en" class="govuk-template">
   <head>
     <meta charset="utf-8">
-    <title>Base URL page - GOV.UK</title>
+    <title>Base URL - GOV.UK</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0b0c0c">
 
@@ -13,8 +13,8 @@
   <link rel="stylesheet" href="/assets/govuk.css">
 
 
-  <meta property="og:title" content="Base URL page">
-<meta property="og:description" name="description" content="Base URL page">
+  <meta property="og:title" content="Base URL">
+<meta property="og:description" name="description" content="Base URL Description">
   </head>
   <body class="govuk-template__body">
     <script>document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
@@ -32,7 +32,8 @@
 </svg>
       </a>
     </div>
-    
+    <site-search class="app-site-search govuk-!-display-none-print" index="/docs/search.json" label="Search site"><a class="app-site-search__link" href="/sitemap">Sitemap</a></site-search>
+
   </div>
 </header>
 
@@ -54,31 +55,31 @@
   <h2 class="govuk-visually-hidden" id="sub-navigation-heading">Pages in this section</h2>
   <ul class="x-govuk-sub-navigation__section">
     <li class="x-govuk-sub-navigation__section-item">
-      <a class="x-govuk-sub-navigation__link" href="/api-end-points/">API Endpoints</a>
-    </li>
-    <li class="x-govuk-sub-navigation__section-item">
-      <a class="x-govuk-sub-navigation__link" href="/accessibility/">Accessibility Page</a>
-    </li>
-    <li class="x-govuk-sub-navigation__section-item">
       <a class="x-govuk-sub-navigation__link" href="/start/">Start page</a>
     </li>
     <li class="x-govuk-sub-navigation__section-item x-govuk-sub-navigation__section-item--current">
-      <a class="x-govuk-sub-navigation__link" href="/baseurl/" aria-current="true">Base URL page</a>
-    </li>
-    <li class="x-govuk-sub-navigation__section-item">
-      <a class="x-govuk-sub-navigation__link" href="/paramenters/">Paramenters</a>
-    </li>
-    <li class="x-govuk-sub-navigation__section-item">
-      <a class="x-govuk-sub-navigation__link" href="/security/">Security</a>
-    </li>
-    <li class="x-govuk-sub-navigation__section-item">
-      <a class="x-govuk-sub-navigation__link" href="/support/">Support</a>
+      <a class="x-govuk-sub-navigation__link" href="/baseurl/" aria-current="true">Base URL</a>
     </li>
     <li class="x-govuk-sub-navigation__section-item">
       <a class="x-govuk-sub-navigation__link" href="/versioning/">Versioning</a>
     </li>
     <li class="x-govuk-sub-navigation__section-item">
       <a class="x-govuk-sub-navigation__link" href="/reports/">Reports</a>
+    </li>
+    <li class="x-govuk-sub-navigation__section-item">
+      <a class="x-govuk-sub-navigation__link" href="/paramenters/">Common Parameters</a>
+    </li>
+    <li class="x-govuk-sub-navigation__section-item">
+      <a class="x-govuk-sub-navigation__link" href="/endpoints/">API Endpoints</a>
+    </li>
+    <li class="x-govuk-sub-navigation__section-item">
+      <a class="x-govuk-sub-navigation__link" href="/accessibility/">Accessibility Page</a>
+    </li>
+    <li class="x-govuk-sub-navigation__section-item">
+      <a class="x-govuk-sub-navigation__link" href="/security/">Security</a>
+    </li>
+    <li class="x-govuk-sub-navigation__section-item">
+      <a class="x-govuk-sub-navigation__link" href="/support/">Support</a>
     </li>
   </ul>
 </nav>
@@ -87,17 +88,22 @@
     <div class="govuk-grid-column-three-quarters-from-desktop">
       <header class="app-document-header">
   <h1 class="app-document-header__title govuk-heading-xl">
-    Base URL page
+    Base URL
   </h1>
     <p class="app-document-header__description govuk-body-l">
-      Base URL page
+      Base URL Description
     </p>
 
 </header>
 
 
 
-      
+      <div class="app-prose-scope"><p class="govuk-body">All requests to this API should be prefixed with the following URL.</p>
+<pre class="x-govuk-code x-govuk-code--block x-govuk-code__language--html" tabindex="0"><code>https://data.api.trade.gov.uk
+</code></pre>
+
+</div>
+
 
 
     </div>
@@ -109,6 +115,14 @@
   <div class="govuk-width-container ">
     <div class="govuk-footer__meta">
       <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+          <h2 class="govuk-visually-hidden">Support links</h2>
+            <ul class="govuk-footer__inline-list">
+                <li class="govuk-footer__inline-list-item">
+                  <a class="govuk-footer__link" href="/sitemap/">
+                    Sitemap
+                  </a>
+                </li>
+            </ul>
 <svg class="govuk-footer__licence-logo" aria-hidden="true" focusable="false" height="17" width="41" viewBox="0 0 483.2 195.7" xmlns="http://www.w3.org/2000/svg">
   <path fill="currentColor" d="M421.5 142.8V.1l-50.7 32.3v161.1h112.4v-50.7zm-122.3-9.6A47.12 47.12 0 0 1 221 97.8c0-26 21.1-47.1 47.1-47.1 16.7 0 31.4 8.7 39.7 21.8l42.7-27.2A97.63 97.63 0 0 0 268.1 0c-36.5 0-68.3 20.1-85.1 49.7A98 98 0 0 0 97.8 0C43.9 0 0 43.9 0 97.8s43.9 97.8 97.8 97.8c36.5 0 68.3-20.1 85.1-49.7a97.76 97.76 0 0 0 149.6 25.4l19.4 22.2h3v-87.8h-80l24.3 27.5zM97.8 145c-26 0-47.1-21.1-47.1-47.1s21.1-47.1 47.1-47.1 47.2 21 47.2 47S123.8 145 97.8 145"/>
 </svg>

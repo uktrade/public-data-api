@@ -14,7 +14,7 @@
 
 
   <meta property="og:title" content="Data API">
-
+<meta property="og:description" name="description" content="The Department for Business and Trade Data API supplies datasets via HTTPS without authentication.">
   </head>
   <body class="govuk-template__body">
     <script>document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
@@ -32,7 +32,8 @@
 </svg>
       </a>
     </div>
-    
+    <site-search class="app-site-search govuk-!-display-none-print" index="/docs/search.json" label="Search site"><a class="app-site-search__link" href="/sitemap">Sitemap</a></site-search>
+
   </div>
 </header>
 
@@ -48,6 +49,9 @@
         <h1 class="x-govuk-masthead__title">
           Data API
         </h1>
+        <p class="x-govuk-masthead__description">
+          The Department for Business and Trade Data API supplies datasets via <em><strong><a href="https://en.wikipedia.org/wiki/HTTPS" class="govuk-link">HTTPS</a></strong></em> without&nbsp;authentication.
+        </p>
         <a href="start" role="button" draggable="false" class="govuk-button govuk-button--inverse govuk-button--start" data-module="govuk-button">
   Get started
   <svg class="govuk-button__start-icon" xmlns="http://www.w3.org/2000/svg" width="17.5" height="19" viewBox="0 0 33 40" aria-hidden="true" focusable="false">
@@ -61,7 +65,72 @@
 
     <div class="govuk-main-wrapper">
       <div class="govuk-width-container">
-          <div class="app-prose-scope"><div class="govuk-grid-row">
+          <div class="app-prose-scope"><ul class="govuk-list govuk-list--bullet">
+<li>Datasets are versioned</li>
+<li>Each dataset version is immutable</li>
+<li>Each dataset version has one or more tables</li>
+<li>Each dataset version has zero or more reports - a report contains filtered or aggregated table data</li>
+<li>Metadata for each dataset version is available as <em><strong><a href="https://en.wikipedia.org/wiki/HTML" class="govuk-link">HTML</a></strong></em> or <em><strong><a href="https://www.w3.org/TR/tabular-data-primer/" class="govuk-link">CSVW</a></strong></em> (CSV on the Web)</li>
+<li>Data can be filtered or aggregated using the <em><strong><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-select-sql-reference-select.html" class="govuk-link">S3 Select query language</a></strong></em></li>
+<li>Data is supplied as <em><strong><a href="https://www.sqlite.org/" class="govuk-link">SQLite</a></strong></em>, <em><strong><a href="https://en.wikipedia.org/wiki/JSON" class="govuk-link">JSON</a></strong></em>, <em><strong><a href="https://www.gov.uk/government/publications/recommended-open-standards-for-government/tabular-data-standard" class="govuk-link">CSV</a></strong></em>, or <em><strong><a href="https://www.gov.uk/guidance/using-open-document-formats-odf-in-your-organisation" class="govuk-link">ODS (OpenDocument Spreadsheet)</a></strong></em>.<br>
+<br><br>
+The source code for the Data API is available in its <em><strong><a href="https://github.com/uktrade/public-data-api" class="govuk-link">GitHub repository</a></strong></em>.</li>
+</ul>
+<div class="govuk-grid-row">
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/baseurl/">Base URL</a>
+    </h2>
+    <p class="govuk-body">Base URL Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/versioning/">Versioning</a>
+    </h2>
+    <p class="govuk-body">Version Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/reports/">Reports</a>
+    </h2>
+    <p class="govuk-body">Report Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/paramenters/">Common Parameters</a>
+    </h2>
+    <p class="govuk-body">Parameters Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/endpoints/">API Endpoints</a>
+    </h2>
+    <p class="govuk-body">API Endpoints Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/security/">Security</a>
+    </h2>
+    <p class="govuk-body">Security Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/support/">Support</a>
+    </h2>
+    <p class="govuk-body">Support Description</p>
+  </section>
+  <section class="govuk-grid-column-one-third-from-desktop govuk-!-margin-bottom-8">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-2">
+      <a class="govuk-link govuk-link--no-visited-state" href="/accessibility/">Accessibility Page</a>
+    </h2>
+    <p class="govuk-body">Accessibility description</p>
+  </section>
+  <section class="govuk-grid-column-full">
+    <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--xl govuk-!-margin-top-0">
+    <h2 class="govuk-heading-m">Contribute</h2>
+    <p class="govuk-body">The project repository is public and we welcome contributions from anyone.</p>
+    <p class="govuk-body"><a class="govuk-link govuk-link--no-visited-state" href="">View this project on GitHub</a></p>
+  </section>
 </div>
 </div>
 
@@ -75,6 +144,14 @@
   <div class="govuk-width-container ">
     <div class="govuk-footer__meta">
       <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+          <h2 class="govuk-visually-hidden">Support links</h2>
+            <ul class="govuk-footer__inline-list">
+                <li class="govuk-footer__inline-list-item">
+                  <a class="govuk-footer__link" href="/sitemap/">
+                    Sitemap
+                  </a>
+                </li>
+            </ul>
 <svg class="govuk-footer__licence-logo" aria-hidden="true" focusable="false" height="17" width="41" viewBox="0 0 483.2 195.7" xmlns="http://www.w3.org/2000/svg">
   <path fill="currentColor" d="M421.5 142.8V.1l-50.7 32.3v161.1h112.4v-50.7zm-122.3-9.6A47.12 47.12 0 0 1 221 97.8c0-26 21.1-47.1 47.1-47.1 16.7 0 31.4 8.7 39.7 21.8l42.7-27.2A97.63 97.63 0 0 0 268.1 0c-36.5 0-68.3 20.1-85.1 49.7A98 98 0 0 0 97.8 0C43.9 0 0 43.9 0 97.8s43.9 97.8 97.8 97.8c36.5 0 68.3-20.1 85.1-49.7a97.76 97.76 0 0 0 149.6 25.4l19.4 22.2h3v-87.8h-80l24.3 27.5zM97.8 145c-26 0-47.1-21.1-47.1-47.1s21.1-47.1 47.1-47.1 47.2 21 47.2 47S123.8 145 97.8 145"/>
 </svg>

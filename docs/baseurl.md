@@ -1,6 +1,12 @@
 ---
-title: Base URL page
+title: Base URL
 layout: sub-navigation
-description: Base URL page
 order: 2
+description: Base URL Description
 ---
+
+All requests to this API should be prefixed with the following URL.
+
+```html
+https://data.api.trade.gov.uk
+```
