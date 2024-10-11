@@ -347,7 +347,10 @@ def ensure_csvs(
             if len(components) == 2 and components[1] == 'metadata--csvw.json':
                 version = components[0]
                 with signed_s3_request('GET', s3_key=dataset_id + '/' + key_suffix) as response:
-                    metadatas[version] = json.loads(response.read())
+                    try:
+                        metadatas[version] = json.loads(response.read())
+                    except json.JSONDecodeError:
+                        logger.exception('Skipping %s/%s metadata', dataset_id, version)
 
         if not metadatas:
             return
