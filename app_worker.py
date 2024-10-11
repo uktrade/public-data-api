@@ -14,6 +14,7 @@ from datetime import datetime
 from functools import (
     partial,
 )
+import hashlib
 import itertools
 import json
 import logging
@@ -22,6 +23,7 @@ import signal
 import sys
 import threading
 import urllib.parse
+from collections import defaultdict
 
 import sentry_sdk
 from tidy_json_to_csv import (
@@ -36,6 +38,7 @@ from stream_zip import ZipOverflowError
 
 from app_aws import (
     aws_s3_request,
+    aws_list_keys,
     aws_list_folders,
     aws_head,
     aws_multipart_upload,
@@ -321,8 +324,109 @@ def ensure_csvs(
 
         aws_multipart_upload(signed_s3_request, s3_key, yield_compressed_bytes(chunks))
 
+    def save_data_json_metadata(dataset_id):
+        def semver_key(path):
+            v_major_str, minor_str, patch_str = path.split('.')
+            return (int(v_major_str[1:]), int(minor_str), int(patch_str))
+
+        def url_for(version, relative_url):
+            return urllib.parse.urljoin(
+                os.environ['DOCS_BASE_URL'],
+                f'v1/datasets/{dataset_id}/versions/{version}/{relative_url}',
+            )
+
+        def flatten(list_of_lists):
+            return [item for sublist in list_of_lists for item in sublist]
+
+        logger.info('Updating data.json for %s', dataset_id)
+
+        # Fetch all metadata files
+        metadatas = {}
+        for key_suffix in aws_list_keys(signed_s3_request, dataset_id + '/'):
+            components = key_suffix.split('/')
+            if len(components) == 2 and components[1] == 'metadata--csvw.json':
+                version = components[0]
+                with signed_s3_request('GET', s3_key=dataset_id + '/' + key_suffix) as response:
+                    metadatas[version] = json.loads(response.read())
+
+        if not metadatas:
+            return
+
+        # Sort metadatas by semver, to have most recent at the start
+        metadatas = dict(
+            sorted(
+                metadatas.items(),
+                key=lambda key_value: semver_key(key_value[0]),
+                reverse=True,
+            )
+        )
+
+        # Choose most recent metadata as the one for the title
+        metadata_recent = metadatas[next(iter(metadatas.keys()))]
+
+        # Ideally each identifier is an URL with an HTML page, but doesn't have to be. So for now,
+        # it's not. It's also deliberately not a URL to a specific version of this API, since even
+        # in later versions, this identifier must be the same
+        identifier_root = os.environ['DOCS_BASE_URL']
+
+        data_json_metadata = json.dumps(
+            {
+                'dataset': [
+                    {
+                        'identifier': f'{identifier_root}/datasets/{dataset_id}',
+                        'title': metadata_recent['dc:title'],
+                        'description': metadata_recent['dc:description'],
+                        'license': metadata_recent['dc:license'],
+                        'publisher': {
+                            'name': metadata_recent['dc:creator'],
+                        },
+                        'distribution': flatten(
+                            [
+                                {
+                                    'title': f'{version} - Metadata',
+                                    'format': 'HTML',
+                                    'downloadURL': url_for(
+                                        version, 'metadata?format=html'
+                                    ),
+                                }
+                            ]
+                            + [
+                                {
+                                    'title': f'{version} - {database["dc:title"]}',
+                                    'format': 'SQLite',
+                                    'downloadURL': url_for(
+                                        version, database['url']
+                                    ),
+                                }
+                                for database in metadata.get('dit:databases', [])
+                            ]
+                            + [
+                                {
+                                    'title': f'{version} - {table["dc:title"]}',
+                                    'format': 'CSV',
+                                    'downloadURL': url_for(
+                                        version, table['url']
+                                    ),
+                                }
+                                for table in metadata['tables']
+                            ]
+                            for (version, metadata) in metadatas.items()
+                        ),
+                    }
+                ]
+            }
+        ).encode('utf-8')
+        s3_key = f'{dataset_id}/data.json'
+        with signed_s3_request('PUT', s3_key=s3_key, body=data_json_metadata) as response:
+            put_response_body = response.read()
+            if response.status != 200:
+                raise Exception(
+                    f'Error saving etag object {s3_key} {response.status} {put_response_body}')
+
     dataset_ids = get_dataset_ids()
     dataset_ids_versions = get_dataset_ids_versions(dataset_ids)
+    dataset_ids_hash = defaultdict(hashlib.sha256)
+
     for dataset_id, version in dataset_ids_versions:
         if shut_down.is_set():
             break
@@ -348,9 +452,12 @@ def ensure_csvs(
             logger.warning('Unknown source format of %s %s - skipping', dataset_id, version)
             continue
 
-        # Skip if we have already converted the source
+        # Hash all the etags to make sure we (re)generate the metadata json file
         etag = headers['etag'].strip('"')
         etag_key = f'{source_s3_key}__CSV_VERSION_{CSV_VERSION}__{etag}'
+        dataset_ids_hash[dataset_id].update(etag_key.encode())
+
+        # Skip if we have already converted the source
         status, _ = aws_head(signed_s3_request, etag_key)
         if status == 200:
             logger.debug('Have already converted %s %s to other formats', dataset_id, version)
@@ -403,6 +510,28 @@ def ensure_csvs(
                     f'Error saving etag object {etag_key,} {response.status} {put_response_body}')
 
         logger.info('Saved as CSV %s %s', dataset_id, version)
+
+    def get(s3_key):
+        with signed_s3_request('GET', s3_key=s3_key) as response:
+            body = response.read()
+            if response.status == 200:
+                return body
+        return b''
+
+    # Save all the metadata files (done at the end so we have definitely done all the conversions)
+    for dataset_id, sha256 in dataset_ids_hash.items():
+        if shut_down.is_set():
+            break
+        digest = sha256.hexdigest()
+        hash_key = f'{dataset_id}/sha256'
+        if get(hash_key) == digest:
+            continue
+        save_data_json_metadata(dataset_id)
+        with signed_s3_request('PUT', s3_key=hash_key, body=(digest,)) as response:
+            put_response_body = response.read()
+            if response.status != 200:
+                raise Exception(
+                    f'Error saving sha256 of {dataset_id} {response.status} {put_response_body}')
 
 
 def main():
