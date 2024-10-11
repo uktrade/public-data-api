@@ -522,12 +522,12 @@ def ensure_csvs(
     for dataset_id, sha256 in dataset_ids_hash.items():
         if shut_down.is_set():
             break
-        digest = sha256.hexdigest()
+        digest = sha256.hexdigest().encode()
         hash_key = f'{dataset_id}/sha256'
         if get(hash_key) == digest:
             continue
         save_data_json_metadata(dataset_id)
-        with signed_s3_request('PUT', s3_key=hash_key, body=(digest,)) as response:
+        with signed_s3_request('PUT', s3_key=hash_key, body=digest) as response:
             put_response_body = response.read()
             if response.status != 200:
                 raise Exception(
