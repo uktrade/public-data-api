@@ -379,7 +379,7 @@ def ensure_csvs(
                         'identifier': f'{identifier_root}/datasets/{dataset_id}',
                         'title': metadata_recent['dc:title'],
                         'description': metadata_recent['dc:description'],
-                        'license': metadata_recent['dc:license'],
+                        'license': metadata_recent.get('dc:license'),
                         'publisher': {
                             'name': metadata_recent['dc:creator'],
                         },
