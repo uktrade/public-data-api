@@ -1962,6 +1962,10 @@ def get_csv_data_gzipped(dataset_id, version, table):
     return get_object(f'{dataset_id}/{version}/tables/{table}/data.csv.gz')
 
 
+def get_parquet_data(dataset_id, version, table):
+    return get_object(f'{dataset_id}/{version}/tables/{table}/data.parquet')
+
+
 def put_object(key, contents, params=()):
     url = f'http://127.0.0.1:9000/my-bucket/{key}'
     body_hash = hashlib.sha256(contents).hexdigest()
