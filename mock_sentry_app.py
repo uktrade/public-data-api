@@ -43,7 +43,7 @@ def sentry_app():
         '/api/1/errors/', methods=['GET'], view_func=_errors
     )
 
-    server = WSGIServer(('0.0.0.0', 9001), app)
+    server = WSGIServer(('0.0.0.0', 9003), app)
 
     return start, stop
 
