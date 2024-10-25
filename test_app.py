@@ -1773,6 +1773,14 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
     ]
 
 
+def test_empty_parquet():
+    """A temporary test, for whether there is a Parquet file."""
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+    table = 'table'
+    assert get_parquet_data(dataset_id, version, table)
+
+
 def test_logs_asim_format():
     with application() as (_, outputs):
         dataset_id = str(uuid.uuid4())
