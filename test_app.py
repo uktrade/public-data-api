@@ -80,7 +80,7 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 ),
                 'AWS_S3_ENDPOINT': 'http://127.0.0.1:9000/my-bucket/',
                 'ENVIRONMENT': 'test',
-                'SENTRY_DSN': 'http://foo@localhost:9001/1',
+                'SENTRY_DSN': 'http://foo@localhost:9003/1',
                 'GA_ENDPOINT': 'http://localhost:9002/collect',
                 'GA_TRACKING_ID': 'XX-XXXXX-X',
             }
@@ -1897,7 +1897,7 @@ def test_sentry_integration(processes_bad_key):
 
     with \
             requests.Session() as session, \
-            session.get('http://127.0.0.1:9001/api/1/errors') as response:
+            session.get('http://127.0.0.1:9003/api/1/errors') as response:
         assert int(response.content) >= 10
 
 
