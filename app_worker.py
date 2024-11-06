@@ -227,6 +227,13 @@ def ensure_csvs(
                                 version, table_name, s3_key)
                     aws_multipart_upload(signed_s3_request, s3_key,
                                          csv_data(cols, rows, with_header=True))
+                    
+                    # temp: save the CSV with extension .parquet (for the test)
+                    s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.parquet'
+                    logger.info('Converting %s %s SQLite table %s to (fake) parquet in %s', dataset_id,
+                                version, table_name, s3_key)
+                    aws_multipart_upload(signed_s3_request, s3_key,
+                                         csv_data(cols, rows, with_header=True))
 
                 # And save as a single ODS file
                 s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
