@@ -1777,6 +1777,12 @@ def test_empty_parquet():
     """A temporary test, for whether there is a Parquet file."""
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
+    content = str(uuid.uuid4()).encode() * 100
+    extension = 'parquet'
+    put_version_data(dataset_id, version, content, extension)
+
+    time.sleep(5)
+
     table = 'table'
     assert get_parquet_data(dataset_id, version, table)
 
