@@ -43,6 +43,8 @@ DOCS_SERVICE_NAME='Data API' \
 DOCS_GITHUB_REPO_URL=https://github.com/uktrade/public-data-api \
     python3 -m app
 ```
+The S3-compatible storage on your local machine will be visible at http://localhost:9001/. The username and password for the console login are the environment variables MINIO_ACCESS_KEY and MINIO_SECRET_KEY from ./start-services.sh.
+
 
 
 ## Environment variables
