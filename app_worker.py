@@ -10,6 +10,8 @@ from base64 import (
 )
 from contextlib import contextmanager
 import csv
+import pyarrow as pa
+import pyarrow.parquet as pq
 from datetime import datetime
 from functools import (
     partial,
@@ -109,6 +111,28 @@ def ensure_csvs(
                 yield csv_writer.writerow(columns).encode()
             for row in rows:
                 yield csv_writer.writerow(convert_for_csv(val) for val in row).encode()
+
+        def parquet_data(columns, rows):
+            # need to write in (PyArrow) batches rather than row-by-row because Parquet is columnar format
+            # [TODO: convert columns to pa.schema.names. Need to get the pa.schema.types from somewhere]
+            # TODO: work out if the data in rows needs to be converted to bytes format here
+            def get_batches(rows_iterable, chunk_size, schema):
+                rows_it = rows_iterable #iter(rows_iterable)
+                while True:
+                    # TODO: investigate if batch is bytes format... and if it should be or not
+                    batch = pa.RecordBatch.from_pandas(pd.DataFrame(
+                        itertools.islice(rows_it, chunk_size),
+                        columns=schema.names),
+                        schema=schema, preserve_index=False,)
+                if not batch:
+                    break
+                yield batch
+
+            batches = get_batches(rows, chunk_size=1000, schema)
+            with pq.ParquetWriter(PseudoBuffer(), schema=schema) as parquet_writer:
+                for b in batches:
+                    yield parquet_writer.write_batch(b)
+
 
         @contextmanager
         def to_query_single(query_multi, sql, params=()):
@@ -229,6 +253,7 @@ def ensure_csvs(
                                          csv_data(cols, rows, with_header=True))
                     
                     # temp: save the CSV with extension .parquet (for the test)
+                    # TODO: actually convert the SQLITE to *Parquet*
                     s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.parquet'
                     logger.info('Converting %s %s SQLite table %s to (fake) parquet in %s', dataset_id,
                                 version, table_name, s3_key)
