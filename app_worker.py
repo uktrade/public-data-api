@@ -15,6 +15,7 @@ from functools import (
     partial,
 )
 import hashlib
+import io
 import itertools
 import json
 import logging
@@ -32,6 +33,9 @@ from tidy_json_to_csv import (
 import urllib3
 import zlib
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from sqlite_s3_query import sqlite_s3_query_multi
 from stream_write_ods import stream_write_ods
 from stream_zip import ZipOverflowError
@@ -184,6 +188,41 @@ def ensure_csvs(
                 yield b']'
             yield b'}'
 
+        def stream_write_parquet(columns, rows):
+
+            def get_pandas_dfs():
+                batch_size = int(os.environ.get('PARQUET_ROW_GROUP_SIZE', 1024 * 128))
+
+                while True:
+                    df = pd.DataFrame(itertools.islice(rows, batch_size), columns=columns)
+                    if df.empty:
+                        break
+                    yield df
+
+            # Chunk the rows into batch_size Pandas dataframes
+            pandas_dfs = get_pandas_dfs()
+
+            # Infer the schema from the first Pandas dataframe (this is why we convert to Pandas)
+            first_df = next(pandas_dfs, None)
+            schema = pa.Schema.from_pandas(first_df) if first_df is not None else pa.schema([])
+
+            # Convert the dataframes to PyArrow record batches
+            record_batches = (
+                pa.RecordBatch.from_pandas(df, schema=schema, preserve_index=False, nthreads=1)
+                for df in itertools.chain((first_df,), pandas_dfs)
+            )
+            first_df = None  # Free memory used by the first dataframe
+
+            # Write the record batches to an in-memory file-like object, yielding bytes as we go
+            with io.BytesIO() as file:
+                with pq.ParquetWriter(file, schema=schema) as writer:
+                    for record_batch in record_batches:
+                        writer.write_batch(record_batch)
+                        yield file.getvalue()
+                        file.truncate(0)
+                        file.seek(0)
+                yield file.getvalue()
+
         url = urllib.parse.urlunsplit(parsed_endpoint) + f'{dataset_id}/{version}/data.sqlite'
         with sqlite_s3_query_multi(
                 url=url,
@@ -227,6 +266,14 @@ def ensure_csvs(
                                 version, table_name, s3_key)
                     aws_multipart_upload(signed_s3_request, s3_key,
                                          csv_data(cols, rows, with_header=True))
+
+                # Save as parquet file
+                with query(data_sql) as (cols, rows):
+                    s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.parquet'
+                    logger.info('Converting %s %s SQLite table %s to Parquet in %s', dataset_id,
+                                version, table_name, s3_key)
+                    aws_multipart_upload(signed_s3_request, s3_key,
+                                         stream_write_parquet(cols, rows))
 
                 # And save as a single ODS file
                 s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
@@ -288,6 +335,20 @@ def ensure_csvs(
                 logger.info('Converting %s %s SQLite report %s to combined CSV in %s',
                             dataset_id, version, report_id, s3_key)
                 aws_multipart_upload(signed_s3_request, s3_key, csv_lines)
+
+                # .. and as Parquet with the results of all statements concatanated together ...
+                s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.parquet'
+                logger.info('Converting %s %s SQLite report %s to combined Parquet in %s',
+                            dataset_id, version, report_id, s3_key)
+                all_cols_rows = with_non_zero_rows(query_multi(script))
+                cols, first_rows = next(all_cols_rows)
+                rows = itertools.chain(first_rows, (
+                    row
+                    for (_, rows_in_query) in all_cols_rows
+                    for row in rows_in_query
+                ))
+                aws_multipart_upload(signed_s3_request, s3_key,
+                                     stream_write_parquet(cols, rows))
 
                 # ... and as ODS with the results of each statement as a separate sheet
                 s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'

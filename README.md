@@ -58,6 +58,7 @@ The S3-compatible storage on your local machine will be visible at http://localh
 | READ_AND_WRITE_AWS_ACCESS_KEY_ID     | The AWS access key ID that has write permissions on the S3 bucket (for the csv-generating worker) |
 | READ_AND_WRITE_AWS_SECRET_ACCESS_KEY | The secret part of the read+write AWS access key |
 | ENVIRONMENT           | The current environment where the application is running<hr>`develop` |
+| PARQUET_ROW_GROUP_SIZE | The maximum number of rows Parquet row group - optional with a default of 1131072 |
 | GA_ENDPOINT (deprecated)          | The endpoint to send analytics info to |
 | GA_TRACKING_ID (deprecated)       | The unique identifier for the google analytics property |
 | GA4_API_SECRET        | The API secret for Google Analytics 4 (GA4) |

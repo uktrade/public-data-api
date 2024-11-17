@@ -564,6 +564,7 @@ def proxy_app(
         (
             'csv',
             'ods',
+            'parquet',
         )
     )
     def proxy_table(dataset_id, version, table):
@@ -577,6 +578,7 @@ def proxy_app(
         (
             'csv',
             'ods',
+            'parquet',
         )
     )
     def proxy_report(dataset_id, version, table):
@@ -671,6 +673,8 @@ def proxy_app(
         content_type = (
             'text/csv'
             if _format == 'csv'
+            else 'application/vnd.apache.parquet'
+            if _format == 'parquet'
             else 'application/vnd.oasis.opendocument.spreadsheet'
         )
 
