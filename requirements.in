@@ -1,5 +1,7 @@
 Flask
 gevent
+pandas
+pyarrow
 urllib3
 sentry-sdk[flask]
 tidy-json-to-csv

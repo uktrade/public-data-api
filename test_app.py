@@ -28,12 +28,14 @@ from xml.etree import (
 import zlib
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 import requests
 
 
 @contextmanager
-def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE'):
+def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXAMPLE', sleep=0):
     outputs = {}
 
     put_object_no_raise('', b'')  # Ensures bucket created
@@ -56,7 +58,8 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
     }
 
     process_outs = {
-        name: (tempfile.NamedTemporaryFile(), tempfile.NamedTemporaryFile())
+        name: (tempfile.NamedTemporaryFile(delete=False),
+               tempfile.NamedTemporaryFile(delete=False))
         for name, _ in process_definitions.items()
     }
 
@@ -70,6 +73,7 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
                 'PORT': str(port),
                 'DOCS_BASE_URL': 'http://127.0.0.1:8080',
                 'AWS_S3_REGION': 'us-east-1',
+                'PARQUET_ROW_GROUP_SIZE': '1024',
                 'READONLY_AWS_ACCESS_KEY_ID': aws_access_key_id,
                 'READONLY_AWS_SECRET_ACCESS_KEY': (
                     'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
@@ -96,6 +100,7 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
 
     def stop():
         time.sleep(0.10)  # Sentry needs some extra time to log any errors
+        time.sleep(sleep)
         for _, process in processes.items():
             process.terminate()
         for _, process in processes.items():
@@ -107,6 +112,7 @@ def application(port=8080, max_attempts=500, aws_access_key_id='AKIAIOSFODNN7EXA
             name: (read_and_close(stdout), read_and_close(stderr))
             for name, (stdout, stderr) in process_outs.items()
         }
+
         return output_errors
 
     try:
@@ -1263,7 +1269,7 @@ def test_table_key_that_exists_with_bad_format(processes):
     with requests.Session() as session, session.get(table_url) as response:
         assert response.status_code == 400
         assert response.content == \
-            b'The query string "format" term must be one of "(\'csv\', \'ods\')"'
+            b'The query string "format" term must be one of "(\'csv\', \'ods\', \'parquet\')"'
         assert not response.history
 
     table_url = version_public_url('table', dataset_id, version, table, 'csv')
@@ -1696,7 +1702,92 @@ def test_csvs_created_from_sqlite_without_reports(processes):
         assert not response.history
 
 
-def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
+def test_parquets_created_from_sqlite_without_reports(processes):
+    dataset_id = str(uuid.uuid4())
+    version = 'v0.0.1'
+
+    with tempfile.NamedTemporaryFile() as f:
+        with sqlite3.connect(f.name) as con:
+            cur = con.cursor()
+
+            # There are only 5 datatypes in SQLite: INTEGER, REAL, TEXT, BLOB, and NULL
+            cur.execute('''
+                CREATE TABLE my_table_no_primary_key (
+                    col_int int,
+                    col_real real,
+                    col_text text,
+                    col_blob blob
+                )
+            ''')
+            for _ in range(0, 3000):
+                cur.execute('INSERT INTO my_table_no_primary_key VALUES (?,?,?,?)',
+                            (1, 1.5, 'Some text 🍰', b'\0\1\2'))
+                cur.execute('INSERT INTO my_table_no_primary_key VALUES (?,?,?,?)',
+                            (1, None, 'Some text 🍰', None))
+
+            # Ensure we order by primary key when there is one, including when it's multi-column,
+            # and when the columns are not ordered in the same order as they are in the table
+            cur.execute('''
+                CREATE TABLE my_table_with_primary_key (
+                    col_int_a int,
+                    col_int_b int,
+                    PRIMARY KEY (col_int_b, col_int_a)
+                )
+            ''')
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (2, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (1, 3))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 2))
+            cur.execute('INSERT INTO my_table_with_primary_key VALUES (?,?)', (3, 1))
+
+        put_version_data(dataset_id, version, f.read(), 'sqlite')
+
+    time.sleep(30)
+
+    with requests.Session() as session:
+        table_url = version_public_url('table', dataset_id, version,
+                                       'my-table-no-primary-key', 'parquet')
+        with session.get(table_url) as response:
+            table = pq.read_table(pa.BufferReader(response.content))
+            assert table.column_names == ['col_int', 'col_real', 'col_text', 'col_blob']
+            assert table.num_rows == 6000
+            assert table.to_pylist() == [
+                {
+                    'col_blob': b'\x00\x01\x02',
+                    'col_int': 1,
+                    'col_real': 1.5,
+                    'col_text': 'Some text 🍰',
+                }, {
+                    'col_blob': None,
+                    'col_int': 1,
+                    'col_real': None,
+                    'col_text': 'Some text 🍰',
+                },
+            ] * 3000
+
+        table_url = version_public_url('table', dataset_id, version,
+                                       'my-table-with-primary-key', 'parquet')
+        with session.get(table_url) as response:
+            table = pq.read_table(pa.BufferReader(response.content))
+            assert table.column_names == ['col_int_a', 'col_int_b']
+            assert table.num_rows == 4
+            assert table.to_pylist() == [
+                {
+                    'col_int_a': 3,
+                    'col_int_b': 1,
+                }, {
+                    'col_int_a': 2,
+                    'col_int_b': 2,
+                }, {
+                    'col_int_a': 3,
+                    'col_int_b': 2,
+                }, {
+                    'col_int_a': 1,
+                    'col_int_b': 3,
+                },
+            ]
+
+
+def test_csvs_and_parquets_and_ods_created_from_sqlite_with_reports(processes):
     dataset_id = str(uuid.uuid4())
     version = 'v0.0.1'
 
@@ -1742,6 +1833,36 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
             b'"col_int_a","col_int_b"' + \
             b'\r\n2,2\r\n1,3\r\n3,2\r\n3,1\r\n3,1\r\n3,2\r\n'
 
+    report_url = version_public_url_download('report', dataset_id, version, 'my-report', 'parquet')
+    with \
+            requests.Session() as session, \
+            session.get(report_url) as response:
+
+        table = pq.read_table(pa.BufferReader(response.content))
+        assert table.column_names == ['col_int_a', 'col_int_b']
+        assert table.num_rows == 6
+        assert table.to_pylist() == [
+            {
+                'col_int_a': 2,
+                'col_int_b': 2,
+            }, {
+                'col_int_a': 1,
+                'col_int_b': 3,
+            }, {
+                'col_int_a': 3,
+                'col_int_b': 2,
+            }, {
+                'col_int_a': 3,
+                'col_int_b': 1,
+            }, {
+                'col_int_a': 3,
+                'col_int_b': 1,
+            }, {
+                'col_int_a': 3,
+                'col_int_b': 2,
+            },
+        ]
+
     report_url = version_public_url_download('report', dataset_id, version, 'my-report', 'ods')
     with \
             requests.Session() as session, \
@@ -1774,7 +1895,7 @@ def test_csvs_and_ods_created_from_sqlite_with_reports(processes):
 
 
 def test_logs_asim_format():
-    with application() as (_, outputs):
+    with application(sleep=120) as (_, outputs):
         dataset_id = str(uuid.uuid4())
         content = str(uuid.uuid4()).encode() * 100000
         version = 'v0.0.1'
@@ -1803,7 +1924,7 @@ def test_logs_asim_format():
 def test_heartbeat():
     hearbeat_file = Path(f'{tempfile.gettempdir()}/public_data_api_worker_heartbeat')
 
-    with application() as (_, outputs):
+    with application(sleep=120) as (_, outputs):
         time.sleep(2)
         assert hearbeat_file.exists()
         heartbeat_timestamp = float(hearbeat_file.read_text(encoding='utf-8'))
