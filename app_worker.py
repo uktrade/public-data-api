@@ -272,8 +272,11 @@ def ensure_csvs(
                     s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.parquet'
                     logger.info('Converting %s %s SQLite table %s to Parquet in %s', dataset_id,
                                 version, table_name, s3_key)
-                    aws_multipart_upload(signed_s3_request, s3_key,
-                                         stream_write_parquet(cols, rows))
+                    try:
+                        aws_multipart_upload(signed_s3_request, s3_key,
+                                             stream_write_parquet(cols, rows))
+                    except pa.ArrowNotImplementedError:
+                        logger.exception('Unable to convert to parquet')
 
                 # And save as a single ODS file
                 s3_key = f'{dataset_id}/{version}/tables/{table_id}/data.ods'
@@ -347,8 +350,11 @@ def ensure_csvs(
                     for (_, rows_in_query) in all_cols_rows
                     for row in rows_in_query
                 ))
-                aws_multipart_upload(signed_s3_request, s3_key,
-                                     stream_write_parquet(cols, rows))
+                try:
+                    aws_multipart_upload(signed_s3_request, s3_key,
+                                         stream_write_parquet(cols, rows))
+                except pa.ArrowNotImplementedError:
+                    logger.exception('Unable to convert to parquet')
 
                 # ... and as ODS with the results of each statement as a separate sheet
                 s3_key = f'{dataset_id}/{version}/reports/{report_id}/data.ods'
