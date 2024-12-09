@@ -209,7 +209,7 @@ def ensure_csvs(
             # Convert the dataframes to PyArrow record batches
             record_batches = (
                 pa.RecordBatch.from_pandas(df, schema=schema, preserve_index=False, nthreads=1)
-                for df in itertools.chain((first_df,), pandas_dfs)
+                for df in itertools.chain((first_df,) if first_df is not None else (), pandas_dfs)
             )
             first_df = None  # Free memory used by the first dataframe
 
