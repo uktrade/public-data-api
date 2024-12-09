@@ -275,7 +275,7 @@ def ensure_csvs(
                     try:
                         aws_multipart_upload(signed_s3_request, s3_key,
                                              stream_write_parquet(cols, rows))
-                    except (pa.ArrowNotImplementedError, pa.ArrowTypeError):
+                    except pa.ArrowException:
                         logger.exception('Unable to convert to parquet')
 
                 # And save as a single ODS file
