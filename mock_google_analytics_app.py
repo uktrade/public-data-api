@@ -29,7 +29,6 @@ def google_analytics_app():
         server.stop()
 
     def _store():
-        nonlocal calls
         calls.append(request.form)
         return 'OK'
 
